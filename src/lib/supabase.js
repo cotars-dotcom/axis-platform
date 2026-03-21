@@ -287,3 +287,5 @@ export async function logAtividade(userId, acao, detalhes = '') {
       .insert({ user_id: userId, acao, detalhes })
     if (error) console.error('Erro ao logar atividade:', error)
 }
+// Alias for backward compatibility
+export { updateTarefa as updateTarefaStatus }
