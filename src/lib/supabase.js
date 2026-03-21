@@ -4,290 +4,273 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Variaveis de ambiente Supabase nao configuradas (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)')
+  console.warn('[LEILAX] Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.')
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '')
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
+)
 
-// --- AUTH ---
-
+// == AUTH ==
 export async function signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
-    return data
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+  return data
 }
 
 export async function signOut() {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
 }
 
 export async function getSession() {
+  try {
     const { data, error } = await supabase.auth.getSession()
-    if (error) throw error
+    if (error) return null
     return data?.session ?? null
+  } catch { return null }
 }
 
-export async function createUserAdmin(email, password, nome, role = 'membro') {
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    if (error) throw error
-    if (data.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({ nome, role })
-            .eq('id', data.user.id)
-          if (profileError) throw profileError
-    }
-    return data
-}
-
-// --- PROFILES ---
-
+// == PROFILES ==
 export async function getProfile(userId) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    if (error) throw error
-    return data
+  const { data, error } = await supabase
+    .from('profiles').select('*').eq('id', userId).single()
+  if (error) throw error
+  return data
 }
 
 export async function getAllProfiles() {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('nome')
-    if (error) throw error
-    return data || []
+  const { data, error } = await supabase
+    .from('profiles').select('*').order('criado_em')
+  if (error) throw error
+  return data || []
 }
 
-export async function updateProfile(userId, updates) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId)
-      .select()
-      .single()
-    if (error) throw error
-    return data
+export async function updateProfile(id, updates) {
+  const { error } = await supabase.from('profiles').update(updates).eq('id', id)
+  if (error) throw error
 }
 
-// --- IMOVEIS ---
-
+// == IMOVEIS ==
 export async function getImoveis() {
-    const { data, error } = await supabase
-      .from('imoveis')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    return data || []
+  const { data, error } = await supabase
+    .from('imoveis').select('*').order('criado_em', { ascending: false })
+  if (error) throw error
+  return data || []
 }
 
-export async function getImovel(id) {
-    const { data, error } = await supabase
-      .from('imoveis')
-      .select('*')
-      .eq('id', id)
-      .single()
-    if (error) throw error
-    return data
-}
-
-export async function saveImovel(imovel) {
-    const { data, error } = await supabase
-      .from('imoveis')
-      .upsert(imovel)
-      .select()
-      .single()
-    if (error) throw error
-    return data
+export async function saveImovel(imovel, userId) {
+  const { data, error } = await supabase
+    .from('imoveis')
+    .upsert({ ...imovel, criado_por: userId, atualizado_em: new Date().toISOString() })
+    .select().single()
+  if (error) throw error
+  return data
 }
 
 export async function deleteImovel(id) {
-    const { error } = await supabase.from('imoveis').delete().eq('id', id)
-    if (error) throw error
+  const { error } = await supabase.from('imoveis').delete().eq('id', id)
+  if (error) throw error
 }
 
-// --- PARAMETROS DE SCORE ---
-
-export async function getParametrosScore() {
-    const { data, error } = await supabase
-      .from('parametros_score')
-      .select('*')
-      .order('dimensao')
-    if (error) throw error
-    return data || []
+export async function updateImovelStatus(id, status) {
+  const { error } = await supabase
+    .from('imoveis')
+    .update({ status, atualizado_em: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
 }
 
-export async function updateParametroScore(id, updates) {
-    const { data, error } = await supabase
-      .from('parametros_score')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) throw error
-    return data
+// == PARAMETROS DE SCORE ==
+export async function getParametros() {
+  const { data, error } = await supabase
+    .from('parametros_score').select('*').eq('ativo', true).order('ordem')
+  if (error) throw error
+  return data || []
 }
+export const getParametrosScore = getParametros
 
-// --- CRITERIOS DE AVALIACAO ---
-
-export async function getCriteriosAvaliacao() {
-    const { data, error } = await supabase
-      .from('criterios_avaliacao')
-      .select('*')
-      .eq('ativo', true)
-      .order('nome')
-    if (error) throw error
-    return data || []
+export async function saveParametro(param) {
+  const { data, error } = await supabase
+    .from('parametros_score').upsert(param).select().single()
+  if (error) throw error
+  return data
 }
+export const updateParametroScore = saveParametro
 
-export async function saveCriterioAvaliacao(criterio) {
-    const { data, error } = await supabase
-      .from('criterios_avaliacao')
-      .upsert(criterio)
-      .select()
-      .single()
-    if (error) throw error
-    return data
+// == CRITERIOS ==
+export async function getCriterios() {
+  const { data, error } = await supabase
+    .from('criterios_avaliacao').select('*').eq('ativo', true).order('categoria')
+  if (error) throw error
+  return data || []
 }
+export const getCriteriosAvaliacao = getCriterios
 
-// --- AVALIACOES POR IMOVEL ---
-
-export async function getAvaliacoesImovel(imovelId) {
-    const { data, error } = await supabase
-      .from('avaliacoes_imovel')
-      .select('*, profiles(nome), criterios_avaliacao(nome)')
-      .eq('imovel_id', imovelId)
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    return data || []
+export async function saveCriterio(criterio) {
+  const { data, error } = await supabase
+    .from('criterios_avaliacao').upsert(criterio).select().single()
+  if (error) throw error
+  return data
 }
+export const saveCriterioAvaliacao = saveCriterio
 
-export async function saveAvaliacaoImovel(avaliacao) {
-    const { data, error } = await supabase
-      .from('avaliacoes_imovel')
-      .upsert(avaliacao)
-      .select()
-      .single()
-    if (error) throw error
-    return data
+// == AVALIACOES ==
+export async function getAvaliacoes(imovelId) {
+  const { data, error } = await supabase
+    .from('avaliacoes_imovel')
+    .select('*, criterio:criterios_avaliacao(*), avaliador:profiles(nome)')
+    .eq('imovel_id', imovelId)
+  if (error) throw error
+  return data || []
 }
+export const getAvaliacoesImovel = getAvaliacoes
 
-// --- TAREFAS ---
+export async function saveAvaliacao(av) {
+  const { data, error } = await supabase
+    .from('avaliacoes_imovel').upsert(av).select().single()
+  if (error) throw error
+  return data
+}
+export const saveAvaliacaoImovel = saveAvaliacao
 
+// == TAREFAS ==
 export async function getTarefas(userId, role) {
-    let q = supabase
-      .from('tarefas')
-      .select('*, profiles(nome)')
-      .order('created_at', { ascending: false })
-    if (role && role !== 'admin' && userId) {
-          q = q.or(`atribuido_para.eq.${userId},criado_por.eq.${userId}`)
-    }
-    const { data, error } = await q
-    if (error) throw error
-    return data || []
+  let q = supabase
+    .from('tarefas')
+    .select('*, atribuido:profiles!tarefas_atribuido_para_fkey(nome), criador:profiles!tarefas_criado_por_fkey(nome)')
+    .order('criado_em', { ascending: false })
+  if (role && role !== 'admin' && userId) {
+    q = q.or(`atribuido_para.eq.${userId},criado_por.eq.${userId}`)
+  }
+  const { data, error } = await q
+  if (error) throw error
+  return data || []
 }
 
-export async function saveTarefa(tarefa) {
-    const { data, error } = await supabase
-      .from('tarefas')
-      .upsert(tarefa)
-      .select()
-      .single()
-    if (error) throw error
-    return data
+export async function saveTarefa(t) {
+  const { data, error } = await supabase
+    .from('tarefas')
+    .upsert({ ...t, atualizado_em: new Date().toISOString() })
+    .select().single()
+  if (error) throw error
+  return data
 }
 
-export async function updateTarefa(id, updates) {
-    const { data, error } = await supabase
-      .from('tarefas')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) throw error
-    return data
+export async function updateTarefaStatus(id, status) {
+  const { error } = await supabase
+    .from('tarefas')
+    .update({ status, atualizado_em: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
 }
+export const updateTarefa = updateTarefaStatus
 
 export async function deleteTarefa(id) {
-    const { error } = await supabase.from('tarefas').delete().eq('id', id)
-    if (error) throw error
+  const { error } = await supabase.from('tarefas').delete().eq('id', id)
+  if (error) throw error
 }
 
-// --- OBSERVACOES ---
-
+// == OBSERVACOES ==
 export async function getObservacoes(imovelId) {
-    const { data, error } = await supabase
-      .from('observacoes')
-      .select('*, autor:profiles(nome)')
-      .eq('imovel_id', imovelId)
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    return data || []
+  const { data, error } = await supabase
+    .from('observacoes')
+    .select('*, autor:profiles(nome)')
+    .eq('imovel_id', imovelId)
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return data || []
 }
 
 export async function saveObservacao(obs) {
-    const { data, error } = await supabase
-      .from('observacoes')
-      .insert(obs)
-      .select()
-      .single()
-    if (error) throw error
-    return data
+  const { data, error } = await supabase
+    .from('observacoes').insert(obs).select().single()
+  if (error) throw error
+  return data
 }
 
-// --- APP SETTINGS ---
+// == APP SETTINGS (API KEYS) ==
+export async function getAppSetting(chave) {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings').select('valor').eq('chave', chave).single()
+    if (error) return null
+    return data?.valor || null
+  } catch { return null }
+}
 
 export async function getAppSettings() {
+  try {
     const { data, error } = await supabase
-      .from('app_settings')
-      .select('*')
-      .order('key')
-    if (error) throw error
-    return data || []
+      .from('app_settings').select('chave, valor, descricao')
+    if (error) return {}
+    return Object.fromEntries((data || []).map(r => [r.chave, r]))
+  } catch { return {} }
 }
 
-export async function getAppSetting(key) {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', key)
-      .single()
-    if (error) return null
-    return data?.value ?? null
+export async function setAppSetting(chave, valor, userId) {
+  const { error } = await supabase.from('app_settings').upsert({
+    chave, valor,
+    atualizado_por: userId,
+    atualizado_em: new Date().toISOString()
+  })
+  if (error) throw error
 }
 
-export async function setAppSetting(key, value) {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .upsert({ key, value }, { onConflict: 'key' })
-      .select()
-      .single()
-    if (error) throw error
+// == CONVITES ==
+export async function criarConvite(email, nome, role, adminId) {
+  const token = Math.random().toString(36).slice(2) + Date.now().toString(36)
+  const { error } = await supabase.from('convites').insert({
+    email: email.trim().toLowerCase(),
+    nome: nome.trim(),
+    role,
+    token,
+    criado_por: adminId,
+    expira_em: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  })
+  if (error) throw error
+  return token
+}
+
+export async function getConvites() {
+  const { data, error } = await supabase
+    .from('convites').select('*').order('criado_em', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+export async function validarConvite(token) {
+  try {
+    const { data } = await supabase
+      .from('convites').select('*').eq('token', token).eq('usado', false).single()
+    if (!data || new Date(data.expira_em) < new Date()) return null
     return data
+  } catch { return null }
 }
 
-// --- LOG DE ATIVIDADES ---
-
-export async function getAtividades(limit = 50) {
-    const { data, error } = await supabase
-      .from('atividades')
-      .select('*, profiles(nome)')
-      .order('created_at', { ascending: false })
-      .limit(limit)
-    if (error) throw error
-    return data || []
+export async function usarConvite(token) {
+  await supabase.from('convites')
+    .update({ usado: true, usado_em: new Date().toISOString() })
+    .eq('token', token)
 }
 
-export async function logAtividade(userId, acao, detalhes = '') {
-    const { error } = await supabase
-      .from('atividades')
-      .insert({ user_id: userId, acao, detalhes })
-    if (error) console.error('Erro ao logar atividade:', error)
+// == ATIVIDADES ==
+export async function getAtividades() {
+  const { data, error } = await supabase
+    .from('atividades')
+    .select('*, usuario:profiles(nome)')
+    .order('criado_em', { ascending: false })
+    .limit(200)
+  if (error) throw error
+  return data || []
 }
-// Alias for backward compatibility
-export { updateTarefa as updateTarefaStatus }
-export { getParametrosScore as getParametros }
-export { updateParametroScore as saveParametro }
+
+export async function logAtividade(userId, acao, entidade, entidadeId, detalhes) {
+  try {
+    await supabase.from('atividades').insert({
+      usuario_id: userId, acao, entidade,
+      entidade_id: entidadeId, detalhes
+    })
+  } catch {}
+}
