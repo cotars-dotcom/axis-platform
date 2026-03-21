@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from "react"
 import { stLoad, stSave } from "./storage.js"
+import Charts from "./components/Charts.jsx"
+import Timeline from "./components/Timeline.jsx"
+import MobileNav from "./components/MobileNav.jsx"
+import BuscaGPT from "./components/BuscaGPT.jsx"
+import { useAuth } from "./lib/AuthContext.jsx"
+import Login from "./pages/Login.jsx"
+import { getImoveis, saveImovel, deleteImovel } from "./lib/supabase.js"
     
 const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36)
 const fmtD = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—"
@@ -620,6 +627,10 @@ function Comparativo({props}) {
 
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
+  const { session, profile, loading: authLoading, isAdmin } = useAuth()
+  if (authLoading) return <div style={{display:'flex',height:'100vh',background:'#080B10',justifyContent:'center',alignItems:'center',color:'#00E5BB',fontFamily:'system-ui',fontSize:'16px',fontWeight:'700'}}>⏳ Carregando...</div>
+  if (!session) return <Login />
+  if (profile && !profile.ativo) return <div style={{display:'flex',height:'100vh',background:'#080B10',justifyContent:'center',alignItems:'center',color:'#FF4757',fontFamily:'system-ui',flexDirection:'column',gap:'12px'}}><div>🚫</div><div style={{fontSize:'16px',fontWeight:'700'}}>Acesso desativado</div><div style={{fontSize:'13px',color:'#3D4E6A'}}>Contate o administrador</div></div>
   const [view,setView]=useState("dashboard")
   const [vp,setVp]=useState({})
   const [props,setProps]=useState([])
@@ -650,7 +661,16 @@ export default function App() {
   const delProp=id=>{setProps(ps=>ps.filter(p=>p.id!==id));showToast("Excluído",K.red);nav("imoveis")}
   const saveTrello=cfg=>{setTrello(cfg);setShowTrello(false);showToast("✓ Trello configurado — "+cfg.boardName,K.trello)}
 
-  const navItems=[{i:"🏠",l:"Dashboard",v:"dashboard"},{i:"🔍",l:"Analisar",v:"novo"},{i:"📋",l:"Imóveis",v:"imoveis"},{i:"⚖️",l:"Comparar",v:"comparar"}]
+  const navItems=[
+    {i:'🏠',l:'Dashboard',v:'dashboard'},
+    {i:'🔍',l:'Analisar',v:'novo'},
+    {i:'🤖',l:'Busca GPT',v:'busca'},
+    {i:'📋',l:'Imóveis',v:'imoveis'},
+    {i:'📊',l:'Gráficos',v:'graficos'},
+    {i:'⚖️',l:'Comparar',v:'comparar'},
+    {i:'✅',l:'Tarefas',v:'tarefas'},
+    ...(isAdmin?[{i:'🛡️',l:'Admin',v:'admin'}]:[]),
+  ]
   const isAct=v=>view===v||(v==="imoveis"&&view==="detail")
   const selP=vp.id?props.find(p=>p.id===vp.id):null
 
@@ -694,6 +714,7 @@ export default function App() {
           <span style={{fontSize:"14px"}}>⚙️</span>
           <span style={{fontSize:"11.5px",fontWeight:"600",color:K.t2}}>API Key</span>
           <span style={{marginLeft:"auto",fontSize:"9px",background:localStorage.getItem("leilax-api-key")?`${K.grn}20`:`${K.red}20`,color:localStorage.getItem("leilax-api-key")?K.grn:K.red,padding:"1px 6px",borderRadius:"3px",fontWeight:"700"}}>{localStorage.getItem("leilax-api-key")?"OK":"FALTA"}</span>
+      <div onClick={async()=>{const{signOut}=await import('./lib/supabase.js');await signOut()}} style={{margin:'0 10px 10px',background:'rgba(255,71,87,0.1)',border:'1px solid rgba(255,71,87,0.3)',borderRadius:'7px',padding:'10px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:'8px'}}><span style={{fontSize:'14px'}}>👤</span><div><div style={{fontSize:'11px',color:'#DDE4F0',fontWeight:'600'}}>{profile?.nome||'Usuário'}</div><div style={{fontSize:'10px',color:'#FF4757'}}>Sair</div></div></div>
         </div>
       </div>
       <div style={{padding:"10px 16px",borderTop:`1px solid ${K.bd}`,fontSize:"11px",color:K.t3,lineHeight:"2"}}>
@@ -710,8 +731,13 @@ export default function App() {
       {view==="imoveis"&&<Lista props={props} onNav={nav} onDelete={delProp}/>}
       {view==="detail"&&<Detail p={selP} onDelete={delProp} onNav={nav} trello={trello}/>}
       {view==="comparar"&&<Comparativo props={props}/>}
+    {view==="busca"&&<BuscaGPT onAnalisar={(link)=>{nav("novo");setTimeout(()=>{},100)}}/>}
+    {view==="graficos"&&<div><div style={{padding:"22px 28px 16px",borderBottom:`1px solid ${K.bd}`}}><div style={{fontWeight:700,fontSize:19,color:K.wh}}>📊 Gráficos</div></div><div style={{padding:"20px 28px"}}><Charts properties={props}/></div></div>}
+    {view==="tarefas"&&<div style={{color:K.tx,padding:'24px'}}>Tarefas (em breve)</div>}
+    {view==="admin"&&isAdmin&&<div style={{color:K.tx,padding:'24px'}}>Admin Panel (em breve)</div>}
     </div>
 
     {toast&&<div style={{position:"fixed",bottom:"16px",right:"16px",background:toast.c===K.trello?K.trello:toast.c,color:toast.c===K.teal||toast.c===K.trello?"#000":"#fff",padding:"12px 20px",borderRadius:"8px",fontSize:"13px",fontWeight:"600",zIndex:9999,boxShadow:"0 8px 32px rgba(0,0,0,.6)",maxWidth:"340px"}}>{toast.msg}</div>}
+    <MobileNav items={navItems} activeKey={view} onNavigate={(v)=>nav(v)}/>
   </div>
 }
