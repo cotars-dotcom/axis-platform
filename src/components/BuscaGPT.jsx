@@ -86,7 +86,7 @@ export default function BuscaGPT({ onAnalisar }) {
       const query = `Busque imóveis em leilão em ${cidade}. Tipo: ${tipo}. ${maxValor ? `Valor máximo: R$ ${maxValor}` : ""} ${minDesconto ? `Desconto mínimo de ${minDesconto}%` : ""} Priorize imóveis desocupados e financiáveis pela CAIXA. Busque nos portais de leilão brasileiros e retorne os melhores resultados disponíveis hoje.`;
       const data = await buscarComGPT(query, openaiKey.trim());
       setResults(data);
-    } catch(e) { setError(e.message); }
+    } catch(e) { const isQuota = /quota|429|rate.limit|insufficient/i.test(e.message); setError(isQuota ? "Créditos OpenAI esgotados. Adicione saldo em platform.openai.com ou aguarde o reset mensal." : e.message); }
     setLoading(false);
   };
 
