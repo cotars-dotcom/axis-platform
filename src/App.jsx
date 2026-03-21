@@ -9,6 +9,7 @@ import Login from "./pages/Login.jsx"
 import { getImoveis, saveImovel, deleteImovel } from "./lib/supabase.js"
 import Tarefas from "./pages/Tarefas.jsx"
 import AdminPanel from "./pages/AdminPanel.jsx"
+import { analisarImovelCompleto } from "./lib/dualAI.js"
     
 const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36)
 const fmtD = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—"
@@ -322,7 +323,8 @@ function NovoImovel({onSave,onCancel,trello}) {
     setStep("🔍 Buscando informações do imóvel...")
     try {
       setStep("🧠 IA analisando: score, risco jurídico, mercado...")
-      const data = await analyzeProperty(url.trim())
+      const openaiKey = localStorage.getItem("leilax-openai-key") || ""
+        const data = await analisarImovelCompleto(url.trim(), hasKey, openaiKey, parametrosBanco, criteriosBanco, (msg) => setStep(msg))
       data.fonte_url = url.trim()
       const property = {...data, id:uid(), createdAt:new Date().toISOString()}
       if(trello?.listId) {
@@ -391,7 +393,7 @@ function PropCard({p,onNav}) {
         <div style={{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"10px"}}>
           <Bdg c={rc} ch={p.recomendacao||"—"}/>
           <Bdg c={p.ocupacao==="Desocupado"?K.grn:p.ocupacao==="Ocupado"?K.red:K.t3} ch={p.ocupacao||"—"}/>
-          {p.financiavel&&<Bdg c={K.blue} ch="Financiável"/>}
+          {p.financiavel&&<Bdg c={K.blue} ch="Financiável"/>}{p.analise_dupla_ia&&<span style={{fontSize:"9px",fontWeight:"700",background:"linear-gradient(135deg,rgba(0,229,187,0.2),rgba(16,163,127,0.2))",border:"1px solid rgba(0,229,187,0.35)",color:"#00E5BB",padding:"2px 8px",borderRadius:"4px",letterSpacing:".5px"}}>🤖 CLAUDE + GPT</span>}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px"}}>
           <div style={{background:K.s2,borderRadius:"5px",padding:"7px 10px"}}>
@@ -641,6 +643,9 @@ export default function App() {
   const [trello,setTrello]=useState(null)
   const [showTrello,setShowTrello]=useState(false)
   const [showApiKey,setShowApiKey]=useState(false)
+const [parametrosBanco,setParametrosBanco]=useState([])
+const [criteriosBanco,setCriteriosBanco]=useState([])
+useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("parametros_score").select("*");if(pr)setParametrosBanco(pr);const{data:cr}=await supabase.from("criterios_avaliacao").select("*");if(cr)setCriteriosBanco(cr)}catch(e){console.warn("parametros:",e)}}lp()},[])
 
   const showToast=(msg,c)=>{setToast({msg,c:c||K.teal});setTimeout(()=>setToast(null),4500)}
   const nav=(v,p={})=>{setView(v);setVp(p)}
