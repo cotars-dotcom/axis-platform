@@ -289,3 +289,5 @@ export async function logAtividade(userId, acao, detalhes = '') {
 }
 // Alias for backward compatibility
 export { updateTarefa as updateTarefaStatus }
+export { getParametrosScore as getParametros }
+export { updateParametroScore as saveParametro }
