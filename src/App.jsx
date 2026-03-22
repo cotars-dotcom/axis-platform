@@ -308,7 +308,7 @@ function ApiKeyModal({onClose}) {
 }
 
 // ── NOVO IMÓVEL ───────────────────────────────────────────────────────────────
-function NovoImovel({onSave,onCancel,trello}) {
+function NovoImovel({onSave,onCancel,trello,parametrosBanco,criteriosBanco}) {
   const [url,setUrl]=useState("")
   const [loading,setLoading]=useState(false)
   const [step,setStep]=useState("")
@@ -735,7 +735,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
     {/* CONTENT */}
     <div style={{flex:1,overflowY:"auto",background:K.bg,display:"flex",flexDirection:"column",minWidth:0}}>
       {view==="dashboard"&&<Dashboard props={props} onNav={nav}/>}
-      {view==="novo"&&<NovoImovel onSave={addProp} onCancel={()=>nav("imoveis")} trello={trello}/>}
+  {view==="novo"&&<NovoImovel onSave={addProp} onCancel={()=>nav("imoveis")} trello={trello} parametrosBanco={parametrosBanco} criteriosBanco={criteriosBanco}/>}
       {view==="imoveis"&&<Lista props={props} onNav={nav} onDelete={delProp}/>}
       {view==="detail"&&<Detail p={selP} onDelete={delProp} onNav={nav} trello={trello}/>}
       {view==="comparar"&&<Comparativo props={props}/>}
