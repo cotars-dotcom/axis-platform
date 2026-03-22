@@ -184,7 +184,20 @@ RETORNE APENAS JSON VÃLIDO (sem markdown, sem texto fora do JSON):
       model: CLAUDE_MODEL,
       max_tokens: 4000,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: (() => {
+        const parts = [{type:'text',text:prompt}]
+        if(anexos && anexos.length > 0) {
+          anexos.forEach(a => {
+            if(a.type === 'image' && a.data) {
+              const match = a.data.match(/^data:(image\/[^;]+);base64,(.+)$/)
+              if(match) parts.push({type:'image',source:{type:'base64',media_type:match[1],data:match[2]}})
+            } else if(a.type === 'text' && a.data) {
+              parts.push({type:'text',text:'\n\n--- Arquivo anexado: '+a.name+' ---\n'+a.data})
+            }
+          })
+        }
+        return parts
+      })() }]
     })
   })
 
@@ -242,7 +255,7 @@ export function calcularScore(analise, parametros) {
 
 // ââ FUNÃÃO PRINCIPAL: orquestrar tudo âââââââââââââââââââââââââââ
 
-export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametros, criterios, onProgress) {
+export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametros, criterios, onProgress, anexos) {
   const progress = onProgress || (() => {})
 
   const cidade = 'Brasil'
