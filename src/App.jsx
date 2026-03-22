@@ -712,7 +712,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
 <span style={{fontSize:'13px'}}>⚙️</span>
 <div style={{fontSize:'11px',color:'#DDE4F0',fontWeight:600}}>API Key</div>
 </div>
-<span style={{fontSize:'9px',fontWeight:700,padding:'2px 6px',borderRadius:'3px',background:hasKey?'rgba(0,229,187,0.15)':'rgba(255,71,87,0.15)',color:hasKey?'#00E5BB':'#FF4757',border:hasKey?'1px solid rgba(0,229,187,0.3)':'1px solid rgba(255,71,87,0.3)'}}>{hasKey?'OK':'FALTA'}</span>
+<span style={{fontSize:'9px',fontWeight:700,padding:'2px 6px',borderRadius:'3px',background:key?'rgba(0,229,187,0.15)':'rgba(255,71,87,0.15)',color:key?'#00E5BB':'#FF4757',border:key?'1px solid rgba(0,229,187,0.3)':'1px solid rgba(255,71,87,0.3)'}}>{key?'OK':'FALTA'}</span>
 </div>
 {/* Perfil + Sair */}
 <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',borderRadius:'7px',background:'rgba(255,71,87,0.06)',border:'1px solid rgba(255,71,87,0.15)'}}>
