@@ -632,7 +632,7 @@ function Comparativo({props}) {
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
   const { session, profile, loading: authLoading, isAdmin } = useAuth()
-  if (authLoading) return <div style={{display:'flex',height:'100vh',background:'#080B10',justifyContent:'center',alignItems:'center',color:'#00E5BB',fontFamily:'system-ui',fontSize:'16px',fontWeight:'700'}}>⏳ Carregando...</div>
+  if (authLoading) return <div style={{display:'flex',flexDirection:'column',height:'100vh',background:'#080B10',justifyContent:'center',alignItems:'center',color:'#00E5BB',fontFamily:'system-ui',fontSize:'16px',fontWeight:'700'}}>⏳ Carregando...</div>
   if (!session) return <Login />
   if (profile && !profile.ativo) return <div style={{display:'flex',height:'100vh',background:'#080B10',justifyContent:'center',alignItems:'center',color:'#FF4757',fontFamily:'system-ui',flexDirection:'column',gap:'12px'}}><div>🚫</div><div style={{fontSize:'16px',fontWeight:'700'}}>Acesso desativado</div><div style={{fontSize:'13px',color:'#3D4E6A'}}>Contate o administrador</div></div>
   const [view,setView]=useState("dashboard")
@@ -693,43 +693,43 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
     {showApiKey&&<ApiKeyModal onClose={()=>setShowApiKey(false)}/>}
 
     {/* SIDEBAR */}
-    <div style={{width:"200px",flexShrink:0,background:K.bg2,borderRight:`1px solid ${K.bd}`,display:"flex",flexDirection:"column",height:"100vh",overflowY:"auto"}}>
-      <div style={{padding:"18px 16px 14px",borderBottom:`1px solid ${K.bd}`}}>
-        <div style={{fontWeight:"800",fontSize:"20px",letterSpacing:"-0.5px",color:K.wh}}>LEI<span style={{color:K.teal}}>LAX</span></div>
-        <div style={{fontSize:"9px",color:K.t3,letterSpacing:"1.5px",textTransform:"uppercase",marginTop:"2px"}}>Análise de Leilões · IA</div>
-      </div>
-      <div style={{padding:"10px 0",flex:1}}>
-        {navItems.map(item=>(
-          <div key={item.v} onClick={()=>nav(item.v)} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 16px",fontSize:"12.5px",color:isAct(item.v)?K.wh:K.t2,cursor:"pointer",userSelect:"none",borderLeft:`2px solid ${isAct(item.v)?K.teal:"transparent"}`,background:isAct(item.v)?`${K.teal}08`:"transparent",transition:"all .12s"}}>
-            <span style={{fontSize:"15px"}}>{item.i}</span><span>{item.l}</span>
-          </div>
-        ))}
-      </div>
-      {/* Trello */}
-      <div onClick={()=>setShowTrello(true)} style={{margin:"0 10px 8px",background:trello?`${K.trello}15`:K.s2,border:`1px solid ${trello?`${K.trello}40`:K.bd}`,borderRadius:"7px",padding:"10px 12px",cursor:"pointer"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"3px"}}>
-          <span style={{fontSize:"14px"}}>🔷</span>
-          <span style={{fontSize:"11.5px",fontWeight:"600",color:trello?K.wh:K.t2}}>Trello</span>
-          <span style={{marginLeft:"auto",fontSize:"9px",background:trello?`${K.grn}20`:`${K.red}20`,color:trello?K.grn:K.red,padding:"1px 6px",borderRadius:"3px",fontWeight:"700"}}>{trello?"ON":"OFF"}</span>
-        </div>
-        {trello?<div style={{fontSize:"10px",color:K.t3}}>{trello.boardName}<br/>{trello.listName}</div>
-          :<div style={{fontSize:"10px",color:K.t3}}>Clique para configurar</div>}
-      </div>
-      {/* Config */}
-      <div onClick={()=>setShowApiKey(true)} style={{margin:"0 10px 10px",background:localStorage.getItem("leilax-api-key")?`${K.grn}10`:K.s2,border:`1px solid ${localStorage.getItem("leilax-api-key")?`${K.grn}30`:K.bd}`,borderRadius:"7px",padding:"10px 12px",cursor:"pointer"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-          <span style={{fontSize:"14px"}}>⚙️</span>
-          <span style={{fontSize:"11.5px",fontWeight:"600",color:K.t2}}>API Key</span>
-          <span style={{marginLeft:"auto",fontSize:"9px",background:localStorage.getItem("leilax-api-key")?`${K.grn}20`:`${K.red}20`,color:localStorage.getItem("leilax-api-key")?K.grn:K.red,padding:"1px 6px",borderRadius:"3px",fontWeight:"700"}}>{localStorage.getItem("leilax-api-key")?"OK":"FALTA"}</span>
-      <div onClick={async()=>{const{signOut}=await import('./lib/supabase.js');await signOut()}} style={{margin:'0 10px 10px',background:'rgba(255,71,87,0.1)',border:'1px solid rgba(255,71,87,0.3)',borderRadius:'7px',padding:'10px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:'8px'}}><span style={{fontSize:'14px'}}>👤</span><div><div style={{fontSize:'11px',color:'#DDE4F0',fontWeight:'600'}}>{profile?.nome||'Usuário'}</div><div style={{fontSize:'10px',color:'#FF4757'}}>Sair</div></div></div>
-        </div>
-      </div>
-      <div style={{padding:"10px 16px",borderTop:`1px solid ${K.bd}`,fontSize:"11px",color:K.t3,lineHeight:"2"}}>
-        🏠 {props.length} analisados<br/>
-        ✅ {props.filter(p=>p.recomendacao==="COMPRAR").length} para comprar<br/>
-        ⭐ {props.filter(p=>(p.score_total||0)>=7.5).length} score forte
-      </div>
-    </div>
+{/* RODAPE DA SIDEBAR */}
+<div style={{flexShrink:0,padding:'8px',borderTop:'1px solid rgba(0,229,187,0.10)',display:'flex',flexDirection:'column',gap:'6px'}}>
+{/* Trello */}
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 10px',borderRadius:'7px',background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',cursor:'pointer'}} onClick={()=>setShowTrello(true)}>
+<div style={{display:'flex',alignItems:'center',gap:'7px'}}>
+<span style={{fontSize:'13px'}}>🔷</span>
+<div>
+<div style={{fontSize:'11px',color:'#DDE4F0',fontWeight:600,lineHeight:1.2}}>Trello</div>
+<div style={{fontSize:'9px',color:'#3D4E6A'}}>{trello?'Configurado':'Clique para configurar'}</div>
+</div>
+</div>
+<span style={{fontSize:'9px',fontWeight:700,padding:'2px 6px',borderRadius:'3px',background:trello?'rgba(0,229,187,0.15)':'rgba(255,71,87,0.15)',color:trello?'#00E5BB':'#FF4757',border:trello?'1px solid rgba(0,229,187,0.3)':'1px solid rgba(255,71,87,0.3)'}}>{trello?'ON':'OFF'}</span>
+</div>
+{/* API Key */}
+<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 10px',borderRadius:'7px',background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',cursor:'pointer'}} onClick={()=>setShowApiKey(true)}>
+<div style={{display:'flex',alignItems:'center',gap:'7px'}}>
+<span style={{fontSize:'13px'}}>⚙️</span>
+<div style={{fontSize:'11px',color:'#DDE4F0',fontWeight:600}}>API Key</div>
+</div>
+<span style={{fontSize:'9px',fontWeight:700,padding:'2px 6px',borderRadius:'3px',background:hasKey?'rgba(0,229,187,0.15)':'rgba(255,71,87,0.15)',color:hasKey?'#00E5BB':'#FF4757',border:hasKey?'1px solid rgba(0,229,187,0.3)':'1px solid rgba(255,71,87,0.3)'}}>{hasKey?'OK':'FALTA'}</span>
+</div>
+{/* Perfil + Sair */}
+<div style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',borderRadius:'7px',background:'rgba(255,71,87,0.06)',border:'1px solid rgba(255,71,87,0.15)'}}>
+<div style={{width:26,height:26,borderRadius:'50%',background:'rgba(0,229,187,0.2)',border:'1px solid rgba(0,229,187,0.4)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'#00E5BB',fontSize:'11px',flexShrink:0}}>{(profile?.nome||'U')[0].toUpperCase()}</div>
+<div style={{flex:1,minWidth:0}}>
+<div style={{fontSize:'11px',fontWeight:600,color:'#DDE4F0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.nome||'Usuário'}</div>
+<div style={{fontSize:'9px',color:'#3D4E6A'}}>{isAdmin?'🛡️ Admin':'👤 Membro'}</div>
+</div>
+<div title="Sair" style={{fontSize:'16px',cursor:'pointer',color:'#FF4757',flexShrink:0,padding:'2px'}} onClick={async()=>{const{signOut}=await import('./lib/supabase.js');await signOut()}}>↩</div>
+</div>
+{/* Stats */}
+<div style={{padding:'4px 10px',fontSize:'10px',color:'#3D4E6A',display:'flex',flexDirection:'column',gap:'2px'}}>
+<div>🏠 {props.filter(p=>p.status==='analisado').length} analisados</div>
+<div>✅ {props.filter(p=>p.recomendacao==='COMPRAR').length} para comprar</div>
+<div>⭐ {props.filter(p=>(p.score_total||0)>=7).length} score forte</div>
+</div>
+</div>
 
     {/* CONTENT */}
     <div style={{flex:1,overflowY:"auto",background:K.bg,display:"flex",flexDirection:"column",minWidth:0}}>
