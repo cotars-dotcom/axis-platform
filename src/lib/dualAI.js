@@ -42,7 +42,7 @@ Retorne APENAS JSON vÃ¡lido (sem markdown):
 }`
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -50,10 +50,9 @@ Retorne APENAS JSON vÃ¡lido (sem markdown):
       },
       body: JSON.stringify({
         model: GPT_MODEL,
-        max_tokens: 2000,
+        max_output_tokens: 2000,
         tools: [{ type: 'web_search_preview' }],
-        tool_choice: { type: 'auto' },
-        messages: [{ role: 'user', content: prompt }]
+        input: prompt
       })
     })
 
@@ -63,7 +62,12 @@ Retorne APENAS JSON vÃ¡lido (sem markdown):
     }
 
     const data = await res.json()
-    const txt = data.choices?.[0]?.message?.content || ''
+    const txt = (data.output || [])
+      .filter(o => o.type === 'message')
+      .flatMap(o => o.content || [])
+      .filter(c => c.type === 'output_text')
+      .map(c => c.text)
+      .join('') || ''
     return JSON.parse(txt.replace(/```json|```/g, '').trim())
   } catch (e) {
     console.warn('[LEILAX] ChatGPT indisponÃ­vel:', e.message)
