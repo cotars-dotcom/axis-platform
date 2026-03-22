@@ -282,14 +282,15 @@ function TrelloModal({config,onSave,onClose}) {
 
 // ── API KEY MODAL ─────────────────────────────────────────────────────────────
 function ApiKeyModal({onClose}) {
-  const [key,setKey]=useState(localStorage.getItem("leilax-api-key")||"")
-  const save=()=>{localStorage.setItem("leilax-api-key",key.trim());onClose()}
+ const [key,setKey]=useState(localStorage.getItem("leilax-api-key")||"")
+ const [oaiKey,setOaiKey]=useState(localStorage.getItem("leilax-openai-key")||"")
+ const save=()=>{localStorage.setItem("leilax-api-key",key.trim());if(oaiKey.trim())localStorage.setItem("leilax-openai-key",oaiKey.trim());onClose()}
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:"20px"}}>
     <div style={{background:K.s1,border:`1px solid ${K.bd}`,borderRadius:"10px",padding:"28px",maxWidth:"480px",width:"100%"}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:"20px"}}>
         <div>
-          <div style={{fontWeight:"700",fontSize:"16px",color:K.wh}}>🔑 API Key Anthropic</div>
-          <div style={{fontSize:"11px",color:K.t3,marginTop:"2px"}}>Necessária para análise com IA</div>
+ <div style={{fontWeight:"700",fontSize:"16px",color:K.wh}}>🔑 Chaves de API</div>
+ <div style={{fontSize:"11px",color:K.t3,marginTop:"2px"}}>Necessárias para análise com IA</div>
         </div>
         <button style={btn("s")} onClick={onClose}>✕</button>
       </div>
@@ -300,8 +301,15 @@ function ApiKeyModal({onClose}) {
       <div style={{fontSize:"11px",color:K.t3,marginBottom:"18px"}}>
         Obtenha em: <a href="https://console.anthropic.com/settings/api-keys" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>console.anthropic.com</a>
       </div>
+ <div style={{marginTop:"16px",marginBottom:"8px"}}>
+  <div style={{fontSize:"10px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}}>Chave OpenAI (ChatGPT) — opcional</div>
+  <input style={inp} type="password" placeholder="sk-..." value={oaiKey} onChange={e=>setOaiKey(e.target.value)}/>
+ </div>
+ <div style={{fontSize:"11px",color:K.t3,marginBottom:"18px"}}>
+  Obtenha em: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>platform.openai.com</a> · Usada na Busca GPT
+ </div>
       <div style={{background:`${K.amb}10`,border:`1px solid ${K.amb}30`,borderRadius:"6px",padding:"12px",marginBottom:"16px",fontSize:"11.5px",color:K.amb}}>
-        ⚠️ A chave fica salva apenas no seu navegador (localStorage). Nunca é enviada para nenhum servidor externo além da Anthropic.
+ ⚠️ As chaves ficam salvas apenas no seu navegador (localStorage). Nunca são enviadas para servidores externos além da Anthropic/OpenAI.
       </div>
       <button style={btn()} onClick={save}>💾 Salvar</button>
     </div>
