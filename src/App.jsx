@@ -122,7 +122,7 @@ Se score_juridico < 4 → score_total *= 0.75. Se ocupado → score_total *= 0.8
 
 // ── TRELLO ────────────────────────────────────────────────────────────────────
 const BASE = "https://api.trello.com/1"
-const tGet  = async (path,key,token) => { const r=await fetch(`${BASE}${path}?key=${key}&token=${token}`); if(!r.ok) throw new Error(await r.text()); return r.json() }
+const tGet  = async (path,key,token) => { const sep=path.includes('?')?'&':'?'; const r=await fetch(`${BASE}${path}${sep}key=${key}&token=${token}`); if(!r.ok) throw new Error(await r.text()); return r.json() }
 const tPost = async (path,key,token,body) => { const p=new URLSearchParams({key,token,...body}); const r=await fetch(`${BASE}${path}`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:p}); if(!r.ok) throw new Error(await r.text()); return r.json() }
 
 function buildTrelloCard(p) {
