@@ -7,6 +7,13 @@
 
 const BASE_URL = 'https://api.trello.com/1'
 
+// IDs oficiais dos boards AXIS - nunca recriar
+export const AXIS_BOARDS = {
+  PIPELINE: '69c0ac769abcec1a62851eb4',
+  MANUAL:   '69c0ac820802ca9e0ce94ce1',
+}
+
+
 // ── Helpers ─────────────────────────────────────────────────────
 async function trello(method, path, body, key, token) {
   const sep = path.includes('?') ? '&' : '?'
@@ -39,90 +46,81 @@ async function trello(method, path, body, key, token) {
 
 // Criar estrutura completa do workspace AXIS
 export async function setupWorkspaceAxis(key, token) {
-  const resultados = {
-    boards: {},
-    lists: {},
-    labels: {},
-    erros: []
-  }
+  const resultados = { boards: {}, lists: {}, labels: {}, erros: [] }
+  resultados.boards.pipeline = AXIS_BOARDS.PIPELINE
+  resultados.boards.manual   = AXIS_BOARDS.MANUAL
 
-  // ── BOARD 1: Pipeline de Imóveis ──────────────────────────────
+  // BOARD PIPELINE: buscar listas existentes ou criar se faltar
   try {
-    const board1 = await trello('POST', '/boards', {
-      name: 'AXIS — Pipeline de Imóveis',
-      desc: 'Gestão completa de oportunidades imobiliárias | Visão de Oportunidade. Base de Confiança.',
-      defaultLists: false,
-      prefs_background: 'green',
-    }, key, token)
-    resultados.boards.pipeline = board1.id
-
-    const LISTAS_PIPELINE = [
-      { name: '📥 Entrada',         pos: 1 },
-      { name: '🔍 Em Análise',      pos: 2 },
-      { name: '⚖️ Due Diligence',   pos: 3 },
-      { name: '✅ Aprovados',       pos: 4 },
-      { name: '🏆 Arrematados',     pos: 5 },
-      { name: '🚫 Descartados',     pos: 6 },
+    const listasExistentes = await trello('GET', `/boards/${AXIS_BOARDS.PIPELINE}/lists?filter=open`, null, key, token)
+    const LISTAS_ESPERADAS = [
+      { name: '\u{1F4E5} Entrada', pos: 1 },
+      { name: '\u{1F50D} Em An\u00E1lise', pos: 2 },
+      { name: '\u2696\uFE0F Due Diligence', pos: 3 },
+      { name: '\u2705 Aprovados', pos: 4 },
+      { name: '\u{1F3C6} Arrematados', pos: 5 },
+      { name: '\u{1F6AB} Descartados', pos: 6 },
     ]
-    for (const lista of LISTAS_PIPELINE) {
-      const l = await trello('POST', '/lists', { idBoard: board1.id, ...lista }, key, token)
-      resultados.lists[lista.name] = l.id
+    for (const lista of LISTAS_ESPERADAS) {
+      const existente = listasExistentes?.find(l => l.name.trim() === lista.name.trim())
+      if (existente) { resultados.lists[lista.name] = existente.id }
+      else {
+        const nova = await trello('POST', '/lists', { idBoard: AXIS_BOARDS.PIPELINE, name: lista.name, pos: lista.pos }, key, token)
+        resultados.lists[lista.name] = nova.id
+      }
     }
-
-    // Etiquetas do board pipeline
+    // Buscar/criar etiquetas
+    const etiquetasExistentes = await trello('GET', `/boards/${AXIS_BOARDS.PIPELINE}/labels?limit=50`, null, key, token)
     const ETIQUETAS = [
-      { name: '🟢 COMPRAR',          color: 'green'   },
-      { name: '🟡 AGUARDAR',         color: 'yellow'  },
-      { name: '🔴 EVITAR',           color: 'red'     },
-      { name: '⭐ Score ≥ 7.5',      color: 'lime'    },
-      { name: '📊 Score 6–7.4',      color: 'sky'     },
-      { name: '⚠️ Score < 6',        color: 'orange'  },
-      { name: '🏠 Desocupado',       color: 'green'   },
-      { name: '🔒 Ocupado',          color: 'red'     },
-      { name: '❓ Ocupação incerta', color: 'orange'  },
-      { name: '💰 Financiável',      color: 'sky'     },
-      { name: '💎 FGTS aceito',      color: 'blue'    },
-      { name: '⚖️ Due Diligence OK', color: 'green'   },
-      { name: '⚠️ Risco jurídico',   color: 'red'     },
-      { name: '🔄 Reclassificado',   color: 'purple'  },
-      { name: '🤖 Análise dupla IA', color: 'pink'    },
+      { name: '\u{1F7E2} COMPRAR', color: 'green' },
+      { name: '\u{1F7E1} AGUARDAR', color: 'yellow' },
+      { name: '\u{1F534} EVITAR', color: 'red' },
+      { name: '\u2B50 Score \u2265 7.5', color: 'lime' },
+      { name: '\u{1F4CA} Score 6\u20137.4', color: 'sky' },
+      { name: '\u26A0\uFE0F Score < 6', color: 'orange' },
+      { name: '\u{1F3E0} Desocupado', color: 'green' },
+      { name: '\u{1F512} Ocupado', color: 'red' },
+      { name: '\u{1F4B0} Financi\u00E1vel', color: 'sky' },
+      { name: '\u2696\uFE0F Due Diligence OK', color: 'green' },
+      { name: '\u{1F504} Reclassificado', color: 'purple' },
+      { name: '\u{1F916} Dupla IA', color: 'pink' },
     ]
     for (const et of ETIQUETAS) {
-      try {
-        const lbl = await trello('POST', `/boards/${board1.id}/labels`, et, key, token)
-        resultados.labels[et.name] = lbl.id
-      } catch {}
+      const jaExiste = etiquetasExistentes?.find(e => e.name?.toLowerCase() === et.name.toLowerCase())
+      if (jaExiste) { resultados.labels[et.name] = jaExiste.id }
+      else { try { const lbl = await trello('POST', `/boards/${AXIS_BOARDS.PIPELINE}/labels`, et, key, token); resultados.labels[et.name] = lbl.id } catch {} }
     }
-  } catch (e) {
-    resultados.erros.push(`Board Pipeline: ${e.message}`)
-  }
+  } catch(e) { resultados.erros.push(`Pipeline: ${e.message}`) }
 
-  // ── BOARD 2: Manual e Métricas ────────────────────────────────
+  // BOARD MANUAL: buscar listas existentes ou criar se faltar
   try {
-    const board2 = await trello('POST', '/boards', {
-      name: 'AXIS — Manual e Métricas',
-      desc: 'Base de conhecimento, parâmetros de score e base jurídica',
-      defaultLists: false,
-      prefs_background: 'blue',
-    }, key, token)
-    resultados.boards.manual = board2.id
-
+    const listasManual = await trello('GET', `/boards/${AXIS_BOARDS.MANUAL}/lists?filter=open`, null, key, token)
     const LISTAS_MANUAL = [
-      { name: '📚 Manual de Métricas', pos: 1 },
-      { name: '⚖️ Base Jurídica',      pos: 2 },
-      { name: '📊 Parâmetros de Score', pos: 3 },
+      { name: '\u{1F4DA} Manual de M\u00E9tricas', pos: 1 },
+      { name: '\u2696\uFE0F Base Jur\u00EDdica', pos: 2 },
+      { name: '\u{1F4CA} Par\u00E2metros de Score', pos: 3 },
     ]
     for (const lista of LISTAS_MANUAL) {
-      const l = await trello('POST', '/lists', { idBoard: board2.id, ...lista }, key, token)
-      resultados.lists[lista.name] = l.id
+      const existente = listasManual?.find(l => l.name.trim() === lista.name.trim())
+      if (existente) { resultados.lists[lista.name] = existente.id }
+      else {
+        const nova = await trello('POST', '/lists', { idBoard: AXIS_BOARDS.MANUAL, name: lista.name, pos: lista.pos }, key, token)
+        resultados.lists[lista.name] = nova.id
+      }
     }
+    const cardsExistentes = await trello('GET', `/boards/${AXIS_BOARDS.MANUAL}/cards?limit=1`, null, key, token)
+    if (!cardsExistentes?.length) {
+      const listManual = listasManual?.find(l => l.name.includes('Manual')) || { id: resultados.lists['\u{1F4DA} Manual de M\u00E9tricas'] }
+      const listJur = listasManual?.find(l => l.name.includes('Jur\u00EDdica')) || { id: resultados.lists['\u2696\uFE0F Base Jur\u00EDdica'] }
+      if (listManual?.id) await popularManualMetricas(listManual.id, key, token)
+      if (listJur?.id) await popularBaseJuridica(listJur.id, key, token)
+    }
+  } catch(e) { resultados.erros.push(`Manual: ${e.message}`) }
 
-    // Popular o Manual de Métricas
-    await popularManualMetricas(resultados.lists['📚 Manual de Métricas'], key, token)
-    await popularBaseJuridica(resultados.lists['⚖️ Base Jurídica'], key, token)
-  } catch (e) {
-    resultados.erros.push(`Board Manual: ${e.message}`)
-  }
+  try {
+    const conf = JSON.parse(localStorage.getItem('axis-trello') || '{}')
+    localStorage.setItem('axis-trello', JSON.stringify({ ...conf, boardId: AXIS_BOARDS.PIPELINE, boardManualId: AXIS_BOARDS.MANUAL, listIds: resultados.lists }))
+  } catch {}
 
   return resultados
 }
@@ -570,8 +568,8 @@ export async function getListasBoard(boardId, key, token) {
   return trello('GET', `/boards/${boardId}/lists?filter=open`, null, key, token)
 }
 
-// ── Backward compat: setupBoardLeilax → alias ────────────────────
-export const setupBoardLeilax = async (boardId, key, token) => {
+// ── Backward compat: setupBoardAxis → alias ────────────────────
+export const setupBoardAxis = async (boardId, key, token) => {
   // Legacy: creates workspace structure when called with old API
   return setupWorkspaceAxis(key, token)
 }
