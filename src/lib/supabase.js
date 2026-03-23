@@ -449,3 +449,54 @@ export async function getBancoArquivados() {
   if (error) throw error
   return data || []
 }
+
+// ── Códigos e sincronização Trello ────────────────────────────────
+export async function registrarTrelloCard(imovelId, cardId, cardUrl, listId, userId) {
+  const { error } = await supabase
+    .from('imoveis')
+    .update({
+      trello_card_id: cardId,
+      trello_card_url: cardUrl,
+      trello_list_id: listId,
+      trello_sincronizado_em: new Date().toISOString(),
+    })
+    .eq('id', imovelId)
+  if (error) throw error
+  await supabase.from('trello_sync_log').insert({
+    imovel_id: imovelId,
+    trello_card_id: cardId,
+    trello_list_id: listId,
+    acao: 'criado',
+    sincronizado_por: userId,
+  }).catch(() => {})
+}
+
+export async function getImoveisComTrello() {
+  const { data } = await supabase
+    .from('imoveis')
+    .select('id, codigo_axis, trello_card_id, trello_card_url, trello_list_id')
+    .not('trello_card_id', 'is', null)
+  return data || []
+}
+
+export async function updateTrelloCardId(imovelId, cardId, cardUrl, listId) {
+  const { error } = await supabase
+    .from('imoveis')
+    .update({
+      trello_card_id: cardId,
+      trello_card_url: cardUrl,
+      trello_list_id: listId,
+      trello_sincronizado_em: new Date().toISOString(),
+    })
+    .eq('id', imovelId)
+  if (error) throw error
+}
+
+export async function getImovelByCodigo(codigoAxis) {
+  const { data } = await supabase
+    .from('imoveis')
+    .select('*')
+    .eq('codigo_axis', codigoAxis)
+    .single()
+  return data
+}

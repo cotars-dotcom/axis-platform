@@ -428,18 +428,46 @@ function ModalAuditoriaTrello({ config, imoveis, onClose }) {
       if (rec === 'EVITAR')  return listIds['🚫 Descartados']
       return listIds['🔍 Em Análise']
     }
-    setLoading(true); setMsg('Sincronizando imóveis...')
-    let ok = 0, err = 0
-    const { criarCardImovel: criar } = await import('./lib/trelloService.js')
+    setLoading(true); setMsg('Sincronizando imóveis (com deduplicação)...')
+    let ok = 0, atualizado = 0, err = 0
+    const { criarOuAtualizarCardImovel } = await import('./lib/trelloService.js')
     for (const imovel of (imoveis || [])) {
       try {
         const lid = getListId(imovel.recomendacao) || Object.values(listIds)[0]
         if (!lid) continue
-        await criar(imovel, lid, boardId, key, token)
-        ok++
+        const res = await criarOuAtualizarCardImovel(imovel, lid, boardId, key, token)
+        if (res?.atualizado) atualizado++; else ok++
+        setMsg(`Sincronizando... ${ok + atualizado}/${(imoveis||[]).length}`)
       } catch { err++ }
     }
-    setMsg(`${ok} card(s) criado(s)${err ? ` · ${err} erro(s)` : ''}`)
+    setMsg(`${ok} criado(s), ${atualizado} atualizado(s)${err ? ` · ${err} erro(s)` : ''}`)
+    setLoading(false)
+  }
+
+  async function verificarDuplicatas() {
+    if (!boardId) { setMsg('Configure o Board ID primeiro.'); return }
+    setLoading(true); setMsg('Verificando duplicatas...')
+    try {
+      const { default: _unused, ...ts } = await import('./lib/trelloService.js').catch(() => ({}))
+      const cardsBoard = await fetch(`https://api.trello.com/1/boards/${boardId}/cards?fields=id,name,closed&limit=1000&key=${key}&token=${token}`).then(r => r.json())
+      const por_codigo = {}
+      for (const card of cardsBoard.filter(c => !c.closed)) {
+        const match = card.name.match(/\[AXIS-\d{4}\]/)
+        if (match) {
+          const codigo = match[0].replace(/[\[\]]/g, '')
+          if (!por_codigo[codigo]) por_codigo[codigo] = []
+          por_codigo[codigo].push(card)
+        }
+      }
+      const duplicatas = Object.entries(por_codigo).filter(([, cards]) => cards.length > 1)
+      if (duplicatas.length === 0) {
+        setMsg('Nenhuma duplicata encontrada!')
+      } else {
+        setMsg(`${duplicatas.length} código(s) com duplicata: ${duplicatas.map(([c]) => c).join(', ')}`)
+      }
+    } catch(e) {
+      setMsg(`Erro: ${e.message}`)
+    }
     setLoading(false)
   }
 
@@ -475,6 +503,10 @@ function ModalAuditoriaTrello({ config, imoveis, onClose }) {
           <button onClick={syncTodosImoveis} disabled={loading||!boardId}
             style={{padding:'11px 0',borderRadius:9,border:'none',background:C.emerald,color:'#fff',fontSize:13.5,fontWeight:600,cursor:(loading||!boardId)?'not-allowed':'pointer'}}>
             Sincronizar {imoveis?.length||0} imóvel(is)
+          </button>
+          <button onClick={verificarDuplicatas} disabled={loading||!boardId}
+            style={{padding:'11px 0',borderRadius:9,border:`1px solid ${C.mustard}`,background:C.mustardL,color:C.mustard,fontSize:13.5,fontWeight:600,cursor:(loading||!boardId)?'not-allowed':'pointer'}}>
+            Verificar Duplicatas
           </button>
         </div>
         {msg && (
@@ -705,7 +737,10 @@ function PropCard({p,onNav}) {
     )}
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"10px"}}>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontWeight:"600",fontSize:"13px",color:K.wh,marginBottom:"4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.titulo||"Imóvel sem título"}</div>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:"4px"}}>
+          <div style={{fontWeight:"600",fontSize:"13px",color:K.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{p.titulo||"Imóvel sem título"}</div>
+          {p.codigo_axis&&<span style={{fontSize:"9.5px",fontWeight:700,padding:"1px 6px",borderRadius:3,background:"#002B8010",color:"#002B80",fontFamily:"monospace",flexShrink:0}}>{p.codigo_axis}</span>}
+        </div>
         <div style={{fontSize:"10.5px",color:K.t3,marginBottom:"8px"}}>📍 {p.cidade}/{p.estado} · {p.tipo} · {p.area_m2?`${p.area_m2}m²`:"—"}</div>
         <div style={{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"10px"}}>
           <Bdg c={rc} ch={p.recomendacao||"—"}/>
@@ -1413,13 +1448,13 @@ function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze,isAdmin,onArch
     if(!trello?.listId){setMsg("Trello não configurado");return}
     setSending(true);setMsg("")
     try {
-      if(trello.boardId) { await criarCardImovel(p,trello.listId,trello.boardId,trello.key,trello.token); setMsg("✓ Card enviado ao Trello com etiquetas!") }
+      if(trello.boardId) { const res=await criarCardImovel(p,trello.listId,trello.boardId,trello.key,trello.token); setMsg(res?.atualizado?"✓ Card atualizado no Trello!":"✓ Card enviado ao Trello com etiquetas!") }
       else { const cd=buildTrelloCard(p); await tPost("/cards",trello.key,trello.token,{idList:trello.listId,name:cd.name,desc:cd.desc}); setMsg("✓ Card enviado ao Trello!") }
     } catch(e){setMsg(`Erro: ${e.message}`)}
     setSending(false)
   }
   return <div>
-    <Hdr title={p.titulo||"Imóvel"} sub={`${p.cidade}/${p.estado} · ${fmtD(p.createdAt)}`}
+    <Hdr title={<>{p.titulo||"Imóvel"}{p.codigo_axis&&<span style={{fontSize:"10.5px",fontWeight:700,padding:"2px 8px",borderRadius:4,background:"#002B8010",color:"#002B80",border:"1px solid #002B8020",fontFamily:"monospace",letterSpacing:"0.5px",marginLeft:10,verticalAlign:"middle"}}>{p.codigo_axis}</span>}{p.trello_card_url&&<a href={p.trello_card_url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#0052CC",marginLeft:8,verticalAlign:"middle",textDecoration:"none"}}>Trello</a>}</>} sub={`${p.cidade}/${p.estado} · ${fmtD(p.createdAt)}`}
       actions={<>
         {p.fonte_url&&<a href={p.fonte_url} target="_blank" rel="noopener noreferrer" style={{...btn("s"),textDecoration:"none",display:"inline-block"}}>🔗 Anúncio</a>}
         {isAdmin&&<button style={{...btn("s"),background:`${K.amb}15`,color:K.amb,border:`1px solid ${K.amb}30`}} onClick={handleReanalyze} disabled={reanalyzing}>{reanalyzing?"⏳ Reanalisando...":"🔄 Reanalisar"}</button>}
