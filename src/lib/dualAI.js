@@ -267,20 +267,6 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
   progress('ð ChatGPT pesquisando dados de mercado na internet...')
   const dadosGPT = await pesquisarMercadoGPT(url, cidade, tipo, openaiKey)
 
-  // Enriquecer com dados de mercado regional (se detectou região)
-  if (dadosMercado) {
-    const regiaoFinal = detectarRegiao(analise.cidade || '', analise.endereco || '')
-    const mercadoFinal = regiaoFinal ? getMercado(regiaoFinal) : dadosMercado
-    if (mercadoFinal) {
-      if (!analise.preco_m2_mercado) analise.preco_m2_mercado = mercadoFinal.preco_m2_venda_medio
-      if (!analise.aluguel_mensal_estimado && analise.area_m2)
-        analise.aluguel_mensal_estimado = mercadoFinal.preco_m2_locacao * analise.area_m2
-      if (!analise.mercado_tendencia) analise.mercado_tendencia = mercadoFinal.tendencia
-      if (!analise.mercado_demanda) analise.mercado_demanda = mercadoFinal.demanda
-      if (mercadoFinal.alertas && mercadoFinal.alertas.length)
-        analise.alertas = [...(analise.alertas||[]), ...mercadoFinal.alertas]
-    }
-  }
 
   if (dadosGPT) {
     progress('â ChatGPT encontrou dados de mercado. Claude analisando o imÃ³vel...')
@@ -308,6 +294,21 @@ DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
 ` : ''
 
   const analise = await analisarComClaude(url, claudeKey, parametros, criterios, dadosGPT, anexos, contextoMercadoRegional)
+
+  // Enriquecer com dados de mercado regional (se detectou região)
+  if (dadosMercado) {
+    const regiaoFinal = detectarRegiao(analise.cidade || '', analise.endereco || '')
+    const mercadoFinal = regiaoFinal ? getMercado(regiaoFinal) : dadosMercado
+    if (mercadoFinal) {
+      if (!analise.preco_m2_mercado) analise.preco_m2_mercado = mercadoFinal.preco_m2_venda_medio
+      if (!analise.aluguel_mensal_estimado && analise.area_m2)
+        analise.aluguel_mensal_estimado = mercadoFinal.preco_m2_locacao * analise.area_m2
+      if (!analise.mercado_tendencia) analise.mercado_tendencia = mercadoFinal.tendencia
+      if (!analise.mercado_demanda) analise.mercado_demanda = mercadoFinal.demanda
+      if (mercadoFinal.alertas && mercadoFinal.alertas.length)
+        analise.alertas = [...(analise.alertas||[]), ...mercadoFinal.alertas]
+    }
+  }
 
   progress('ð Calculando score com parÃ¢metros do grupo...')
   const score_total = calcularScore(analise, parametros)
