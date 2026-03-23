@@ -44,7 +44,48 @@ async function trello(method, path, body, key, token) {
 // ├── ⚖️ Base Jurídica
 // └── 📊 Parâmetros de Score
 
-// Criar estrutura completa do workspace AXIS
+// ── Helpers de deduplicação ───────────────────────────────────────
+
+export async function getBoardsExistentes(key, token) {
+  try {
+    return await trello('GET', '/members/me/boards?filter=open&fields=id,name,desc,url', null, key, token) || []
+  } catch {
+    return []
+  }
+}
+
+async function getOuCriarBoard(nome, desc, prefs, key, token) {
+  const existentes = await getBoardsExistentes(key, token)
+  const existente = existentes.find(b =>
+    b.name.toLowerCase().trim() === nome.toLowerCase().trim()
+  )
+  if (existente) {
+    console.log(`[AXIS] Board existente reutilizado: ${existente.name} (${existente.id})`)
+    return existente
+  }
+  console.log(`[AXIS] Criando novo board: ${nome}`)
+  return await trello('POST', '/boards', {
+    name: nome,
+    desc,
+    defaultLists: false,
+    ...prefs
+  }, key, token)
+}
+
+async function getOuCriarLista(boardId, nomeLista, pos, key, token) {
+  const listas = await trello('GET', `/boards/${boardId}/lists?filter=open`, null, key, token)
+  const existente = listas?.find(l =>
+    l.name.toLowerCase().trim() === nomeLista.toLowerCase().trim()
+  )
+  if (existente) return existente
+  return await trello('POST', '/lists', {
+    idBoard: boardId,
+    name: nomeLista,
+    pos
+  }, key, token)
+}
+
+// Criar (ou reutilizar) estrutura completa do workspace AXIS
 export async function setupWorkspaceAxis(key, token) {
   const resultados = { boards: {}, lists: {}, labels: {}, erros: [] }
   resultados.boards.pipeline = AXIS_BOARDS.PIPELINE
@@ -120,6 +161,17 @@ export async function setupWorkspaceAxis(key, token) {
   try {
     const conf = JSON.parse(localStorage.getItem('axis-trello') || '{}')
     localStorage.setItem('axis-trello', JSON.stringify({ ...conf, boardId: AXIS_BOARDS.PIPELINE, boardManualId: AXIS_BOARDS.MANUAL, listIds: resultados.lists }))
+  } catch {}
+
+  // Salvar IDs no localStorage para uso futuro
+  try {
+    const configAtual = JSON.parse(localStorage.getItem('axis-trello') || '{}')
+    localStorage.setItem('axis-trello', JSON.stringify({
+      ...configAtual,
+      boardId: resultados.boards.pipeline,
+      boardManualId: resultados.boards.manual,
+      listIds: resultados.lists,
+    }))
   } catch {}
 
   return resultados

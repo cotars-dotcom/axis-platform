@@ -279,10 +279,42 @@ export const MERCADO_REGIONAL = {
     viabilidade_temporada: "nenhuma"
   },
 
+  contagem_europa: {
+    label: "Contagem — Europa / Eldorado / Santa Cruz",
+    cidade: "Contagem",
+    bairros: ["Europa", "Eldorado", "Santa Cruz", "Ressaca", "Petrolândia"],
+    preco_m2_venda_min: 4200,
+    preco_m2_venda_max: 5800,
+    preco_m2_venda_medio: 5073,
+    preco_m2_locacao: 31,
+    tempo_venda_dias: 120,
+    tendencia: "estavel_leve_alta",
+    tendencia_pct_12m: 3.5,
+    demanda: "media",
+    vacancia_pct: 5.5,
+    yield_bruto_pct: 6.2,
+    yield_liquido_pct: 4.0,
+    imovel_mais_liquido: {
+      tipologia: "apartamento",
+      quartos_ideal: 3,
+      suites_min: 1,
+      vagas_ideal: 2,
+      area_min_m2: 80,
+      area_max_m2: 130,
+      faixa_preco_min: 350000,
+      faixa_preco_max: 650000,
+      condominio_teto: 600,
+      lazer: "basico"
+    },
+    alertas: [],
+    viabilidade_temporada: "baixa",
+    observacao: "Contagem/Europa tem padrão superior ao RMBH geral. Coberturas duplex novas têm demanda de família classe média/alta que migra de BH."
+  },
+
   bh_rmbh: {
     label: "RMBH (Contagem / Betim / Ribeirão das Neves)",
     cidade: "Região Metropolitana BH",
-    bairros: ["Eldorado", "Santa Cruz", "Ressaca", "Citrolândia", "Imbiruçu", "Alterosas"],
+    bairros: ["Citrolândia", "Imbiruçu", "Alterosas"],
     preco_m2_venda_min: 2500,
     preco_m2_venda_max: 5500,
     preco_m2_venda_medio: 4000,
@@ -472,10 +504,14 @@ export const BAIRRO_PARA_REGIAO = {
   "barreiro": "bh_barreiro", "milionários": "bh_barreiro",
   "milionarios": "bh_barreiro", "jatobá": "bh_barreiro",
   "jatoba": "bh_barreiro",
+  // Contagem Europa
+  "europa": "contagem_europa", "europa contagem": "contagem_europa",
+  "contagem europa": "contagem_europa", "petrolândia": "contagem_europa",
+  "petrolandia": "contagem_europa",
   // RMBH
-  "contagem": "bh_rmbh", "betim": "bh_rmbh",
+  "contagem": "contagem_europa", "betim": "bh_rmbh",
   "ribeirão das neves": "bh_rmbh", "vespasiano": "bh_rmbh",
-  "santa luzia": "bh_rmbh", "eldorado": "bh_rmbh",
+  "santa luzia": "bh_rmbh", "eldorado": "contagem_europa",
   // JF
   "centro": "jf_centro", "centro histórico": "jf_centro",
   "santa helena": "jf_centro", "monte castelo": "jf_centro",
@@ -504,7 +540,8 @@ export function detectarRegiao(cidade = '', bairro = '') {
   // Fallback por cidade
   if (c.includes('juiz') || c.includes('jf')) return 'jf_bairros_medios'
   if (c.includes('nova lima')) return 'nova_lima'
-  if (c.includes('contagem') || c.includes('betim')) return 'bh_rmbh'
+  if (c.includes('contagem')) return 'contagem_europa'
+  if (c.includes('betim')) return 'bh_rmbh'
   if (c.includes('belo horizonte') || c.includes('bh')) return 'bh_cidade_nova'
 
   return null
