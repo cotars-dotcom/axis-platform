@@ -19,23 +19,30 @@ const fmtC = v => v ? `R$ ${Number(v).toLocaleString("pt-BR", {minimumFractionDi
 
 // AXIS Design Tokens
 const C = {
-  navy:     "#002180",
-  navy2:    "#001666",
-  navy3:    "#00194D",
-  navyAlfa: "#00218014",
-  offwhite: "#F8F5EA",
-  white:    "#FFFFFF",
-  emerald:  "#2DB06C",
-  emeraldL: "#E8F7EF",
-  emeraldM: "#1A9955",
-  mustard:  "#C68A00",
-  mustardL: "#FEF3D0",
-  silver:   "#8A9BB0",
-  border:   "#E8E4D9",
-  borderW:  "#EDEBEE",
-  text:     "#0A1628",
-  muted:    "#6B7C90",
-  hint:     "#9EAAB8",
+  // Estrutura (Azul)
+  navy:      "#002B80",
+  navy2:     "#001F66",
+  navyAlfa:  "#002B8014",
+  // Dados / Oportunidade (Verde)
+  emerald:   "#05A86D",
+  emeraldL:  "#E6F6F0",
+  emeraldD:  "#037A50",
+  // Alerta
+  mustard:   "#E1B31A",
+  mustardL:  "#FEF7DA",
+  // Fundo / superfícies
+  bg:        "#EDECEA",
+  surface:   "#F4F3F0",
+  white:     "#FFFFFF",
+  offwhite:  "#EDECEA",
+  // Texto
+  text:      "#0A1628",
+  muted:     "#6B7C90",
+  hint:      "#9EAAB8",
+  border:    "#DDD9CF",
+  borderW:   "#E8E4DC",
+  // Prata
+  silver:    "#C0C0C0",
 }
 
 // Backward-compat aliases (used by existing components)
@@ -62,23 +69,40 @@ const inp = { background:C.offwhite, border:`1px solid ${C.border}`, borderRadiu
 const card = (ac) => ({ background:C.white, border:`1px solid ${ac||C.borderW}`, borderRadius:"12px", padding:"18px" })
 const Bdg = ({c,ch}) => <span style={{display:"inline-block",fontSize:"10px",fontWeight:"700",padding:"2px 8px",borderRadius:"5px",textTransform:"uppercase",letterSpacing:".5px",background:`${c}12`,color:c}}>{ch}</span>
 
-function AxisLogo({ size = "md", light = false }) {
+function AxisLogo({ collapsed = false, light = false, size }) {
   const textColor = light ? "#FFFFFF" : C.navy
   const arrowColor = C.emerald
-  const s = size === "sm" ? 0.7 : size === "lg" ? 1.4 : 1
+  // backward compat: size="sm" or "lg" maps to collapsed
+  const isCollapsed = collapsed || size === "sm"
+  if (isCollapsed) {
+    return (
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <rect width="36" height="36" rx="9" fill={light ? "rgba(255,255,255,0.12)" : C.emeraldL}/>
+        <text x="5" y="25" fontFamily="'Inter',sans-serif" fontWeight="900" fontSize="18" fill={light ? "#fff" : C.navy}>A</text>
+        <line x1="19" y1="14" x2="28" y2="7" stroke={arrowColor} strokeWidth="2.5" strokeLinecap="round"/>
+        <polyline points="24,7 28,7 28,11" fill="none" stroke={arrowColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  }
   return (
-    <svg
-      width={Math.round(80 * s)}
-      height={Math.round(28 * s)}
-      viewBox="0 0 80 28"
-      fill="none"
-    >
-      <text x="0" y="22" fontFamily="'Inter', system-ui, sans-serif" fontWeight="800" fontSize="26" letterSpacing="-1" fill={textColor}>A</text>
-      <text x="19" y="22" fontFamily="'Inter', system-ui, sans-serif" fontWeight="800" fontSize="26" letterSpacing="-1" fill={textColor}>X</text>
-      <line x1="24" y1="14" x2="35" y2="4" stroke={arrowColor} strokeWidth="2.5" strokeLinecap="round"/>
-      <polyline points="30,4 35,4 35,9" fill="none" stroke={arrowColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <text x="39" y="22" fontFamily="'Inter', system-ui, sans-serif" fontWeight="800" fontSize="26" letterSpacing="-1" fill={textColor}>IS</text>
-    </svg>
+    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 3, position: "relative" }}>
+        <span style={{ fontFamily: "'Inter',sans-serif", fontWeight: 900, fontSize: 26, color: textColor, letterSpacing: "-1px", lineHeight: 1 }}>A</span>
+        <span style={{ position: "relative", fontFamily: "'Inter',sans-serif", fontWeight: 900, fontSize: 26, color: textColor, letterSpacing: "-1px", lineHeight: 1 }}>
+          X
+          <svg style={{ position: "absolute", top: -2, left: 0, width: "100%", height: "110%", pointerEvents: "none" }} viewBox="0 0 20 28">
+            <line x1="5" y1="16" x2="16" y2="4" stroke={arrowColor} strokeWidth="2.5" strokeLinecap="round"/>
+            <polyline points="11,4 16,4 16,9" fill="none" stroke={arrowColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
+        <span style={{ fontFamily: "'Inter',sans-serif", fontWeight: 900, fontSize: 26, color: textColor, letterSpacing: "-1px", lineHeight: 1 }}>IS</span>
+      </div>
+      {!light && (
+        <span style={{ fontSize: 8.5, color: C.muted, letterSpacing: "1.5px", textTransform: "uppercase", paddingLeft: 1 }}>
+          Intelig&ecirc;ncia Patrimonial
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -567,34 +591,48 @@ function PropCard({p,onNav}) {
 }
 
 // ── AXIS HEADER ──────────────────────────────────────────────────────────────
-function AxisHeader() {
+function AxisHeader({profile:prof}) {
   return (
     <header style={{
       display:"flex",alignItems:"center",justifyContent:"space-between",
-      padding:"20px 40px",background:C.white,borderBottom:`1px solid ${C.borderW}`,
+      padding:"18px 36px",background:C.white,borderBottom:`1px solid ${C.borderW}`,
     }}>
       <div>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:2}}>
-          <AxisLogo size="sm" />
-          <span style={{width:1,height:20,background:C.borderW,display:"inline-block"}} />
-          <h1 style={{margin:0,fontSize:18,fontWeight:700,color:C.text,letterSpacing:"-0.5px"}}>Executive Dashboard</h1>
-        </div>
-        <p style={{margin:0,fontSize:12.5,color:C.muted,paddingLeft:2}}>
-          Visão consolidada da operação patrimonial · atualizado agora
+        <h1 style={{margin:0,fontSize:22,fontWeight:700,color:C.navy,letterSpacing:"-0.5px"}}>Dashboard Executivo</h1>
+        <p style={{margin:"2px 0 0",fontSize:13,color:C.muted}}>
+          Visão consolidada da carteira de ativos em tempo real
         </p>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:16}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 14px",borderRadius:8,border:`1px solid ${C.borderW}`,background:C.offwhite}}>
-          <Search size={14} color={C.hint} />
-          <input placeholder="Buscar ativo..." style={{border:"none",background:"transparent",outline:"none",fontSize:13,color:C.text,width:160}} />
-        </div>
+      <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <button style={{
+          display:"flex",alignItems:"center",gap:7,
+          padding:"8px 16px",borderRadius:8,
+          border:`1px solid ${C.borderW}`,background:C.white,color:C.navy,
+          fontSize:13,fontWeight:500,cursor:"pointer",
+        }}>
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <path d="M7.5 10L3 5.5h3V1h3v4.5h3L7.5 10z" stroke={C.navy} strokeWidth="1.3" strokeLinejoin="round"/>
+            <path d="M2 12h11" stroke={C.navy} strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+          Exportar
+        </button>
         <div style={{position:"relative",cursor:"pointer",padding:4}}>
-          <Bell size={17} color={C.muted} />
+          <Bell size={18} color={C.muted} />
           <span style={{position:"absolute",top:2,right:2,width:7,height:7,borderRadius:"50%",background:"#E5484D",border:`2px solid ${C.white}`}} />
         </div>
-        <button style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",borderRadius:8,border:`1px solid ${C.navy}`,background:C.navy,color:C.white,fontSize:12.5,fontWeight:500,cursor:"pointer"}}>
-          Exportar Relatório
-        </button>
+        <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
+          <div style={{
+            width:36,height:36,borderRadius:"50%",background:C.emeraldL,
+            border:`2px solid ${C.emerald}40`,display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:12,fontWeight:700,color:C.emerald,
+          }}>
+            {(prof?.nome||"U")[0].toUpperCase()}{(prof?.nome||"U").split(" ")[1]?.[0]?.toUpperCase()||""}
+          </div>
+          <div>
+            <p style={{margin:0,fontSize:13,fontWeight:600,color:C.navy}}>{prof?.nome||"Usuário"}</p>
+            <p style={{margin:0,fontSize:11,color:C.muted}}>{prof?.role==="admin"?"Administrador":"Membro"}</p>
+          </div>
+        </div>
       </div>
     </header>
   )
@@ -633,36 +671,164 @@ function MetricCard({ titulo, valor, aux, badge, badgeColor, badgeBg, icon: Icon
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-function Dashboard({props,onNav}) {
+function Dashboard({props,onNav,profile:prof}) {
   const total=props.length, comprar=props.filter(p=>p.recomendacao==="COMPRAR").length
   const forte=props.filter(p=>(p.score_total||0)>=7.5).length
-  const avg=total?(props.reduce((s,p)=>s+(p.score_total||0),0)/total).toFixed(1):"—"
-  const recentes=[...props].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,6)
+  const avg=total?(props.reduce((s,p)=>s+(p.score_total||0),0)/total).toFixed(1):"0"
+  const avgPct=total?Math.round((props.reduce((s,p)=>s+(p.score_total||0),0)/total)*10):0
+  const recentes=[...props].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,4)
+  const topAlerta=[...props].filter(p=>p.recomendacao!=="EVITAR").sort((a,b)=>(b.score_total||0)-(a.score_total||0))[0]
+  const totalValor=props.reduce((s,p)=>s+(p.valor_minimo||0),0)
+  const fmtM=v=>{if(v>=1e6)return`R$ ${(v/1e6).toFixed(1)}M`;if(v>=1e3)return`R$ ${(v/1e3).toFixed(0)}K`;return`R$ ${v}`}
 
-  const METRICS = [
-    { titulo:"Patrimônio sob Gestão", valor:`${total} ativos`, aux:"Carteira monitorada", badge:"Atualizado", badgeColor:C.emerald, badgeBg:C.emeraldL, icon:BarChart3, iconColor:C.navy },
-    { titulo:"Score Médio", valor:avg, aux:"Média da carteira ativa", badge:"Viável", badgeColor:C.navy, badgeBg:C.navyAlfa, icon:ShieldCheck, iconColor:C.navy },
-    { titulo:"Para Comprar", valor:String(comprar), aux:"Recomendação positiva", badge:"Oportunidade", badgeColor:C.emerald, badgeBg:C.emeraldL, icon:TrendingUp, iconColor:C.emerald, trend:comprar>0?"ativas":undefined },
-    { titulo:"Score Forte", valor:String(forte), aux:`Score ≥ 7.5 de ${total}`, badge:forte>0?"Destaque":"—", badgeColor:C.mustard, badgeBg:C.mustardL, icon:AlertTriangle, iconColor:C.mustard },
-  ]
-
-  return <div>
-    <AxisHeader />
-    <div style={{padding:"28px 36px"}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"20px",marginBottom:"28px"}}>
-        {METRICS.map(m=><MetricCard key={m.titulo} {...m} />)}
+  return <div style={{background:C.bg,minHeight:"100%"}}>
+    <AxisHeader profile={prof} />
+    <div style={{padding:"28px 32px",display:"flex",flexDirection:"column",gap:20}}>
+      {/* Linha 1: 3 colunas — Patrimônio | Valorização | Alertas */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:18}}>
+        {/* Card 1 — Patrimônio Monitorado (verde escuro) */}
+        <div style={{
+          background:"#064E3B",borderRadius:14,padding:"22px 24px",
+          position:"relative",overflow:"hidden",
+          boxShadow:"0 4px 20px rgba(5,168,109,0.25)",
+        }}>
+          <p style={{margin:"0 0 8px",fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"0.8px"}}>
+            Patrimônio Monitorado
+          </p>
+          <p style={{margin:"0 0 4px",fontSize:36,fontWeight:800,color:"#FFFFFF",letterSpacing:"-1.5px",lineHeight:1}}>
+            {fmtM(totalValor)}
+          </p>
+          <p style={{margin:"8px 0 0",fontSize:13,color:"rgba(255,255,255,0.65)"}}>
+            {total} ativo{total!==1?"s":""} sob gestão
+          </p>
+          <div style={{position:"absolute",bottom:16,right:20}}>
+            <ArrowUpRight size={48} color="rgba(255,255,255,0.12)" strokeWidth={1.5} />
+          </div>
+        </div>
+        {/* Card 2 — Score Médio */}
+        <div style={{
+          background:C.white,border:`1px solid ${C.borderW}`,
+          borderRadius:14,padding:"22px 24px",
+          boxShadow:"0 2px 12px rgba(0,43,128,0.06)",
+        }}>
+          <p style={{margin:"0 0 8px",fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>
+            Score Médio AXIS
+          </p>
+          <p style={{margin:"0 0 4px",fontSize:38,fontWeight:800,color:C.emerald,letterSpacing:"-1.5px",lineHeight:1}}>
+            {avg}/10
+          </p>
+          <p style={{margin:"4px 0 0",fontSize:12.5,color:C.muted}}>Média da carteira ativa</p>
+          <div style={{
+            marginTop:14,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,
+            paddingTop:12,borderTop:`1px solid ${C.borderW}`,
+          }}>
+            <div>
+              <p style={{margin:0,fontSize:10.5,color:C.hint}}>Para comprar</p>
+              <p style={{margin:"2px 0 0",fontSize:14,fontWeight:700,color:C.emerald}}>{comprar}</p>
+              <p style={{margin:0,fontSize:10,color:C.hint}}>Recomendação positiva</p>
+            </div>
+            <div>
+              <p style={{margin:0,fontSize:10.5,color:C.hint}}>Score forte</p>
+              <p style={{margin:"2px 0 0",fontSize:14,fontWeight:700,color:C.emerald}}>{forte}</p>
+              <p style={{margin:0,fontSize:10,color:C.hint}}>Score &ge; 7.5</p>
+            </div>
+          </div>
+        </div>
+        {/* Card 3 — Alertas / Destaque */}
+        <div style={{
+          background:C.white,border:`1px solid ${C.borderW}`,
+          borderRadius:14,padding:"22px 24px",
+          boxShadow:"0 2px 12px rgba(0,43,128,0.06)",
+        }}>
+          <p style={{margin:"0 0 10px",fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>
+            Alertas e Destaques
+          </p>
+          {topAlerta?<>
+            <div style={{padding:"10px 12px",borderRadius:8,background:C.surface,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{margin:0,fontSize:12.5,fontWeight:600,color:C.navy,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{topAlerta.titulo||"Imóvel"}</p>
+                <div style={{display:"flex",gap:5,marginTop:3}}>
+                  <span style={{fontSize:10,padding:"1px 6px",borderRadius:3,background:C.navyAlfa,color:C.navy,fontWeight:600}}>{topAlerta.tipo||"Imóvel"}</span>
+                  <span style={{fontSize:10,padding:"1px 6px",borderRadius:3,background:C.emeraldL,color:C.emerald,fontWeight:600}}>{topAlerta.recomendacao}</span>
+                </div>
+                <p style={{margin:"4px 0 0",fontSize:13.5,fontWeight:700,color:C.navy}}>{fmtC(topAlerta.valor_minimo)}</p>
+                <p style={{margin:0,fontSize:11,color:C.emerald,fontWeight:600}}>{topAlerta.desconto_percentual?`-${topAlerta.desconto_percentual}% desconto`:""}</p>
+              </div>
+              <svg width="52" height="52" style={{flexShrink:0}}>
+                <circle cx="26" cy="26" r="20" fill="none" stroke={C.emeraldL} strokeWidth="4"/>
+                <circle cx="26" cy="26" r="20" fill="none" stroke={C.emerald} strokeWidth="4"
+                  strokeDasharray={`${((topAlerta.score_total||0)/10)*125.7} 125.7`}
+                  strokeLinecap="round" transform="rotate(-90 26 26)"/>
+                <text x="26" y="23" textAnchor="middle" fontSize="12" fontWeight="800" fill={C.emerald}>{(topAlerta.score_total||0).toFixed(1)}</text>
+                <text x="26" y="32" textAnchor="middle" fontSize="7" fill={C.hint}>/10</text>
+              </svg>
+            </div>
+            <button onClick={()=>onNav("detail",{id:topAlerta.id})} style={{
+              marginTop:10,width:"100%",padding:"8px 0",borderRadius:7,
+              background:C.emerald,color:"#fff",border:"none",fontSize:12.5,fontWeight:600,cursor:"pointer",
+              display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+            }}>
+              Analisar Ativo <ArrowUpRight size={15} />
+            </button>
+          </>:<p style={{fontSize:13,color:C.hint}}>Nenhum ativo analisado</p>}
+        </div>
       </div>
+
+      {/* Linha 2: Oportunidades Ativas */}
+      <div style={{
+        background:C.white,border:`1px solid ${C.borderW}`,
+        borderRadius:14,padding:"20px 24px",
+        display:"flex",alignItems:"center",justifyContent:"space-between",
+        boxShadow:"0 2px 12px rgba(0,43,128,0.06)",
+      }}>
+        <div>
+          <p style={{margin:"0 0 4px",fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>
+            Oportunidades Ativas
+          </p>
+          <p style={{margin:0,fontSize:42,fontWeight:800,color:C.navy,letterSpacing:"-2px",lineHeight:1}}>
+            {total}
+          </p>
+          <p style={{margin:"4px 0 0",fontSize:12.5,color:C.muted}}>Score Médio AXIS</p>
+        </div>
+        <div style={{display:"flex",gap:14,alignItems:"center"}}>
+          <svg width="80" height="80">
+            <circle cx="40" cy="40" r="32" fill="none" stroke={C.emeraldL} strokeWidth="6"/>
+            <circle cx="40" cy="40" r="32" fill="none" stroke={C.emerald} strokeWidth="6"
+              strokeDasharray={`${(avgPct/100)*201} 201`}
+              strokeLinecap="round" transform="rotate(-90 40 40)"/>
+            <text x="40" y="37" textAnchor="middle" fontSize="18" fontWeight="800" fill={C.navy}>{avg}</text>
+            <text x="40" y="50" textAnchor="middle" fontSize="10" fill={C.hint}>/10</text>
+          </svg>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <button onClick={()=>onNav("novo")} style={{
+              padding:"8px 18px",borderRadius:7,
+              background:C.emerald,color:"#fff",
+              border:"none",fontSize:12.5,fontWeight:600,cursor:"pointer",
+            }}>
+              + Nova Análise
+            </button>
+            <div style={{display:"flex",gap:6}}>
+              <span style={{fontSize:11,padding:"3px 8px",borderRadius:5,background:C.navyAlfa,color:C.navy,fontWeight:600}}>{comprar} comprar</span>
+              <span style={{fontSize:11,padding:"3px 8px",borderRadius:5,background:C.emeraldL,color:C.emerald,fontWeight:600}}>{forte} forte</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Linha 3: Análises Recentes */}
       {total===0
-        ?<div style={{textAlign:"center",padding:"60px 20px",color:C.hint}}>
+        ?<div style={{background:C.white,borderRadius:14,border:`1px solid ${C.borderW}`,textAlign:"center",padding:"60px 20px"}}>
           <div style={{fontSize:"48px",marginBottom:"16px",opacity:0.5}}>📊</div>
           <div style={{fontSize:"15px",marginBottom:"8px",color:C.muted}}>Nenhum imóvel analisado ainda</div>
           <div style={{fontSize:"12px",marginBottom:"24px",color:C.hint}}>Cole o link de um leilão para começar</div>
           <button style={btn()} onClick={()=>onNav("novo")}>Analisar Primeiro Imóvel</button>
         </div>
-        :<><div style={{fontWeight:"600",color:C.text,marginBottom:"14px",fontSize:"14px"}}>Análises Recentes</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"16px"}}>
-          {recentes.map(p=><PropCard key={p.id} p={p} onNav={onNav}/>)}
-        </div></>}
+        :<div>
+          <div style={{fontWeight:"600",color:C.text,marginBottom:"14px",fontSize:"14px"}}>Análises Recentes</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"16px"}}>
+            {recentes.map(p=><PropCard key={p.id} p={p} onNav={onNav}/>)}
+          </div>
+        </div>}
     </div>
   </div>
 }
@@ -1346,60 +1512,76 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
     {showTrello&&<TrelloModal config={trello} onSave={saveTrello} onClose={()=>setShowTrello(false)}/>}
     {showApiKey&&<ApiKeyModal onClose={()=>setShowApiKey(false)}/>}
 
-{/* SIDEBAR — AXIS thin 64px */}
+{/* SIDEBAR — AXIS expandida 200px */}
 <aside style={{
-  width:64,minWidth:64,height:'100vh',position:'sticky',top:0,
-  background:C.navy,display:'flex',flexDirection:'column',alignItems:'center',
-  borderRight:`1px solid ${C.navy2}`,paddingTop:0,flexShrink:0,
+  width:200,minWidth:200,height:'100vh',position:'sticky',top:0,
+  background:C.navy,display:'flex',flexDirection:'column',
+  borderRight:`1px solid ${C.navy2}`,flexShrink:0,
 }}>
-  {/* Logo compacto */}
-  <div style={{width:'100%',height:64,display:'flex',alignItems:'center',justifyContent:'center',borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-      <rect width="32" height="32" rx="8" fill="rgba(255,255,255,0.1)"/>
-      <text x="5" y="22" fontFamily="'Inter',sans-serif" fontWeight="800" fontSize="16" fill="white">A</text>
-      <line x1="17" y1="12" x2="24" y2="6" stroke={C.emerald} strokeWidth="2" strokeLinecap="round"/>
-      <polyline points="21,6 24,6 24,9" fill="none" stroke={C.emerald} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
+  {/* Logo */}
+  <div style={{padding:"24px 20px 20px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
+    <AxisLogo light />
   </div>
-  {/* Nav icons */}
-  <nav style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'12px 0',gap:4}}>
+  {/* Nav */}
+  <nav style={{flex:1,padding:'12px 10px',display:'flex',flexDirection:'column',gap:2}}>
     {NAV_ITEMS_DEF.map(item=>{
       const active=isAct(item.v)
-      return <button key={item.v} onClick={()=>nav(item.v)} title={item.l}
+      return <button key={item.v} onClick={()=>nav(item.v)}
         style={{
-          width:44,height:44,display:'flex',alignItems:'center',justifyContent:'center',
-          borderRadius:10,border:'none',cursor:'pointer',
-          background:active?'rgba(45,176,108,0.15)':'transparent',
-          color:active?C.emerald:'rgba(255,255,255,0.45)',
-          transition:'all 0.15s',position:'relative',
+          width:'100%',display:'flex',alignItems:'center',gap:10,
+          padding:'10px 12px',borderRadius:8,border:'none',cursor:'pointer',
+          background:active?'rgba(5,168,109,0.15)':'transparent',
+          color:active?C.emerald:'rgba(255,255,255,0.55)',
+          fontSize:13.5,fontWeight:active?600:400,
+          transition:'all 0.15s',position:'relative',textAlign:'left',
         }}
-        onMouseEnter={e=>{if(!active)e.currentTarget.style.background='rgba(255,255,255,0.07)'}}
+        onMouseEnter={e=>{if(!active)e.currentTarget.style.background='rgba(255,255,255,0.06)'}}
         onMouseLeave={e=>{if(!active)e.currentTarget.style.background='transparent'}}
       >
-        {active&&<span style={{position:'absolute',left:-1,top:'20%',bottom:'20%',width:3,borderRadius:'0 3px 3px 0',background:C.emerald}} />}
-        <item.icon size={18} strokeWidth={active?2:1.5} />
+        {active&&<span style={{position:'absolute',left:0,top:'18%',bottom:'18%',width:3,borderRadius:'0 3px 3px 0',background:C.emerald}} />}
+        <item.icon size={17} strokeWidth={active?2.2:1.6} />
+        {item.l}
       </button>
     })}
   </nav>
-  {/* Sidebar footer: config buttons + avatar */}
-  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,paddingBottom:12,borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:8,width:'100%'}}>
-    <button title="Trello" onClick={()=>setShowTrello(true)} style={{width:36,height:36,borderRadius:8,border:'none',cursor:'pointer',background:trello?'rgba(45,176,108,0.12)':'rgba(255,255,255,0.05)',color:trello?C.emerald:'rgba(255,255,255,0.35)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>
-      🔷
+  {/* Sidebar footer */}
+  <div style={{padding:'10px 10px',borderTop:'1px solid rgba(255,255,255,0.07)',display:'flex',flexDirection:'column',gap:4}}>
+    <button onClick={()=>setShowTrello(true)} style={{
+      width:'100%',display:'flex',alignItems:'center',gap:10,
+      padding:'8px 12px',borderRadius:8,border:'none',cursor:'pointer',
+      background:trello?'rgba(5,168,109,0.12)':'transparent',
+      color:trello?C.emerald:'rgba(255,255,255,0.45)',fontSize:13,fontWeight:400,textAlign:'left',
+    }}>
+      🔷 Trello
     </button>
-    <button title="API Key" onClick={()=>setShowApiKey(true)} style={{width:36,height:36,borderRadius:8,border:'none',cursor:'pointer',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.35)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-      <Settings size={15} />
+    <button onClick={()=>setShowApiKey(true)} style={{
+      width:'100%',display:'flex',alignItems:'center',gap:10,
+      padding:'8px 12px',borderRadius:8,border:'none',cursor:'pointer',
+      background:'transparent',color:'rgba(255,255,255,0.45)',fontSize:13,fontWeight:400,textAlign:'left',
+    }}>
+      <Settings size={15} /> Config
     </button>
-    <div title={profile?.nome||'Usuário'} style={{width:36,height:36,borderRadius:'50%',background:`${C.emerald}25`,border:`1px solid ${C.emerald}50`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:C.emerald,cursor:'pointer'}}
-      onClick={async()=>{if(confirm('Sair?')){const{signOut}=await import('./lib/supabase.js');await signOut()}}}>
-      {(profile?.nome||'U')[0].toUpperCase()}
+    <div onClick={async()=>{if(confirm('Sair?')){const{signOut}=await import('./lib/supabase.js');await signOut()}}}
+      style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',cursor:'pointer',borderRadius:8,marginTop:4}}>
+      <div style={{width:30,height:30,borderRadius:'50%',background:`${C.emerald}25`,border:`1px solid ${C.emerald}50`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C.emerald}}>
+        {(profile?.nome||'U')[0].toUpperCase()}
+      </div>
+      <div>
+        <p style={{margin:0,fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.8)'}}>{profile?.nome||'Usuário'}</p>
+        <p style={{margin:0,fontSize:10,color:'rgba(255,255,255,0.35)'}}>{profile?.role||'membro'}</p>
+      </div>
     </div>
+  </div>
+  <div style={{padding:'10px 16px',borderTop:'1px solid rgba(255,255,255,0.07)'}}>
+    <p style={{margin:0,fontSize:10.5,color:'rgba(255,255,255,0.35)',lineHeight:1.5}}>AXIS Inteligência v2.1</p>
+    <p style={{margin:0,fontSize:10,color:'rgba(255,255,255,0.2)'}}>Forma Patrimonial, MG</p>
   </div>
 </aside>
 {/* FIM SIDEBAR */}
 
     {/* CONTENT */}
     <div style={{flex:1,overflowY:"auto",background:C.offwhite,display:"flex",flexDirection:"column",minWidth:0}}>
-      {view==="dashboard"&&<Dashboard props={props} onNav={nav}/>}
+      {view==="dashboard"&&<Dashboard props={props} onNav={nav} profile={profile}/>}
   {view==="novo"&&<NovoImovel onSave={addProp} onCancel={()=>nav("imoveis")} trello={trello} parametrosBanco={parametrosBanco} criteriosBanco={criteriosBanco}/>}
       {view==="imoveis"&&<Lista props={props} onNav={nav} onDelete={delProp} trello={trello} onUpdateProp={(id,updates)=>setProps(ps=>ps.map(p=>p.id===id?{...p,...updates}:p))}/>}
       {view==="detail"&&<Detail p={selP} onDelete={delProp} onNav={nav} trello={trello} onUpdateProp={(id,updates)=>setProps(ps=>ps.map(p=>p.id===id?{...p,...updates}:p))}/>}
