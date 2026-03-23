@@ -39,6 +39,35 @@ Para qualquer campo jurídico identificado, informe:
 - prazo_liberacao_estimado_meses
 `
 
+const INSTRUCOES_AREA = `
+REGRAS CRÍTICAS SOBRE ÁREA E AVALIAÇÃO:
+1. ÁREA PARA CÁLCULO:
+   - Use SEMPRE a área privativa principal (área útil), nunca a área total
+   - Se o edital mencionar: "área privativa: 135m²" E "área total: 247m²"
+     → use 135m² para preço/m² e comparação de mercado
+   - Área total inclui quota de área comum — não serve para comparação comercial
+   - Se só houver uma área, use ela mas anote a ressalva
+
+2. AVALIAÇÃO JUDICIAL:
+   - A avaliação para cálculo é o VALOR DE AVALIAÇÃO DO LEILÃO (judicial)
+   - NÃO é o valor de mercado estimado
+   - NÃO é o valor total incluindo área comum
+   - Se o edital disser "valor de avaliação: R$ 461.164,03" → use esse valor
+   - O valor de mercado real pode ser DIFERENTE e SUPERIOR à avaliação judicial
+
+3. LANCE MÍNIMO vs AVALIAÇÃO:
+   - Lance mínimo ≠ avaliação
+   - No 2º leilão geralmente é 60-70% da avaliação
+   - Calcule desconto = (avaliação - lance_minimo) / avaliação
+   - O desconto sobre o MERCADO REAL pode ser ainda maior
+
+4. PASSIVOS (IPTU/CONDOMÍNIO) EM LEILÃO JUDICIAL:
+   - Em leilão judicial (CPC/2015), os débitos se sub-rogam no preço
+   - Se o edital EXPRESSAMENTE afirmar que o arrematante NÃO responde → score_juridico += 15
+   - Cláusula expressa de exoneração é muito positiva juridicamente
+   - NÃO penalize como se fosse CAIXA (que cobra do comprador)
+`
+
 const REGRAS_REFORMA_TEXTO = `
 PARÂMETROS DE CUSTO DE REFORMA — MG/BH/JF 2026
 (apenas custo direto: mão de obra + materiais + terceirizados)
@@ -165,6 +194,7 @@ NOTA: ChatGPT nÃ£o disponÃ­vel no momento. Use seu conhecimento para estimar
 
 Acesse e analise este imÃ³vel: ${url}
 
+${INSTRUCOES_AREA}
 ${contextoGPT}
 ${contextoMercadoRegional || ''}
 ${REGRAS_MODALIDADE_TEXTO}
@@ -345,16 +375,24 @@ export async function extrairFotosImovel(url, claudeKey) {
         messages: [{
           role: 'user',
           content: `Acesse esta URL de imovel: ${url}
-Extraia TODAS as URLs de imagens/fotos do imovel que aparecem na pagina.
-Procure por tags <img>, atributos src, srcset, data-src, background-image.
-Priorize fotos grandes (nao icones, nao logos).
+
+O site pode usar JavaScript/React/SPA para carregar imagens dinamicamente.
+Tente as seguintes estrategias para encontrar fotos do imovel:
+
+1. Verificar se a URL contem parametros de ID do lote
+2. Buscar imagens no padrao: /storage/, /images/, /fotos/, /uploads/, /lote/
+3. Para marcoantonioleiloeiro.com.br, imagens costumam seguir o padrao:
+   https://marcoantonioleiloeiro.com.br/storage/lotes/[ID]/[arquivo].jpg
+4. Verificar meta tags og:image
+5. Verificar atributos data-src, data-lazy, data-original, srcset
+6. Procure por tags <img> com src contendo extensoes .jpg, .jpeg, .png, .webp
+7. Priorize fotos grandes (nao icones, nao logos, nao thumbnails)
+
 Retorne APENAS um JSON valido no formato:
 {
-  "fotos": [
-    "https://url-foto-1.jpg",
-    "https://url-foto-2.jpg"
-  ],
-  "foto_principal": "https://url-foto-capa.jpg"
+  "fotos": ["url1", "url2"],
+  "foto_principal": "url_principal",
+  "estrategia_usada": "qual metodo funcionou"
 }
 Maximo de 12 fotos. A foto_principal deve ser a fachada ou melhor angulo externo.`
         }]
@@ -428,8 +466,17 @@ DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
         analise.aluguel_mensal_estimado = mercadoFinal.preco_m2_locacao * analise.area_m2
       if (!analise.mercado_tendencia) analise.mercado_tendencia = mercadoFinal.tendencia
       if (!analise.mercado_demanda) analise.mercado_demanda = mercadoFinal.demanda
-      if (mercadoFinal.alertas && mercadoFinal.alertas.length)
-        analise.alertas = [...(analise.alertas||[]), ...mercadoFinal.alertas]
+      if (mercadoFinal.alertas && mercadoFinal.alertas.length) {
+        const scoreLiquidez = analise.score_liquidez || 0
+        const alertasRegionais = mercadoFinal.alertas.filter(alerta => {
+          if (scoreLiquidez > 70 && alerta.includes('baixa_liquidez')) return false
+          if (scoreLiquidez > 70 && alerta.includes('vacancia')) return false
+          return true
+        })
+        const alertasExistentes = new Set(analise.alertas || [])
+        for (const alerta of alertasRegionais) alertasExistentes.add(alerta)
+        analise.alertas = [...alertasExistentes]
+      }
     }
   }
 
