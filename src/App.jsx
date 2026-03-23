@@ -1578,6 +1578,12 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
   const nav=(v,p={})=>{setView(v);setVp(p)}
 
   useEffect(()=>{(async()=>{
+    // Migração: leilax-* → axis-* (preservar dados do rebrand)
+    const MIGRATE = [['leilax-props','axis-props'],['leilax-trello','axis-trello'],['leilax-api-key','axis-api-key'],['leilax-openai-key','axis-openai-key']]
+    for(const [old,nw] of MIGRATE){
+      const v=localStorage.getItem(old)
+      if(v&&!localStorage.getItem(nw)){localStorage.setItem(nw,v);localStorage.removeItem(old)}
+    }
     const [p,t]=await Promise.all([stLoad("axis-props"),stLoad("axis-trello")])
     if(t)setTrello(t); setL(true)
     // Mostrar modal de API key se não tiver
