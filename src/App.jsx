@@ -365,6 +365,145 @@ function TrelloModal({config,onSave,onClose}) {
   </div>
 }
 
+// ── MODAL AUDITORIA TRELLO ────────────────────────────────────────────────────
+function ModalAuditoriaTrello({ config, imoveis, onClose }) {
+  const [loading, setLoading] = useState(false)
+  const [auditoria, setAuditoria] = useState(null)
+  const [boards, setBoards] = useState([])
+  const [msg, setMsg] = useState('')
+  const { key, token, boardId } = config || {}
+
+  useEffect(() => {
+    if (key && token) carregarBoards()
+  }, [])
+
+  async function carregarBoards() {
+    try {
+      const { getBoardsAxis } = await import('./lib/trelloService.js')
+      const data = await getBoardsAxis(key, token)
+      setBoards(data.filter(b => b.name.includes('AXIS')))
+    } catch {}
+  }
+
+  async function criarWorkspace() {
+    setLoading(true); setMsg('Criando workspace AXIS no Trello...')
+    try {
+      const { setupWorkspaceAxis } = await import('./lib/trelloService.js')
+      const res = await setupWorkspaceAxis(key, token)
+      const novoConfig = {
+        ...config,
+        boardId: res.boards.pipeline,
+        boardManualId: res.boards.manual,
+        listIds: res.lists,
+      }
+      localStorage.setItem('axis-trello', JSON.stringify(novoConfig))
+      setMsg(`Workspace criado! ${Object.keys(res.lists).length} listas, ${Object.keys(res.labels).length} etiquetas.`)
+      await carregarBoards()
+    } catch(e) {
+      setMsg(`Erro: ${e.message}`)
+    }
+    setLoading(false)
+  }
+
+  async function rodarAuditoria() {
+    if (!boardId) { setMsg('Crie o workspace primeiro.'); return }
+    setLoading(true); setMsg('Auditando board...')
+    try {
+      const { auditarBoard } = await import('./lib/trelloService.js')
+      const res = await auditarBoard(boardId, key, token)
+      setAuditoria(res)
+      setMsg('')
+    } catch(e) {
+      setMsg(`Erro: ${e.message}`)
+    }
+    setLoading(false)
+  }
+
+  async function syncTodosImoveis() {
+    if (!boardId) { setMsg('Configure o Board ID primeiro.'); return }
+    const trelloConf = JSON.parse(localStorage.getItem('axis-trello') || '{}')
+    const listIds = trelloConf.listIds || {}
+    const getListId = (rec) => {
+      if (rec === 'COMPRAR') return listIds['✅ Aprovados']
+      if (rec === 'EVITAR')  return listIds['🚫 Descartados']
+      return listIds['🔍 Em Análise']
+    }
+    setLoading(true); setMsg('Sincronizando imóveis...')
+    let ok = 0, err = 0
+    const { criarCardImovel: criar } = await import('./lib/trelloService.js')
+    for (const imovel of (imoveis || [])) {
+      try {
+        const lid = getListId(imovel.recomendacao) || Object.values(listIds)[0]
+        if (!lid) continue
+        await criar(imovel, lid, boardId, key, token)
+        ok++
+      } catch { err++ }
+    }
+    setMsg(`${ok} card(s) criado(s)${err ? ` · ${err} erro(s)` : ''}`)
+    setLoading(false)
+  }
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
+      <div style={{background:'#fff',borderRadius:16,padding:'28px 32px',width:560,maxHeight:'85vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
+          <div>
+            <h2 style={{margin:0,fontSize:18,fontWeight:700,color:C.navy}}>Trello AXIS — Central de Controle</h2>
+            <p style={{margin:'4px 0 0',fontSize:12.5,color:C.muted}}>Gerencie boards, sincronize imóveis e audite cards</p>
+          </div>
+          <button onClick={onClose} style={{border:'none',background:'none',fontSize:20,cursor:'pointer',color:C.muted}}>x</button>
+        </div>
+        {boards.length > 0 && (
+          <div style={{marginBottom:16,padding:'12px 14px',background:C.emeraldL,borderRadius:10}}>
+            <p style={{margin:'0 0 6px',fontSize:12,fontWeight:600,color:C.emerald}}>{boards.length} board(s) AXIS encontrado(s):</p>
+            {boards.map(b => (
+              <p key={b.id} style={{margin:'2px 0',fontSize:12,color:C.navy}}>
+                {b.name} · <a href={b.url} target="_blank" rel="noreferrer" style={{color:C.emerald}}>abrir</a>
+              </p>
+            ))}
+          </div>
+        )}
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <button onClick={criarWorkspace} disabled={loading}
+            style={{padding:'11px 0',borderRadius:9,border:'none',background:C.navy,color:'#fff',fontSize:13.5,fontWeight:600,cursor:loading?'wait':'pointer'}}>
+            Criar / Recriar Workspace AXIS
+          </button>
+          <button onClick={rodarAuditoria} disabled={loading||!boardId}
+            style={{padding:'11px 0',borderRadius:9,border:`1px solid ${C.navy}`,background:'#fff',color:C.navy,fontSize:13.5,fontWeight:600,cursor:(loading||!boardId)?'not-allowed':'pointer'}}>
+            Auditar Board Pipeline
+          </button>
+          <button onClick={syncTodosImoveis} disabled={loading||!boardId}
+            style={{padding:'11px 0',borderRadius:9,border:'none',background:C.emerald,color:'#fff',fontSize:13.5,fontWeight:600,cursor:(loading||!boardId)?'not-allowed':'pointer'}}>
+            Sincronizar {imoveis?.length||0} imóvel(is)
+          </button>
+        </div>
+        {msg && (
+          <div style={{marginTop:14,padding:'10px 14px',borderRadius:8,background:msg.includes('Erro')?'#FEE8E8':C.emeraldL,fontSize:13,color:msg.includes('Erro')?'#C0392B':C.emerald}}>
+            {msg}
+          </div>
+        )}
+        {auditoria && (
+          <div style={{marginTop:16,padding:'14px 16px',background:C.surface,borderRadius:10}}>
+            <p style={{margin:'0 0 10px',fontWeight:600,fontSize:14,color:C.navy}}>Resultado da Auditoria</p>
+            <p style={{margin:'3px 0',fontSize:13,color:C.text}}>Board: {auditoria.board?.name}</p>
+            <p style={{margin:'3px 0',fontSize:13,color:C.text}}>Total de cards: {auditoria.cards_total}</p>
+            <p style={{margin:'3px 0',fontSize:13,color:C.text}}>Listas: {auditoria.listas?.map(l=>l.nome).join(', ')}</p>
+            {auditoria.cards_sem_foto?.length>0 && (
+              <p style={{margin:'6px 0 0',fontSize:12.5,color:C.mustard}}>Sem foto: {auditoria.cards_sem_foto.join(', ')}</p>
+            )}
+            {auditoria.cards_sem_checklist?.length>0 && (
+              <p style={{margin:'4px 0',fontSize:12.5,color:C.mustard}}>Sem checklist: {auditoria.cards_sem_checklist.join(', ')}</p>
+            )}
+            {auditoria.erros?.length>0 && (
+              <p style={{margin:'4px 0',fontSize:12.5,color:'#C0392B'}}>Erros: {auditoria.erros.join(', ')}</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── API KEY MODAL ─────────────────────────────────────────────────────────────
 function ApiKeyModal({onClose}) {
  const [key,setKey]=useState(localStorage.getItem("axis-api-key")||"")
@@ -1416,6 +1555,7 @@ export default function App() {
   const [trello,setTrello]=useState(null)
   const [showTrello,setShowTrello]=useState(false)
   const [showApiKey,setShowApiKey]=useState(false)
+  const [showTrelloModal,setShowTrelloModal]=useState(false)
 const [parametrosBanco,setParametrosBanco]=useState([])
 const [criteriosBanco,setCriteriosBanco]=useState([])
   const [apiOk,setApiKey]=useState(localStorage.getItem("axis-api-key"))
@@ -1511,6 +1651,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
 
     {showTrello&&<TrelloModal config={trello} onSave={saveTrello} onClose={()=>setShowTrello(false)}/>}
     {showApiKey&&<ApiKeyModal onClose={()=>setShowApiKey(false)}/>}
+    {showTrelloModal&&<ModalAuditoriaTrello config={trello||JSON.parse(localStorage.getItem('axis-trello')||'{}')} imoveis={props} onClose={()=>setShowTrelloModal(false)}/>}
 
 {/* SIDEBAR — AXIS expandida 200px */}
 <aside style={{
@@ -1546,7 +1687,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
   </nav>
   {/* Sidebar footer */}
   <div style={{padding:'10px 10px',borderTop:'1px solid rgba(255,255,255,0.07)',display:'flex',flexDirection:'column',gap:4}}>
-    <button onClick={()=>setShowTrello(true)} style={{
+    <button onClick={()=>trello?setShowTrelloModal(true):setShowTrello(true)} style={{
       width:'100%',display:'flex',alignItems:'center',gap:10,
       padding:'8px 12px',borderRadius:8,border:'none',cursor:'pointer',
       background:trello?'rgba(5,168,109,0.12)':'transparent',
