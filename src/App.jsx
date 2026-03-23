@@ -476,12 +476,70 @@ function NovoImovel({onSave,onCancel,trello,parametrosBanco,criteriosBanco}) {
 }
 
 // ── PROPERTY CARD ─────────────────────────────────────────────────────────────
+// ── GALERIA DE FOTOS ──────────────────────────────────────────────────────────
+function GaleriaFotos({ fotos = [], foto_principal = null }) {
+  const [fotoAtiva, setFotoAtiva] = useState(foto_principal || fotos[0] || null)
+  if (!fotos.length && !foto_principal) return null
+  const todasFotos = foto_principal
+    ? [foto_principal, ...fotos.filter(f => f !== foto_principal)]
+    : fotos
+  return (
+    <div style={{ marginBottom: 20 }}>
+      {fotoAtiva && (
+        <div style={{
+          width: '100%', height: 240,
+          borderRadius: 12, overflow: 'hidden',
+          marginBottom: 8, background: C.offwhite,
+        }}>
+          <img
+            src={fotoAtiva}
+            alt="Foto principal"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={e => { e.target.style.display = 'none' }}
+          />
+        </div>
+      )}
+      {todasFotos.length > 1 && (
+        <div style={{
+          display: 'flex', gap: 6,
+          overflowX: 'auto', paddingBottom: 4,
+        }}>
+          {todasFotos.map((foto, i) => (
+            <img
+              key={i}
+              src={foto}
+              alt={`Foto ${i + 1}`}
+              onClick={() => setFotoAtiva(foto)}
+              style={{
+                width: 72, height: 52, flexShrink: 0,
+                borderRadius: 7, objectFit: 'cover',
+                cursor: 'pointer',
+                border: fotoAtiva === foto
+                  ? `2px solid ${C.emerald}`
+                  : '2px solid transparent',
+                opacity: fotoAtiva === foto ? 1 : 0.7,
+                transition: 'all 0.15s',
+              }}
+              onError={e => { e.target.style.display = 'none' }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PropCard({p,onNav}) {
   const sc=p.score_total||0, rc=recColor(p.recomendacao)
   return <div onClick={()=>onNav("detail",{id:p.id})}
     style={{...card(),cursor:"pointer",transition:"all .15s"}}
     onMouseEnter={e=>{e.currentTarget.style.borderColor=K.teal;e.currentTarget.style.transform="translateY(-2px)"}}
     onMouseLeave={e=>{e.currentTarget.style.borderColor=K.bd;e.currentTarget.style.transform="none"}}>
+    {p.foto_principal && (
+      <div style={{marginBottom:10,borderRadius:8,overflow:"hidden",height:100,background:C.offwhite}}>
+        <img src={p.foto_principal} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.parentElement.style.display="none"}} />
+      </div>
+    )}
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"10px"}}>
       <div style={{flex:1,minWidth:0}}>
         <div style={{fontWeight:"600",fontSize:"13px",color:K.wh,marginBottom:"4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.titulo||"Imóvel sem título"}</div>
@@ -638,6 +696,7 @@ function Detail({p,onDelete,onNav,trello}) {
       </>}/>
     <div style={{padding:"20px 28px"}}>
       {msg&&<div style={{background:`${K.teal}10`,border:`1px solid ${K.teal}30`,borderRadius:"6px",padding:"10px",marginBottom:"14px",fontSize:"12px",color:K.teal}}>{msg}</div>}
+      <GaleriaFotos fotos={p.fotos} foto_principal={p.foto_principal} />
       <div style={{background:`${rc}10`,border:`1px solid ${rc}30`,borderRadius:"10px",padding:"20px",marginBottom:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"20px"}}>
           <ScoreRing score={sc} size={90}/>
