@@ -667,10 +667,300 @@ function Dashboard({props,onNav}) {
   </div>
 }
 
+// ── ABA JURÍDICA ──────────────────────────────────────────────────────────────
+function AbaJuridica({ imovel, onReclassificado }) {
+  const [docs, setDocs] = useState([])
+  const [analisando, setAnalisando] = useState(false)
+  const [progresso, setProgresso] = useState('')
+  const [resultado, setResultado] = useState(null)
+  const [erro, setErro] = useState('')
+  const fileRef = useRef()
+
+  useEffect(() => {
+    if (imovel?.id) carregarDocs()
+  }, [imovel?.id])
+
+  async function carregarDocs() {
+    try {
+      const { getDocumentosJuridicos } = await import('./lib/supabase.js')
+      const data = await getDocumentosJuridicos(imovel.id)
+      setDocs(data)
+    } catch {}
+  }
+
+  async function handleUpload(e) {
+    const files = Array.from(e.target.files)
+    if (!files.length) return
+    setErro('')
+    setResultado(null)
+
+    const claudeKey = localStorage.getItem('leilax-api-key') || ''
+    const openaiKey = localStorage.getItem('leilax-openai-key') || ''
+    if (!claudeKey) {
+      setErro('Configure a API Key do Claude no painel Admin → API Keys')
+      return
+    }
+
+    for (const file of files) {
+      setAnalisando(true)
+      setProgresso(`📂 Processando ${file.name}...`)
+
+      try {
+        const tipo = file.type.includes('image') ? 'imagem'
+          : file.type.includes('pdf') ? 'pdf' : 'txt'
+
+        let conteudo = null
+        let base64 = null
+        const mediaType = file.type
+
+        if (tipo === 'txt') {
+          conteudo = await file.text()
+        } else if (tipo === 'imagem') {
+          base64 = await new Promise((res, rej) => {
+            const r = new FileReader()
+            r.onload = () => res(r.result.split(',')[1])
+            r.onerror = rej
+            r.readAsDataURL(file)
+          })
+        } else if (tipo === 'pdf') {
+          try {
+            conteudo = await file.text()
+            if (conteudo.includes('%PDF')) conteudo = null
+          } catch {}
+          if (!conteudo) {
+            base64 = await new Promise((res, rej) => {
+              const r = new FileReader()
+              r.onload = () => res(r.result.split(',')[1])
+              r.onerror = rej
+              r.readAsDataURL(file)
+            })
+          }
+        }
+
+        const { processarDocumentoJuridico } = await import('./lib/analisadorJuridico.js')
+        const analise = await processarDocumentoJuridico(
+          { nome: file.name, tipo, conteudo, base64, mediaType },
+          imovel, claudeKey, openaiKey, setProgresso
+        )
+
+        if (!analise) {
+          setErro(`Não foi possível analisar ${file.name}`)
+          continue
+        }
+
+        const { salvarDocumentoJuridico, reclassificarImovel } = await import('./lib/supabase.js')
+        const doc = await salvarDocumentoJuridico({
+          imovel_id: imovel.id,
+          nome: file.name,
+          tipo,
+          tamanho_bytes: file.size,
+          conteudo_texto: conteudo?.slice(0, 5000) || null,
+          analise_ia: analise.parecer_final || analise.parecer_resumido,
+          riscos_encontrados: analise.riscos_consolidados || analise.riscos_identificados || [],
+          impacto_score: analise.impacto_score_total || analise.impacto_score_juridico || 0,
+          processado: true,
+        })
+
+        if (analise.deve_reclassificar) {
+          setProgresso('🔄 Reclassificando imóvel com novos dados...')
+          await reclassificarImovel(imovel.id, analise, doc.id)
+          setResultado(analise)
+          if (onReclassificado) onReclassificado(analise)
+        } else {
+          setResultado(analise)
+        }
+        await carregarDocs()
+      } catch (e) {
+        setErro(`Erro ao processar ${file.name}: ${e.message}`)
+      }
+    }
+    setAnalisando(false)
+    setProgresso('')
+  }
+
+  const corGravidade = g => g === 'critica' ? K.red : g === 'alta' ? K.amb : g === 'media' ? K.grn : K.t3
+
+  return (
+    <div style={{ padding: '0 0 24px' }}>
+      {/* Upload */}
+      <div
+        onClick={() => !analisando && fileRef.current?.click()}
+        style={{
+          border: `2px dashed ${K.bd}`,
+          borderRadius: 12, padding: '28px 20px',
+          textAlign: 'center', cursor: analisando ? 'wait' : 'pointer',
+          background: analisando ? K.s2 : K.s1,
+          marginBottom: 20,
+          transition: 'all 0.15s',
+        }}
+        onMouseEnter={e => { if (!analisando) e.currentTarget.style.borderColor = K.teal }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = K.bd }}
+      >
+        <input
+          ref={fileRef} type="file" multiple
+          accept=".pdf,.txt,.jpg,.jpeg,.png,.webp"
+          style={{ display: 'none' }}
+          onChange={handleUpload}
+        />
+        <div style={{ fontSize: 28, marginBottom: 8 }}>📎</div>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: K.wh }}>
+          Anexar documentos jurídicos
+        </p>
+        <p style={{ margin: '4px 0 0', fontSize: 12.5, color: K.t3 }}>
+          PDF, imagem (JPG/PNG) ou TXT — Matrícula, certidões, processos, alvarás
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12 }}>
+          {[
+            { label: 'PDF/TXT', sub: 'Claude lê', color: K.blue },
+            { label: 'Imagem', sub: 'ChatGPT Vision', color: K.grn },
+          ].map(b => (
+            <span key={b.label} style={{
+              fontSize: 10.5, fontWeight: 600, padding: '3px 10px', borderRadius: 5,
+              background: `${b.color}15`, color: b.color, border: `1px solid ${b.color}30`
+            }}>
+              {b.label} · {b.sub}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Progresso */}
+      {analisando && progresso && (
+        <div style={{
+          background: `${K.teal}10`, border: `1px solid ${K.teal}30`,
+          borderRadius: 10, padding: '12px 16px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: K.teal, flexShrink: 0,
+            animation: 'pulse 1s infinite',
+          }} />
+          <p style={{ margin: 0, fontSize: 13, color: K.teal, fontWeight: 500 }}>
+            {progresso}
+          </p>
+        </div>
+      )}
+
+      {/* Erro */}
+      {erro && (
+        <div style={{
+          background: `${K.red}10`, border: `1px solid ${K.red}30`,
+          borderRadius: 10, padding: '12px 16px', marginBottom: 16,
+          fontSize: 13, color: K.red,
+        }}>
+          ⚠️ {erro}
+        </div>
+      )}
+
+      {/* Resultado da análise */}
+      {resultado && (
+        <div style={{
+          background: resultado.deve_reclassificar ? `${K.amb}10` : `${K.grn}10`,
+          border: `1px solid ${resultado.deve_reclassificar ? K.amb : K.grn}30`,
+          borderRadius: 12, padding: '18px 20px', marginBottom: 20,
+        }}>
+          <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: 14, color: K.wh }}>
+            {resultado.deve_reclassificar ? '🔄 Imóvel reclassificado' : '✅ Análise concluída'}
+          </p>
+          <p style={{ margin: '0 0 10px', fontSize: 13, color: K.tx, lineHeight: 1.6 }}>
+            {resultado.parecer_final || resultado.parecer_resumido}
+          </p>
+          {resultado.alertas_criticos?.length > 0 && (
+            <div>
+              {resultado.alertas_criticos.map((a, i) => (
+                <p key={i} style={{ margin: '4px 0', fontSize: 12.5, color: K.red }}>
+                  🚨 {a}
+                </p>
+              ))}
+            </div>
+          )}
+          {resultado.deve_reclassificar && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 12 }}>
+              <span style={{ fontSize: 12, color: K.t3 }}>
+                Score jurídico: <b style={{ color: K.wh }}>{resultado.novo_score_juridico}/10</b>
+              </span>
+              <span style={{ fontSize: 12, color: K.t3 }}>
+                Nova recomendação: <b style={{ color: recColor(resultado.nova_recomendacao) }}>
+                  {resultado.nova_recomendacao}
+                </b>
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Lista de documentos */}
+      {docs.length > 0 && (
+        <div>
+          <p style={{ fontSize: 11.5, fontWeight: 600, color: K.t3, textTransform: 'uppercase', letterSpacing: '0.6px', margin: '0 0 10px' }}>
+            {docs.length} documento(s) anexado(s)
+          </p>
+          {docs.map(doc => (
+            <div key={doc.id} style={{
+              ...card(), marginBottom: 10,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>
+                    {doc.tipo === 'pdf' ? '📄' : doc.tipo === 'imagem' ? '🖼️' : '📝'}
+                  </span>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: K.wh }}>{doc.nome}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: K.t3 }}>
+                      {doc.tipo.toUpperCase()} · {new Date(doc.criado_em).toLocaleDateString('pt-BR')}
+                      {doc.tipo === 'imagem' ? ' · ChatGPT Vision' : ' · Claude'}
+                    </p>
+                  </div>
+                </div>
+                {doc.impacto_score !== 0 && (
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 5,
+                    background: doc.impacto_score < -10 ? `${K.red}15` : `${K.amb}15`,
+                    color: doc.impacto_score < -10 ? K.red : K.amb,
+                  }}>
+                    {doc.impacto_score > 0 ? '+' : ''}{doc.impacto_score} pts
+                  </span>
+                )}
+              </div>
+              {doc.analise_ia && (
+                <p style={{ margin: '6px 0 0', fontSize: 12.5, color: K.tx, lineHeight: 1.5 }}>
+                  {doc.analise_ia}
+                </p>
+              )}
+              {doc.riscos_encontrados?.length > 0 && (
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {doc.riscos_encontrados.slice(0, 3).map((r, i) => (
+                    <span key={i} style={{
+                      fontSize: 10.5, padding: '2px 8px', borderRadius: 4,
+                      background: `${corGravidade(r.gravidade)}15`,
+                      color: corGravidade(r.gravidade), fontWeight: 600,
+                    }}>
+                      {r.risco_id || r.descricao?.slice(0, 30)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {docs.length === 0 && !analisando && (
+        <p style={{ fontSize: 12.5, color: K.t3, textAlign: 'center', padding: '20px 0' }}>
+          Nenhum documento jurídico anexado ainda.
+          <br />Anexe matrícula, certidões ou processos para análise automática.
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── DETAIL ────────────────────────────────────────────────────────────────────
-function Detail({p,onDelete,onNav,trello}) {
+function Detail({p,onDelete,onNav,trello,onUpdateProp}) {
   const [sending,setSending]=useState(false)
   const [msg,setMsg]=useState("")
+  const [abaDetalhe,setAbaDetalhe]=useState('resumo')
   if(!p) return <div style={{padding:"40px",textAlign:"center",color:K.t3}}>Não encontrado</div>
   const sc=p.score_total||0, rc=recColor(p.recomendacao)
   const scores=[
@@ -694,9 +984,43 @@ function Detail({p,onDelete,onNav,trello}) {
         <button style={btn("trello")} onClick={sendTrello} disabled={sending}>{sending?"Enviando...":"🔷 Trello"}</button>
         <button style={{...btn("d"),padding:"5px 12px",fontSize:"12px"}} onClick={()=>{if(confirm("Excluir?"))onDelete(p.id)}}>🗑</button>
       </>}/>
+    {/* Tabs */}
+    <div style={{display:"flex",gap:0,borderBottom:`1px solid ${K.bd}`,padding:"0 28px",background:K.s1}}>
+      {[{id:'resumo',label:'📊 Resumo'},{id:'juridico',label:'⚖️ Jurídico'},{id:'fotos',label:'📸 Fotos'},{id:'mercado',label:'🏙️ Mercado'}].map(tab=>(
+        <button key={tab.id} onClick={()=>setAbaDetalhe(tab.id)} style={{
+          background:"none",border:"none",padding:"10px 18px",fontSize:"12.5px",fontWeight:abaDetalhe===tab.id?700:500,
+          color:abaDetalhe===tab.id?K.teal:K.t3,cursor:"pointer",
+          borderBottom:abaDetalhe===tab.id?`2px solid ${K.teal}`:"2px solid transparent",
+          transition:"all 0.15s",
+        }}>{tab.label}</button>
+      ))}
+    </div>
     <div style={{padding:"20px 28px"}}>
       {msg&&<div style={{background:`${K.teal}10`,border:`1px solid ${K.teal}30`,borderRadius:"6px",padding:"10px",marginBottom:"14px",fontSize:"12px",color:K.teal}}>{msg}</div>}
-      <GaleriaFotos fotos={p.fotos} foto_principal={p.foto_principal} />
+
+      {abaDetalhe==='juridico'&&<AbaJuridica imovel={p} onReclassificado={(novaAnalise)=>{
+        if(onUpdateProp) onUpdateProp(p.id, {
+          score_juridico: novaAnalise.novo_score_juridico ?? p.score_juridico,
+          recomendacao: novaAnalise.nova_recomendacao || p.recomendacao,
+          processos_ativos: novaAnalise.processos_totais?.join(', ') || p.processos_ativos,
+          reclassificado_por_doc: true
+        })
+      }}/>}
+
+      {abaDetalhe==='fotos'&&<GaleriaFotos fotos={p.fotos||[]} foto_principal={p.foto_principal}/>}
+
+      {abaDetalhe==='mercado'&&<div>
+        <div style={card()}>
+          <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>🏙️ Mercado Regional</div>
+          {[["Tendência",p.mercado_tendencia,p.mercado_tendencia==="Alta"?K.grn:K.amb],["Demanda",p.mercado_demanda,p.mercado_demanda==="Alta"?K.grn:K.amb],["Tempo médio venda",p.mercado_tempo_venda_meses?`${p.mercado_tempo_venda_meses} meses`:"—",K.t2],["Preço/m² mercado",p.preco_m2_mercado?`R$ ${p.preco_m2_mercado}/m²`:"—",K.teal],["Aluguel estimado",fmtC(p.aluguel_mensal_estimado)+"/mês",K.pur],["Obs. mercado",p.mercado_obs||"—",K.t2]].map(([l,v,c])=>(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
+              <span style={{fontSize:"12px",color:K.t3}}>{l}</span><span style={{fontSize:"12.5px",fontWeight:"600",color:c}}>{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>}
+
+      {abaDetalhe==='resumo'&&<>
       <div style={{background:`${rc}10`,border:`1px solid ${rc}30`,borderRadius:"10px",padding:"20px",marginBottom:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"20px"}}>
           <ScoreRing score={sc} size={90}/>
@@ -788,6 +1112,7 @@ function Detail({p,onDelete,onNav,trello}) {
         </div>
       </div>}
       {p.endereco&&<div style={{...card(),marginBottom:"14px"}}><div style={{fontWeight:"600",color:K.wh,marginBottom:"6px",fontSize:"13px"}}>📍 Localização</div><div style={{fontSize:"13px",color:K.t2}}>{p.endereco}</div></div>}
+      </>}
     </div>
   </div>
 }
@@ -1021,7 +1346,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
       {view==="dashboard"&&<Dashboard props={props} onNav={nav}/>}
   {view==="novo"&&<NovoImovel onSave={addProp} onCancel={()=>nav("imoveis")} trello={trello} parametrosBanco={parametrosBanco} criteriosBanco={criteriosBanco}/>}
       {view==="imoveis"&&<Lista props={props} onNav={nav} onDelete={delProp}/>}
-      {view==="detail"&&<Detail p={selP} onDelete={delProp} onNav={nav} trello={trello}/>}
+      {view==="detail"&&<Detail p={selP} onDelete={delProp} onNav={nav} trello={trello} onUpdateProp={(id,updates)=>setProps(ps=>ps.map(p=>p.id===id?{...p,...updates}:p))}/>}
       {view==="comparar"&&<Comparativo props={props}/>}
     {view==="busca"&&<BuscaGPT onAnalisar={(link)=>{nav("novo");setTimeout(()=>{},100)}}/>}
     {view==="graficos"&&<div><div style={{padding:"22px 28px 16px",borderBottom:`1px solid ${C.borderW}`,background:C.white}}><div style={{fontWeight:700,fontSize:19,color:C.text}}>Gráficos</div></div><div style={{padding:"20px 28px"}}><Charts properties={props}/></div></div>}

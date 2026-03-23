@@ -344,3 +344,57 @@ export async function getPacotesReforma() {
   if (error) throw error
   return data || []
 }
+
+// == DOCUMENTOS JURÍDICOS ==
+export async function getDocumentosJuridicos(imovelId) {
+  const { data, error } = await supabase
+    .from('documentos_juridicos')
+    .select('*')
+    .eq('imovel_id', imovelId)
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+export async function salvarDocumentoJuridico(doc) {
+  const { data, error } = await supabase
+    .from('documentos_juridicos')
+    .insert(doc)
+    .select().single()
+  if (error) throw error
+  return data
+}
+
+export async function reclassificarImovel(imovelId, novaAnalise, documentoId) {
+  const { data: imovel } = await supabase
+    .from('imoveis').select('historico_juridico, score_juridico, recomendacao')
+    .eq('id', imovelId).single()
+
+  const historico = imovel?.historico_juridico || []
+  historico.push({
+    data: new Date().toISOString(),
+    doc_id: documentoId,
+    score_anterior: imovel?.score_juridico,
+    score_novo: novaAnalise.novo_score_juridico,
+    recomendacao_anterior: imovel?.recomendacao,
+    recomendacao_nova: novaAnalise.nova_recomendacao,
+    parecer: novaAnalise.parecer_final
+  })
+
+  const updates = {
+    historico_juridico: historico,
+    reclassificado_por_doc: true,
+    atualizado_em: new Date().toISOString()
+  }
+  if (novaAnalise.novo_score_juridico !== undefined)
+    updates.score_juridico = novaAnalise.novo_score_juridico
+  if (novaAnalise.nova_recomendacao)
+    updates.recomendacao = novaAnalise.nova_recomendacao
+  if (novaAnalise.processos_totais?.length)
+    updates.processos_ativos = novaAnalise.processos_totais.join(', ')
+
+  const { error } = await supabase
+    .from('imoveis').update(updates).eq('id', imovelId)
+  if (error) throw error
+  return updates
+}
