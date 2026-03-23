@@ -23,8 +23,8 @@ export default function Login(){
   return<div style={{minHeight:'100vh',background:K.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'DM Sans',system-ui,sans-serif",padding:'20px'}}>
     <div style={{width:'100%',maxWidth:'400px'}}>
       <div style={{textAlign:'center',marginBottom:'40px'}}>
-        <div style={{fontWeight:'800',fontSize:'36px',color:K.wh,letterSpacing:'-1px',marginBottom:'8px'}}>LEI<span style={{color:K.teal}}>LAX</span></div>
-        <div style={{fontSize:'13px',color:K.t3,letterSpacing:'2px',textTransform:'uppercase'}}>Análise de Leilões · IA</div>
+        <div style={{fontWeight:'800',fontSize:'36px',color:K.wh,letterSpacing:'-1px',marginBottom:'8px'}}>AX<span style={{color:K.teal}}>IS</span></div>
+        <div style={{fontSize:'13px',color:K.t3,letterSpacing:'2px',textTransform:'uppercase'}}>Inteligência Patrimonial</div>
       </div>
       <div style={{background:K.s1,border:'1px solid '+K.bd,borderRadius:'14px',padding:'32px'}}>
         <div style={{fontWeight:'700',fontSize:'18px',color:K.wh,marginBottom:'6px'}}>Entrar</div>
