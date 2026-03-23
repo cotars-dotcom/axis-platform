@@ -39,33 +39,94 @@ Para qualquer campo jurídico identificado, informe:
 - prazo_liberacao_estimado_meses
 `
 
-const INSTRUCOES_AREA = `
-REGRAS CRÍTICAS SOBRE ÁREA E AVALIAÇÃO:
-1. ÁREA PARA CÁLCULO:
-   - Use SEMPRE a área privativa principal (área útil), nunca a área total
-   - Se o edital mencionar: "área privativa: 135m²" E "área total: 247m²"
-     → use 135m² para preço/m² e comparação de mercado
-   - Área total inclui quota de área comum — não serve para comparação comercial
-   - Se só houver uma área, use ela mas anote a ressalva
+const REGRAS_COLETA_DADOS = `
+REGRAS OBRIGATÓRIAS DE COLETA E ANÁLISE
 
-2. AVALIAÇÃO JUDICIAL:
-   - A avaliação para cálculo é o VALOR DE AVALIAÇÃO DO LEILÃO (judicial)
-   - NÃO é o valor de mercado estimado
-   - NÃO é o valor total incluindo área comum
-   - Se o edital disser "valor de avaliação: R$ 461.164,03" → use esse valor
-   - O valor de mercado real pode ser DIFERENTE e SUPERIOR à avaliação judicial
+--- ÁREA DO IMÓVEL ---
+PRIORIDADE de leitura de área (use nesta ordem):
+1. área_privativa (área útil, exclusiva do proprietário)
+2. área_construída (se não houver privativa)
+3. área_total (NUNCA use para preço/m² — inclui área comum)
+Regra: se o edital listar múltiplas áreas, use SEMPRE a menor
+(privativa) para calcular preço/m² e comparar com mercado.
+Exemplos corretos:
+  Edital diz "135,49m² privativa / 247,60m² total" → usar 135,49m²
+  Edital diz "82m² útil / 95m² total" → usar 82m²
+  Edital diz apenas "90m²" sem especificar → usar 90m²
+Nunca multiplique área total × preço/m² de mercado.
 
-3. LANCE MÍNIMO vs AVALIAÇÃO:
-   - Lance mínimo ≠ avaliação
-   - No 2º leilão geralmente é 60-70% da avaliação
-   - Calcule desconto = (avaliação - lance_minimo) / avaliação
-   - O desconto sobre o MERCADO REAL pode ser ainda maior
+--- AVALIAÇÃO E LANCE ---
+AVALIAÇÃO JUDICIAL ≠ VALOR DE MERCADO:
+  - avaliação_judicial: valor definido pelo perito do processo
+  - valor_mercado_real: o que imóvel similar vende no mercado livre
+  - lance_minimo: geralmente 60-70% da avaliação no 2º leilão
+  - lance_atual: o último lance registrado no portal (se houver)
+Para calcular desconto, use SEMPRE:
+  desconto_sobre_avaliacao = (avaliacao - lance_minimo) / avaliacao
+  desconto_sobre_mercado = (valor_mercado_real - lance_minimo) / valor_mercado_real
+NUNCA invente a avaliação. Se não encontrar no edital, marque como null.
 
-4. PASSIVOS (IPTU/CONDOMÍNIO) EM LEILÃO JUDICIAL:
-   - Em leilão judicial (CPC/2015), os débitos se sub-rogam no preço
-   - Se o edital EXPRESSAMENTE afirmar que o arrematante NÃO responde → score_juridico += 15
-   - Cláusula expressa de exoneração é muito positiva juridicamente
-   - NÃO penalize como se fosse CAIXA (que cobra do comprador)
+--- CUSTO TOTAL DE AQUISIÇÃO ---
+Sempre calcular o custo real total:
+  custo_total = lance + comissao_leiloeiro + itbi + registro + honorarios
+Comissão leiloeiro:
+  - Padrão: 5% sobre o valor arrematado
+  - Sempre pago pelo ARREMATANTE (não pelo vendedor)
+  - Incluir no custo total obrigatoriamente
+ITBI:
+  - Belo Horizonte: 3%
+  - Contagem, Betim, Nova Lima: 2%
+  - Juiz de Fora: 2%
+  - Outros MG: estimativa 2%
+  - Base de cálculo: valor arrematado ou avaliação (o maior)
+
+--- COMPARAÇÃO COM MERCADO ---
+Para definir preco_m2_mercado, use esta hierarquia:
+1. Anúncios COMPARÁVEIS da mesma rua ou condomínio (mais preciso)
+2. Anúncios comparáveis do mesmo bairro/tipologia
+3. Dados ZAP/VivaReal do bairro para a tipologia específica
+4. Dados gerais do bairro como fallback
+TIPOLOGIA importa muito para comparação:
+  Cobertura duplex ≠ apartamento padrão
+  Studio ≠ 1 quarto
+  Casa em condomínio ≠ apartamento
+Se o imóvel for cobertura, penthouse, duplex ou diferenciado:
+  → buscar comparáveis específicos dessa tipologia
+  → não usar média geral do bairro como referência
+
+--- PASSIVOS (IPTU, CONDOMÍNIO) ---
+Regra por modalidade (CRÍTICO):
+LEILÃO JUDICIAL (CPC/2015):
+  - Se edital NÃO menciona nada → débitos se sub-rogam no preço (não é do arrematante)
+  - Se edital EXPRESSAMENTE exonera o arrematante → marcar como ponto positivo (+15 pts jurídico)
+  - Risco financeiro: BAIXO a NULO para o arrematante
+LEILÃO CAIXA / EXTRAJUDICIAL:
+  - IPTU e condomínio ficam com o COMPRADOR (FAQ CAIXA oficial)
+  - Risco financeiro: ALTO — calcular e incluir no custo total
+EXTINÇÃO DE CONDOMÍNIO (caso especial):
+  - Modalidade onde coproprietários encerram condomínio voluntário
+  - Débitos costumam ser resolvidos entre as partes, não pelo arrematante
+  - Geralmente positivo juridicamente
+
+--- ALERTAS E CONSISTÊNCIA ---
+NUNCA gerar alerta que contradiga o score:
+  Se score_liquidez >= 70 → NÃO incluir alerta "baixa_liquidez"
+  Se score_juridico >= 75 → NÃO incluir alerta de risco jurídico alto
+  Se imóvel desocupado confirmado → NÃO incluir alerta de ocupação
+Alertas devem ser ACIONÁVEIS:
+  Errado: "muito_baixa_liquidez" (código interno, não útil)
+  Correto: "Confirmar ocupação presencialmente antes do lance"
+  Correto: "Solicitar certidão de matrícula atualizada (30 dias)"
+  Correto: "Verificar se condomínio aceitará novo proprietário"
+
+--- REGIÃO GEOGRÁFICA ---
+Identificar corretamente a cidade/bairro:
+  Contagem ≠ Belo Horizonte (são municípios diferentes)
+  Nova Lima ≠ BH (município diferente, preço/m² muito maior)
+  Betim ≠ BH
+  Juiz de Fora = cidade própria, não RMBH
+Para Contagem, usar dados de Contagem (ZAP: ~R$4.200-5.800/m²)
+Para BH Centro-Sul, usar dados de BH (ZAP: ~R$12.000-15.000/m²)
 `
 
 const REGRAS_REFORMA_TEXTO = `
@@ -102,21 +163,57 @@ Retornar no JSON: escopo_reforma, custo_reforma_estimado, alerta_sobrecap
 export async function pesquisarMercadoGPT(url, cidade, tipo, openaiKey) {
   if (!openaiKey) return null
 
-  const prompt = `VocÃª Ã© um especialista em mercado imobiliÃ¡rio brasileiro com acesso Ã  internet.
+  const prompt = `VocÃª Ã© um especialista em mercado imobiliÃ¡rio brasileiro.
+Pesquise na internet dados ATUAIS sobre este imÃ³vel de leilÃ£o: ${url}
 
-Pesquise informaÃ§Ãµes sobre este imÃ³vel em leilÃ£o: ${url}
+REGRAS DE PESQUISA:
+1. IDENTIFICAR O IMÃVEL CORRETAMENTE:
+   - Leia o endereÃ§o completo: rua, nÃºmero, bairro, cidade, UF
+   - NÃ£o confundir municÃ­pio: Contagem â  BH, Nova Lima â  BH
+   - Identificar tipologia: apartamento, cobertura, duplex, casa, studio
 
-Pesquise tambÃ©m:
-1. PreÃ§o mÃ©dio de ${tipo} em ${cidade} (R$/mÂ²)
-2. TendÃªncia do mercado imobiliÃ¡rio em ${cidade} (Ãºltimos 6 meses)
-3. Demanda por ${tipo} em ${cidade} para compra e locaÃ§Ã£o
-4. Portais: venda-imoveis.caixa.gov.br, zapimoveis.com.br, vivareal.com.br
-5. NotÃ­cias recentes sobre valorizaÃ§Ã£o ou desvalorizaÃ§Ã£o nessa regiÃ£o
-6. Infraestrutura prÃ³xima: transporte, comÃ©rcio, escolas, hospitais
+2. PESQUISAR COMPARÃVEIS:
+   Busque no ZAP, VivaReal e OLX:
+   - ImÃ³veis da mesma RUA (mais preciso)
+   - ImÃ³veis do mesmo BAIRRO com tipologia similar
+   - ImÃ³veis do mesmo BAIRRO com Ã¡rea similar (Â±30mÂ²)
+   Para COBERTURA ou DUPLEX:
+   - Buscar especificamente "cobertura [bairro] [cidade]"
+   - NÃ£o comparar com apartamento padrÃ£o
+
+3. COLETAR PREÃO/mÂ² CORRETO:
+   - Usar ZAP ImÃ³veis â seÃ§Ã£o "Quanto vale o mÂ² em [bairro]?"
+   - Anotar: preÃ§o mÃ©dio geral E preÃ§o por tipologia/tamanho
+   - Anotar a fonte exatamente (URL)
+
+4. INFORMAÃÃES DO LEILÃO:
+   - Confirmar valor de avaliaÃ§Ã£o judicial no edital
+   - Confirmar lance mÃ­nimo atual
+   - Verificar se hÃ¡ lances jÃ¡ registrados
+   - Verificar data e hora do leilÃ£o
+
+5. SITUAÃÃO JURÃDICA:
+   - Verificar se hÃ¡ processos no TJMG alÃ©m do leilÃ£o
+   - Confirmar modalidade (judicial/extrajudicial/extinÃ§Ã£o condomÃ­nio)
+   - Verificar matrÃ­cula se disponÃ­vel
+
+6. PreÃ§o mÃ©dio de ${tipo} em ${cidade} (R$/mÂ²)
+7. TendÃªncia do mercado imobiliÃ¡rio em ${cidade} (Ãºltimos 6 meses)
+8. Demanda por ${tipo} em ${cidade} para compra e locaÃ§Ã£o
+9. Infraestrutura prÃ³xima: transporte, comÃ©rcio, escolas, hospitais
 
 Retorne APENAS JSON vÃ¡lido (sem markdown):
 {
+  "cidade": "string",
+  "bairro": "string",
+  "tipologia": "string",
   "preco_m2_mercado": number,
+  "preco_m2_fonte": "string (URL ou descriÃ§Ã£o da fonte)",
+  "comparaveis": [
+    {"descricao": "string", "valor": number, "area_m2": number, "preco_m2": number}
+  ],
+  "valor_avaliacao_encontrado": null,
+  "lance_minimo_encontrado": null,
   "tendencia_mercado": "Alta|EstÃ¡vel|Queda",
   "demanda": "Alta|MÃ©dia|Baixa",
   "tempo_venda_meses": number,
@@ -139,7 +236,7 @@ Retorne APENAS JSON vÃ¡lido (sem markdown):
       },
       body: JSON.stringify({
         model: GPT_MODEL,
-        max_output_tokens: 2000,
+        max_output_tokens: 3000,
         tools: [{ type: 'web_search_preview' }],
         input: prompt
       })
@@ -175,26 +272,36 @@ export async function analisarComClaude(url, claudeKey, parametros, criterios, d
     .map(c => `  - ${c.nome} [${c.categoria}] tipo: ${c.tipo_valor}${c.obrigatorio ? ' â ï¸OBRIGATÃRIO' : ''}`)
     .join('\n')
 
+  const comparaveisTexto = (dadosGPT?.comparaveis || [])
+    .map(c => `    - ${c.descricao}: R$ ${c.valor?.toLocaleString('pt-BR')} (${c.area_m2}m\u00b2 = R$ ${c.preco_m2}/m\u00b2)`)
+    .join('\n')
+
   const contextoGPT = dadosGPT ? `
-DADOS DE MERCADO PESQUISADOS PELO CHATGPT (use para enriquecer a anÃ¡lise):
-- PreÃ§o mÃ©dio mÂ² na regiÃ£o: R$ ${dadosGPT.preco_m2_mercado || 'nÃ£o encontrado'}
-- TendÃªncia: ${dadosGPT.tendencia_mercado || 'nÃ£o encontrado'}
-- Demanda: ${dadosGPT.demanda || 'nÃ£o encontrado'}
-- Tempo mÃ©dio de venda: ${dadosGPT.tempo_venda_meses || '?'} meses
-- Aluguel estimado: R$ ${dadosGPT.aluguel_estimado || 'nÃ£o encontrado'}/mÃªs
+DADOS DE MERCADO PESQUISADOS PELO CHATGPT (use para enriquecer a an\u00e1lise):
+- Cidade/Bairro identificado: ${dadosGPT.cidade || '?'} / ${dadosGPT.bairro || '?'}
+- Tipologia: ${dadosGPT.tipologia || '?'}
+- Pre\u00e7o m\u00e9dio m\u00b2 na regi\u00e3o: R$ ${dadosGPT.preco_m2_mercado || 'n\u00e3o encontrado'}
+- Fonte do pre\u00e7o/m\u00b2: ${dadosGPT.preco_m2_fonte || 'n\u00e3o informado'}
+- Tend\u00eancia: ${dadosGPT.tendencia_mercado || 'n\u00e3o encontrado'}
+- Demanda: ${dadosGPT.demanda || 'n\u00e3o encontrado'}
+- Tempo m\u00e9dio de venda: ${dadosGPT.tempo_venda_meses || '?'} meses
+- Aluguel estimado: R$ ${dadosGPT.aluguel_estimado || 'n\u00e3o encontrado'}/m\u00eas
 - Infraestrutura: ${(dadosGPT.infraestrutura || []).join(', ')}
-- ObservaÃ§Ãµes de mercado: ${dadosGPT.observacoes_mercado || ''}
-- Score localizaÃ§Ã£o sugerido pelo ChatGPT: ${dadosGPT.score_localizacao_sugerido || 'nÃ£o calculado'}
-- Score mercado sugerido pelo ChatGPT: ${dadosGPT.score_mercado_sugerido || 'nÃ£o calculado'}
+- Observa\u00e7\u00f5es de mercado: ${dadosGPT.observacoes_mercado || ''}
+${comparaveisTexto ? `- Compar\u00e1veis encontrados:\n${comparaveisTexto}` : ''}
+- Avalia\u00e7\u00e3o judicial encontrada: ${dadosGPT.valor_avaliacao_encontrado || 'n\u00e3o verificado'}
+- Lance m\u00ednimo encontrado: ${dadosGPT.lance_minimo_encontrado || 'n\u00e3o verificado'}
+- Score localiza\u00e7\u00e3o sugerido pelo ChatGPT: ${dadosGPT.score_localizacao_sugerido || 'n\u00e3o calculado'}
+- Score mercado sugerido pelo ChatGPT: ${dadosGPT.score_mercado_sugerido || 'n\u00e3o calculado'}
 ` : `
-NOTA: ChatGPT nÃ£o disponÃ­vel no momento. Use seu conhecimento para estimar dados de mercado.
+NOTA: ChatGPT n\u00e3o dispon\u00edvel no momento. Use seu conhecimento para estimar dados de mercado.
 `
 
   const prompt = `VocÃª Ã© um especialista em anÃ¡lise de imÃ³veis em leilÃ£o no Brasil.
 
 Acesse e analise este imÃ³vel: ${url}
 
-${INSTRUCOES_AREA}
+${REGRAS_COLETA_DADOS}
 ${contextoGPT}
 ${contextoMercadoRegional || ''}
 ${REGRAS_MODALIDADE_TEXTO}
@@ -282,7 +389,7 @@ RETORNE APENAS JSON VÃLIDO (sem markdown, sem texto fora do JSON):
     },
     body: JSON.stringify({
       model: CLAUDE_MODEL,
-      max_tokens: 4000,
+      max_tokens: 6000,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: (() => {
         const parts = [{type:'text',text:prompt}]
@@ -354,6 +461,104 @@ export function calcularScore(analise, parametros) {
 }
 
 // ââ FUNÃÃO PRINCIPAL: orquestrar tudo âââââââââââââââââââââââââââ
+
+// -- Validação pós-análise (guardrails) --
+
+export function validarECorrigirAnalise(analise) {
+  const erros = []
+  const avisos = []
+
+  // 1. Área usada para cálculo — corrigir se usou total em vez de privativa
+  if (analise.area_total_m2 && analise.area_privativa_m2) {
+    if (analise.area_usada_calculo_m2 === analise.area_total_m2) {
+      analise.area_usada_calculo_m2 = analise.area_privativa_m2
+      erros.push('CORRIGIDO: área de cálculo era total, substituída pela privativa')
+    }
+  }
+  // Garantir area_m2 = área usada no cálculo (backward compat)
+  if (analise.area_usada_calculo_m2) {
+    analise.area_m2 = analise.area_usada_calculo_m2
+  }
+
+  // 2. Preço/m² coerente com área usada
+  if (analise.valor_minimo && analise.area_usada_calculo_m2) {
+    const preco_correto = analise.valor_minimo / analise.area_usada_calculo_m2
+    if (analise.preco_m2_imovel > preco_correto * 1.2 ||
+        analise.preco_m2_imovel < preco_correto * 0.8) {
+      avisos.push(`preco_m2 inconsistente: informado=${analise.preco_m2_imovel}, calculado=${preco_correto.toFixed(0)}`)
+      analise.preco_m2_imovel = Math.round(preco_correto)
+    }
+  }
+
+  // 3. Avaliação não pode ser absurda (> 5x lance = provavelmente errada)
+  if (analise.valor_avaliacao && analise.valor_minimo) {
+    if (analise.valor_avaliacao > analise.valor_minimo * 5) {
+      erros.push(`AVISO: avaliação R$${analise.valor_avaliacao} desproporcional ao lance R$${analise.valor_minimo}`)
+    }
+  }
+
+  // 4. Alertas contraditórios com scores
+  if (analise.alertas) {
+    analise.alertas = analise.alertas.filter(alerta => {
+      const a = (typeof alerta === 'string') ? alerta.toLowerCase() : ''
+      if ((a.includes('baixa_liquidez') || a.includes('muito_baixa')) &&
+          (analise.score_liquidez || 0) >= 65) return false
+      if (a.includes('alta_vacancia') && (analise.score_liquidez || 0) >= 65) return false
+      if (a.includes('risco jurídico alto') && (analise.score_juridico || 0) >= 70) return false
+      return true
+    })
+    // Substituir alertas internos por linguagem amigável
+    analise.alertas = analise.alertas.map(a => {
+      if (a === 'muito_baixa_liquidez') return 'Liquidez regional moderada — estimar prazo de 90-150 dias para revenda'
+      if (a === 'alta_vacancia') return 'Região com vacância acima da média — preferir locação a flip rápido'
+      if (a === 'baixa_liquidez') return 'Liquidez moderada no bairro — precificar competitivamente para venda rápida'
+      return a
+    })
+  }
+
+  // 5. Custo total deve incluir comissão
+  if (analise.valor_minimo && !analise.custo_total_aquisicao) {
+    const comissao = analise.valor_minimo * ((analise.comissao_leiloeiro_pct || 5) / 100)
+    const itbi = analise.valor_minimo * ((analise.itbi_pct || 2) / 100)
+    analise.custo_total_aquisicao = Math.round(
+      analise.valor_minimo + comissao + itbi + (analise.custo_regularizacao || 15000)
+    )
+  }
+
+  // 6. Score de ocupação — "nunca habitado" ou desocupado deve ter score alto
+  const tituloLower = (analise.titulo || '').toLowerCase()
+  const justLower = (analise.justificativa || '').toLowerCase()
+  const ocupLower = (analise.ocupacao || '').toLowerCase()
+  if ((ocupLower === 'desocupado' || tituloLower.includes('nunca habitado') ||
+       justLower.includes('nunca habitado')) &&
+      (analise.score_ocupacao || 0) < 70) {
+    avisos.push('AJUSTE: imóvel nunca habitado/desocupado — score_ocupacao ajustado')
+    analise.score_ocupacao = Math.max(analise.score_ocupacao || 50, 75)
+  }
+
+  // 7. Recalcular score total se houve correções
+  if (erros.length > 0 || avisos.length > 0) {
+    const pesos = { localizacao: 0.20, desconto: 0.18, juridico: 0.18, ocupacao: 0.15, liquidez: 0.15, mercado: 0.14 }
+    const scoreBase =
+      (analise.score_localizacao || 0) * pesos.localizacao +
+      (analise.score_desconto    || 0) * pesos.desconto +
+      (analise.score_juridico    || 0) * pesos.juridico +
+      (analise.score_ocupacao    || 0) * pesos.ocupacao +
+      (analise.score_liquidez    || 0) * pesos.liquidez +
+      (analise.score_mercado     || 0) * pesos.mercado
+    let fator = 1
+    if ((analise.score_juridico || 0) < 40) fator *= 0.75
+    if (ocupLower === 'ocupado') fator *= 0.85
+    analise.score_total = Math.min(10, Math.round(scoreBase * fator * 10) / 10)
+    if (analise.score_total >= 7.5) analise.recomendacao = 'COMPRAR'
+    else if (analise.score_total >= 6.0) analise.recomendacao = 'AGUARDAR'
+    else analise.recomendacao = 'EVITAR'
+  }
+
+  analise._erros_validacao = erros
+  analise._avisos_validacao = avisos
+  return analise
+}
 
 // -- FASE 4: Extrair fotos do site do imovel via Claude --
 
@@ -489,6 +694,10 @@ DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
       analise.mercado_tendencia = dadosGPT.tendencia_mercado
     if (!analise.mercado_demanda && dadosGPT.demanda)
       analise.mercado_demanda = dadosGPT.demanda
+    if (!analise.preco_m2_fonte && dadosGPT.preco_m2_fonte)
+      analise.preco_m2_fonte = dadosGPT.preco_m2_fonte
+    if ((!analise.comparaveis || !analise.comparaveis.length) && dadosGPT.comparaveis)
+      analise.comparaveis = dadosGPT.comparaveis
     if (dadosGPT.pontos_positivos)
       analise.positivos = [...(analise.positivos||[]), ...dadosGPT.pontos_positivos]
     if (dadosGPT.noticias)
@@ -502,9 +711,17 @@ DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
     fotosResult = await extrairFotosImovel(url, claudeKey) || { fotos: [], foto_principal: null }
   } catch { /* ignorar erro de fotos */ }
 
+  // Validação pós-análise: corrigir área, preço/m², alertas contraditórios
+  progress('🔍 Validando dados da análise...')
+  const analiseValidada = validarECorrigirAnalise(analise)
+  // Recalcular score se a validação corrigiu algo
+  const scoreFinal = (analiseValidada._erros_validacao?.length || analiseValidada._avisos_validacao?.length)
+    ? (analiseValidada.score_total || calcularScore(analiseValidada, parametros))
+    : score_total
+
   return {
-    ...analise,
-    score_total,
+    ...analiseValidada,
+    score_total: scoreFinal,
     regiao_mercado: regiaoDetectada || null,
     dados_mercado_regional: dadosMercado || null,
     id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`,

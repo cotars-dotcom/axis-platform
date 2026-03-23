@@ -1534,7 +1534,10 @@ function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze,isAdmin,onArch
         </div>
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>🏠 Ficha Técnica</div>
-          {[["Tipo",p.tipo],["Área",p.area_m2?`${p.area_m2}m²`:"—"],["Quartos",p.quartos],["Vagas",p.vagas],["Leiloeiro",p.leiloeiro],["Data leilão",p.data_leilao],["Liquidez",p.liquidez],["Revenda est.",p.prazo_revenda_meses?`${p.prazo_revenda_meses} meses`:"—"]].filter(([,v])=>v&&v!=="—"&&v!=="0").map(([l,v])=>(
+          {[["Tipo",p.tipologia||p.tipo],["Área privativa",(p.area_privativa_m2||p.area_m2)?`${p.area_privativa_m2||p.area_m2}m²`:"—"],
+            ...(p.area_total_m2&&p.area_total_m2!==(p.area_privativa_m2||p.area_m2)?[["Área total (registral)",`${p.area_total_m2}m² · inclui área comum`]]:[]
+            ),["Base de cálculo",(p.area_usada_calculo_m2||p.area_privativa_m2)?`${p.area_usada_calculo_m2||p.area_privativa_m2}m² (privativa)`:"—"],
+            ["Quartos",p.quartos],["Suítes",p.suites],["Vagas",p.vagas],["Andar",p.andar],["Condomínio",p.condominio_mensal?`R$ ${p.condominio_mensal.toLocaleString('pt-BR')}/mês`:null],["Padrão",p.padrao_acabamento],["Leiloeiro",p.leiloeiro],["Data leilão",p.data_leilao],["Nº leilão",p.num_leilao?`${p.num_leilao}º leilão`:null],["Liquidez",p.liquidez],["Revenda est.",p.prazo_revenda_meses?`${p.prazo_revenda_meses} meses`:"—"]].filter(([,v])=>v&&v!==null&&v!=="—"&&v!=="0"&&v!==0).map(([l,v])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
               <span style={{fontSize:"12px",color:K.t3}}>{l}</span><span style={{fontSize:"12.5px",color:K.tx}}>{v}</span>
             </div>
@@ -1585,6 +1588,56 @@ function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze,isAdmin,onArch
           ))}
         </div>
       </div>
+      {/* Preço/m² e Comparáveis */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px",marginBottom:"14px"}}>
+        <div style={card()}>
+          <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>💰 Preço/m²</div>
+          <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
+            <span style={{fontSize:"12px",color:K.t3}}>Lance ÷ área privativa</span>
+            <span style={{fontSize:"12.5px",fontWeight:"600",color:K.tx}}>R$ {Math.round((p.valor_minimo||0)/(p.area_usada_calculo_m2||p.area_privativa_m2||p.area_m2||1)).toLocaleString('pt-BR')}/m²</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
+            <span style={{fontSize:"12px",color:K.t3}}>Mercado</span>
+            <span style={{fontSize:"12.5px",fontWeight:"600",color:K.grn}}>R$ {(p.preco_m2_mercado||0).toLocaleString('pt-BR')}/m²</span>
+          </div>
+          {p.preco_m2_fonte&&<div style={{fontSize:"10px",color:K.t3,marginTop:"4px"}}>{p.preco_m2_fonte}</div>}
+          {p.desconto_sobre_mercado_pct!=null&&<div style={{display:"flex",justifyContent:"space-between",padding:"6px 0"}}>
+            <span style={{fontSize:"12px",color:K.t3}}>Desconto s/ mercado</span>
+            <span style={{fontSize:"12.5px",fontWeight:"700",color:K.grn}}>{p.desconto_sobre_mercado_pct}%</span>
+          </div>}
+        </div>
+        <div style={card()}>
+          {p.custo_total_aquisicao?<>
+            <div style={{fontWeight:"600",color:K.amb,marginBottom:"10px",fontSize:"13px"}}>🧾 Custo total real</div>
+            {[["Lance mínimo",fmtC(p.valor_minimo)],["Comissão leiloeiro",fmtC(p.valor_minimo*(p.comissao_leiloeiro_pct||5)/100)],["ITBI",fmtC(p.valor_minimo*(p.itbi_pct||2)/100)],["Regularização",fmtC(p.custo_regularizacao)]].filter(([,v])=>v&&v!=="R$ 0").map(([l,v])=>(
+              <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:"12px"}}>
+                <span style={{color:K.t3}}>{l}</span><span style={{color:K.tx}}>{v}</span>
+              </div>
+            ))}
+            <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:`1px solid ${K.bd}`,marginTop:"6px"}}>
+              <span style={{fontSize:"13px",fontWeight:"700",color:K.wh}}>Total</span>
+              <span style={{fontSize:"13px",fontWeight:"700",color:K.amb}}>R$ {p.custo_total_aquisicao.toLocaleString('pt-BR')}</span>
+            </div>
+          </>:<div style={{fontSize:"12px",color:K.t3}}>Custo total não calculado</div>}
+        </div>
+      </div>
+      {/* Comparáveis */}
+      {p.comparaveis?.length>0&&<div style={{...card(),marginBottom:"14px"}}>
+        <div style={{fontWeight:"600",color:K.wh,marginBottom:"10px",fontSize:"13px"}}>🏘️ Comparáveis encontrados</div>
+        {p.comparaveis.map((c,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:"12px",marginBottom:"6px",padding:"6px 8px",background:K.s2,borderRadius:"6px"}}>
+            <span style={{color:K.t2,flex:1}}>{c.descricao}</span>
+            <span style={{color:K.wh,fontWeight:"600",whiteSpace:"nowrap",marginLeft:"8px"}}>R$ {c.valor?.toLocaleString('pt-BR')} · R$ {c.preco_m2?.toLocaleString('pt-BR')}/m²</span>
+          </div>
+        ))}
+      </div>}
+      {/* Responsabilidade passivos */}
+      {p.responsabilidade_debitos&&<div style={{...card(),marginBottom:"14px",background:p.responsabilidade_debitos==='exonerado'?`${K.grn}15`:p.responsabilidade_debitos==='sub_rogado'?`${K.teal}15`:`${K.red}15`,border:`1px solid ${p.responsabilidade_debitos==='exonerado'?K.grn:p.responsabilidade_debitos==='sub_rogado'?K.teal:K.red}30`}}>
+        <div style={{fontSize:"12.5px",fontWeight:"600",color:p.responsabilidade_debitos==='exonerado'?K.grn:p.responsabilidade_debitos==='sub_rogado'?K.teal:K.red}}>
+          {p.responsabilidade_debitos==='exonerado'?'✅ Passivos NÃO são do arrematante (edital exonera)':p.responsabilidade_debitos==='sub_rogado'?'📋 Débitos sub-rogados no preço (leilão judicial)':'⚠️ Verificar responsabilidade pelos passivos'}
+        </div>
+        {p.responsabilidade_fonte&&<div style={{fontSize:"10.5px",color:K.t3,marginTop:"4px"}}>Fonte: {p.responsabilidade_fonte}</div>}
+      </div>}
       {(p.positivos?.length>0||p.negativos?.length>0)&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px",marginBottom:"14px"}}>
         <div style={{...card(),borderTop:`2px solid ${K.grn}`}}>
           <div style={{fontWeight:"600",color:K.grn,marginBottom:"10px",fontSize:"13px"}}>✅ Pontos Positivos</div>
