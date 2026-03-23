@@ -406,11 +406,17 @@ function ModalAuditoriaTrello({ config, imoveis, onClose }) {
   }
 
   async function rodarAuditoria() {
-    if (!boardId) { setMsg('Crie o workspace primeiro.'); return }
     setLoading(true); setMsg('Auditando board...')
     try {
-      const { auditarBoard } = await import('./lib/trelloService.js')
-      const res = await auditarBoard(boardId, key, token)
+      const { auditarBoard, getBoardsExistentes } = await import('./lib/trelloService.js')
+      let bid = boardId
+      if (!bid) {
+        const existentes = await getBoardsExistentes(key, token)
+        const b = existentes.find(b => b.name.includes('Pipeline') || b.name.includes('AXIS'))
+        bid = b?.id
+      }
+      if (!bid) { setMsg('Board não encontrado. Crie o workspace primeiro.'); setLoading(false); return }
+      const res = await auditarBoard(bid, key, token)
       setAuditoria(res)
       setMsg('')
     } catch(e) {
@@ -420,27 +426,58 @@ function ModalAuditoriaTrello({ config, imoveis, onClose }) {
   }
 
   async function syncTodosImoveis() {
-    if (!boardId) { setMsg('Configure o Board ID primeiro.'); return }
     const trelloConf = JSON.parse(localStorage.getItem('axis-trello') || '{}')
-    const listIds = trelloConf.listIds || {}
-    const getListId = (rec) => {
-      if (rec === 'COMPRAR') return listIds['✅ Aprovados']
-      if (rec === 'EVITAR')  return listIds['🚫 Descartados']
-      return listIds['🔍 Em Análise']
+    if (!trelloConf?.key || !trelloConf?.token) {
+      setMsg('Configure as credenciais do Trello primeiro.'); return
     }
-    setLoading(true); setMsg('Sincronizando imóveis (com deduplicação)...')
-    let ok = 0, atualizado = 0, err = 0
-    const { criarOuAtualizarCardImovel } = await import('./lib/trelloService.js')
-    for (const imovel of (imoveis || [])) {
-      try {
-        const lid = getListId(imovel.recomendacao) || Object.values(listIds)[0]
-        if (!lid) continue
-        const res = await criarOuAtualizarCardImovel(imovel, lid, boardId, key, token)
-        if (res?.atualizado) atualizado++; else ok++
-        setMsg(`Sincronizando... ${ok + atualizado}/${(imoveis||[]).length}`)
-      } catch { err++ }
+    setLoading(true); setMsg('Preparando sincronização...')
+    try {
+      const { criarOuAtualizarCardImovel, getBoardsExistentes, getListasBoard } = await import('./lib/trelloService.js')
+      // Se não tiver boardId salvo, buscar o board existente
+      let bid = boardId || trelloConf.boardId
+      let listIds = trelloConf.listIds || {}
+      if (!bid) {
+        const existentes = await getBoardsExistentes(key, token)
+        const boardPipeline = existentes.find(b => b.name.includes('Pipeline') || b.name.includes('AXIS'))
+        if (!boardPipeline) {
+          setMsg('Board AXIS não encontrado. Clique em "Criar Workspace AXIS" primeiro.')
+          setLoading(false); return
+        }
+        bid = boardPipeline.id
+        // Salvar para próximas vezes
+        localStorage.setItem('axis-trello', JSON.stringify({ ...trelloConf, boardId: bid }))
+      }
+      // Buscar listas do board se não tiver salvas
+      if (!Object.keys(listIds).length) {
+        const listas = await getListasBoard(bid, key, token)
+        for (const l of (listas || [])) listIds[l.name] = l.id
+        localStorage.setItem('axis-trello', JSON.stringify({ ...trelloConf, boardId: bid, listIds }))
+      }
+      const getListId = (rec) => {
+        if (rec === 'COMPRAR') return listIds['✅ Aprovados']
+        if (rec === 'EVITAR')  return listIds['🚫 Descartados']
+        return listIds['🔍 Em Análise'] || Object.values(listIds)[0]
+      }
+      if (!(imoveis || []).length) {
+        setMsg('Nenhum imóvel encontrado para sincronizar.')
+        setLoading(false); return
+      }
+      setMsg('Sincronizando imóveis (com deduplicação)...')
+      let ok = 0, atualizado = 0, err = 0
+      for (const imovel of (imoveis || [])) {
+        try {
+          const lid = getListId(imovel.recomendacao)
+          if (!lid) { err++; continue }
+          const res = await criarOuAtualizarCardImovel(imovel, lid, bid, key, token)
+          if (res?.atualizado) atualizado++; else ok++
+          setMsg(`Sincronizando... ${ok + atualizado}/${(imoveis||[]).length}`)
+          await new Promise(r => setTimeout(r, 300))
+        } catch { err++ }
+      }
+      setMsg(`${ok} criado(s), ${atualizado} atualizado(s)${err ? ` · ${err} erro(s)` : ''}`)
+    } catch(e) {
+      setMsg(`Erro ao sincronizar: ${e.message}`)
     }
-    setMsg(`${ok} criado(s), ${atualizado} atualizado(s)${err ? ` · ${err} erro(s)` : ''}`)
     setLoading(false)
   }
 
@@ -494,14 +531,14 @@ function ModalAuditoriaTrello({ config, imoveis, onClose }) {
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           <button onClick={criarWorkspace} disabled={loading}
             style={{padding:'11px 0',borderRadius:9,border:'none',background:C.navy,color:'#fff',fontSize:13.5,fontWeight:600,cursor:loading?'wait':'pointer'}}>
-            Criar / Recriar Workspace AXIS
+            Configurar Workspace AXIS
           </button>
-          <button onClick={rodarAuditoria} disabled={loading||!boardId}
-            style={{padding:'11px 0',borderRadius:9,border:`1px solid ${C.navy}`,background:'#fff',color:C.navy,fontSize:13.5,fontWeight:600,cursor:(loading||!boardId)?'not-allowed':'pointer'}}>
+          <button onClick={rodarAuditoria} disabled={loading}
+            style={{padding:'11px 0',borderRadius:9,border:`1px solid ${C.navy}`,background:'#fff',color:C.navy,fontSize:13.5,fontWeight:600,cursor:loading?'not-allowed':'pointer'}}>
             Auditar Board Pipeline
           </button>
-          <button onClick={syncTodosImoveis} disabled={loading||!boardId}
-            style={{padding:'11px 0',borderRadius:9,border:'none',background:C.emerald,color:'#fff',fontSize:13.5,fontWeight:600,cursor:(loading||!boardId)?'not-allowed':'pointer'}}>
+          <button onClick={syncTodosImoveis} disabled={loading}
+            style={{padding:'11px 0',borderRadius:9,border:'none',background:C.emerald,color:'#fff',fontSize:13.5,fontWeight:600,cursor:loading?'not-allowed':'pointer'}}>
             Sincronizar {imoveis?.length||0} imóvel(is)
           </button>
           <button onClick={verificarDuplicatas} disabled={loading||!boardId}

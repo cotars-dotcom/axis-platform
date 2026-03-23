@@ -37,7 +37,48 @@ async function trello(method, path, body, key, token) {
 // ├── ⚖️ Base Jurídica
 // └── 📊 Parâmetros de Score
 
-// Criar estrutura completa do workspace AXIS
+// ── Helpers de deduplicação ───────────────────────────────────────
+
+export async function getBoardsExistentes(key, token) {
+  try {
+    return await trello('GET', '/members/me/boards?filter=open&fields=id,name,desc,url', null, key, token) || []
+  } catch {
+    return []
+  }
+}
+
+async function getOuCriarBoard(nome, desc, prefs, key, token) {
+  const existentes = await getBoardsExistentes(key, token)
+  const existente = existentes.find(b =>
+    b.name.toLowerCase().trim() === nome.toLowerCase().trim()
+  )
+  if (existente) {
+    console.log(`[AXIS] Board existente reutilizado: ${existente.name} (${existente.id})`)
+    return existente
+  }
+  console.log(`[AXIS] Criando novo board: ${nome}`)
+  return await trello('POST', '/boards', {
+    name: nome,
+    desc,
+    defaultLists: false,
+    ...prefs
+  }, key, token)
+}
+
+async function getOuCriarLista(boardId, nomeLista, pos, key, token) {
+  const listas = await trello('GET', `/boards/${boardId}/lists?filter=open`, null, key, token)
+  const existente = listas?.find(l =>
+    l.name.toLowerCase().trim() === nomeLista.toLowerCase().trim()
+  )
+  if (existente) return existente
+  return await trello('POST', '/lists', {
+    idBoard: boardId,
+    name: nomeLista,
+    pos
+  }, key, token)
+}
+
+// Criar (ou reutilizar) estrutura completa do workspace AXIS
 export async function setupWorkspaceAxis(key, token) {
   const resultados = {
     boards: {},
@@ -48,12 +89,12 @@ export async function setupWorkspaceAxis(key, token) {
 
   // ── BOARD 1: Pipeline de Imóveis ──────────────────────────────
   try {
-    const board1 = await trello('POST', '/boards', {
-      name: 'AXIS — Pipeline de Imóveis',
-      desc: 'Gestão completa de oportunidades imobiliárias | Visão de Oportunidade. Base de Confiança.',
-      defaultLists: false,
-      prefs_background: 'green',
-    }, key, token)
+    const board1 = await getOuCriarBoard(
+      'AXIS — Pipeline de Imóveis',
+      'Gestão completa de oportunidades imobiliárias | Visão de Oportunidade. Base de Confiança.',
+      { prefs_background: 'green' },
+      key, token
+    )
     resultados.boards.pipeline = board1.id
 
     const LISTAS_PIPELINE = [
@@ -65,11 +106,12 @@ export async function setupWorkspaceAxis(key, token) {
       { name: '🚫 Descartados',     pos: 6 },
     ]
     for (const lista of LISTAS_PIPELINE) {
-      const l = await trello('POST', '/lists', { idBoard: board1.id, ...lista }, key, token)
+      const l = await getOuCriarLista(board1.id, lista.name, lista.pos, key, token)
       resultados.lists[lista.name] = l.id
     }
 
-    // Etiquetas do board pipeline
+    // Etiquetas — verificar se já existem antes de criar
+    const etiquetasExistentes = await trello('GET', `/boards/${board1.id}/labels?limit=50`, null, key, token)
     const ETIQUETAS = [
       { name: '🟢 COMPRAR',          color: 'green'   },
       { name: '🟡 AGUARDAR',         color: 'yellow'  },
@@ -88,10 +130,17 @@ export async function setupWorkspaceAxis(key, token) {
       { name: '🤖 Análise dupla IA', color: 'pink'    },
     ]
     for (const et of ETIQUETAS) {
-      try {
-        const lbl = await trello('POST', `/boards/${board1.id}/labels`, et, key, token)
-        resultados.labels[et.name] = lbl.id
-      } catch {}
+      const ja_existe = etiquetasExistentes?.find(e =>
+        e.name?.toLowerCase() === et.name.toLowerCase()
+      )
+      if (!ja_existe) {
+        try {
+          const lbl = await trello('POST', `/boards/${board1.id}/labels`, et, key, token)
+          resultados.labels[et.name] = lbl.id
+        } catch {}
+      } else {
+        resultados.labels[et.name] = ja_existe.id
+      }
     }
   } catch (e) {
     resultados.erros.push(`Board Pipeline: ${e.message}`)
@@ -99,12 +148,12 @@ export async function setupWorkspaceAxis(key, token) {
 
   // ── BOARD 2: Manual e Métricas ────────────────────────────────
   try {
-    const board2 = await trello('POST', '/boards', {
-      name: 'AXIS — Manual e Métricas',
-      desc: 'Base de conhecimento, parâmetros de score e base jurídica',
-      defaultLists: false,
-      prefs_background: 'blue',
-    }, key, token)
+    const board2 = await getOuCriarBoard(
+      'AXIS — Manual e Métricas',
+      'Base de conhecimento, parâmetros de score e base jurídica',
+      { prefs_background: 'blue' },
+      key, token
+    )
     resultados.boards.manual = board2.id
 
     const LISTAS_MANUAL = [
@@ -113,16 +162,32 @@ export async function setupWorkspaceAxis(key, token) {
       { name: '📊 Parâmetros de Score', pos: 3 },
     ]
     for (const lista of LISTAS_MANUAL) {
-      const l = await trello('POST', '/lists', { idBoard: board2.id, ...lista }, key, token)
-      resultados.lists[lista.name] = l.id
+      await getOuCriarLista(board2.id, lista.name, lista.pos, key, token)
     }
 
-    // Popular o Manual de Métricas
-    await popularManualMetricas(resultados.lists['📚 Manual de Métricas'], key, token)
-    await popularBaseJuridica(resultados.lists['⚖️ Base Jurídica'], key, token)
+    // Popular apenas se for um board novo (sem cards ainda)
+    const cardsExistentes = await trello('GET', `/boards/${board2.id}/cards?limit=1`, null, key, token)
+    if (!cardsExistentes?.length) {
+      const listsBoard2 = await trello('GET', `/boards/${board2.id}/lists?filter=open`, null, key, token)
+      const listManual = listsBoard2?.find(l => l.name.includes('Manual'))
+      const listJuridico = listsBoard2?.find(l => l.name.includes('Jurídica'))
+      if (listManual) await popularManualMetricas(listManual.id, key, token)
+      if (listJuridico) await popularBaseJuridica(listJuridico.id, key, token)
+    }
   } catch (e) {
     resultados.erros.push(`Board Manual: ${e.message}`)
   }
+
+  // Salvar IDs no localStorage para uso futuro
+  try {
+    const configAtual = JSON.parse(localStorage.getItem('axis-trello') || '{}')
+    localStorage.setItem('axis-trello', JSON.stringify({
+      ...configAtual,
+      boardId: resultados.boards.pipeline,
+      boardManualId: resultados.boards.manual,
+      listIds: resultados.lists,
+    }))
+  } catch {}
 
   return resultados
 }

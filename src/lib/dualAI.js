@@ -42,18 +42,53 @@ Para qualquer campo jurídico identificado, informe:
 const REGRAS_COLETA_DADOS = `
 REGRAS OBRIGATÓRIAS DE COLETA E ANÁLISE
 
---- ÁREA DO IMÓVEL ---
+--- DICIONÁRIO TÉCNICO DE ÁREA (NBR 12721 + Lei 4.591/64) ---
+CAMPOS QUE O EDITAL PODE INFORMAR:
+  area_privativa      → uso exclusivo da unidade (padrão de mercado para preço/m²)
+  area_util           → interna varrível, sem paredes/pilares (~10-12% menor que privativa)
+  area_comum          → espaços compartilhados do condomínio (não usar para preço/m²)
+  area_total          → privativa + quota de área comum (não usar como base principal)
+  area_real_total     → denominação registral: privativa real + fração de comum
+  area_equivalente    → usada em incorporação para equivalência de custo
+
 PRIORIDADE de leitura de área (use nesta ordem):
-1. área_privativa (área útil, exclusiva do proprietário)
+1. área_privativa (área exclusiva do proprietário — padrão ZAP/VivaReal)
 2. área_construída (se não houver privativa)
 3. área_total (NUNCA use para preço/m² — inclui área comum)
-Regra: se o edital listar múltiplas áreas, use SEMPRE a menor
-(privativa) para calcular preço/m² e comparar com mercado.
-Exemplos corretos:
-  Edital diz "135,49m² privativa / 247,60m² total" → usar 135,49m²
-  Edital diz "82m² útil / 95m² total" → usar 82m²
-  Edital diz apenas "90m²" sem especificar → usar 90m²
-Nunca multiplique área total × preço/m² de mercado.
+
+TIPOLOGIAS ESPECIAIS:
+COBERTURA DUPLEX (2 andares, terraço):
+  A área privativa TOTAL já inclui os dois andares + terraço
+  → usar area_privativa_total como base de comparação (é tudo do proprietário)
+  → separar: area_coberta (interno) + area_descoberta (terraço)
+  → terraço vale menos por m² que área coberta, mas ambos são privativos
+  Exemplo: edital "135,49m² priv / 156,19m² priv total / 247,60m² real total"
+  → area_coberta_privativa = 135,49m² (fechado dos 2 andares)
+  → area_privativa = 156,19m² (fechado + varandas)
+  → area_real_total = 247,60m² (com fração comum — NÃO usar)
+  → area_usada_calculo = 156,19m² (privativa total)
+
+APARTAMENTO GARDEN:
+  area_interna = área coberta exclusiva → usar para preço/m²
+  area_externa = jardim privativo → valor menor por m²
+
+CASA EM CONDOMÍNIO:
+  area_construida = área da casa → usar para preço/m²
+  area_terreno = lote privativo → guardar separado
+
+REGRA DE DECISÃO AUTOMÁTICA:
+Se apenas UMA área informada: é provavelmente a privativa. Usar como base.
+Se DUAS áreas: menor = fechada, maior = privativa total → usar a MAIOR
+Se TRÊS áreas: menor = fechada, média = privativa total, maior = real total
+  → usar a MÉDIA (privativa total) como base de preço/m²
+
+CAMPOS OBRIGATÓRIOS NO JSON:
+  area_privativa_m2: número (exclusiva total)
+  area_coberta_privativa_m2: número (apenas fechada/coberta)
+  area_descoberta_privativa_m2: número (terraço/varanda descoberta)
+  area_total_m2: número (com fração comum — registral)
+  area_usada_calculo_m2: número (qual foi usada para preço/m²)
+  area_usada_label: "string explicando a escolha"
 
 --- AVALIAÇÃO E LANCE ---
 AVALIAÇÃO JUDICIAL ≠ VALOR DE MERCADO:
@@ -321,34 +356,66 @@ INSTRUÃÃES:
 5. Seja conservador nas estimativas de retorno
 6. Indique estrutura de aquisiÃ§Ã£o ideal (CPF, CondomÃ­nio, PJ, ProcuraÃ§Ã£o)
 
-RETORNE APENAS JSON VÃLIDO (sem markdown, sem texto fora do JSON):
+RETORNE APENAS JSON VÁLIDO (sem markdown, sem texto fora do JSON).
+NUNCA omitir campos obrigatórios. Use null se não souber.
+NUNCA usar area_total_m2 para calcular preco_m2_imovel.
 {
   "titulo": "string",
   "endereco": "string",
   "cidade": "string",
   "estado": "UF 2 letras",
-  "tipo": "Apartamento|Casa|Terreno|Comercial|GalpÃ£o|Rural",
+  "bairro": "string",
+  "tipo": "Apartamento|Casa|Terreno|Comercial|Galpão|Rural|Cobertura",
+  "tipologia": "apartamento_padrao|cobertura_linear|cobertura_duplex|apartamento_garden|apartamento_duplex|casa|studio|loft",
+  "area_privativa_m2": null,
+  "area_coberta_privativa_m2": null,
+  "area_descoberta_privativa_m2": null,
+  "area_total_m2": null,
+  "area_real_total_m2": null,
+  "area_usada_calculo_m2": 0,
+  "area_usada_label": "string explicando a área escolhida",
   "area_m2": 0,
   "quartos": 0,
+  "suites": null,
   "vagas": 0,
+  "andar": null,
+  "andares_unidade": null,
+  "elevador": null,
+  "condominio_mensal": null,
+  "padrao_acabamento": "simples|medio|alto|luxo",
+  "vaga_tipo": "privativa_vinculada|privativa_autonoma|comum_rotativa|null",
   "modalidade": "string",
+  "modalidade_leilao": "judicial|extrajudicial_fiduciario|caixa_leilao|caixa_venda_direta|extincao_condominio",
+  "processo_numero": null,
   "leiloeiro": "string",
   "data_leilao": "DD/MM/AAAA ou null",
-  "valor_avaliacao": 0,
+  "num_leilao": null,
+  "valor_avaliacao": null,
   "valor_minimo": 0,
+  "valor_lance_atual": null,
   "desconto_percentual": 0,
-  "ocupacao": "Desocupado|Ocupado|Desconhecido",
+  "comissao_leiloeiro_pct": 5,
+  "itbi_pct": 2,
+  "custo_total_aquisicao": 0,
+  "ocupacao": "desocupado|ocupado|incerto",
+  "ocupacao_fonte": "string",
   "financiavel": true,
   "fgts_aceito": false,
   "debitos_condominio": "string",
   "debitos_iptu": "string",
+  "responsabilidade_debitos": "arrematante|sub_rogado|exonerado",
+  "responsabilidade_fonte": "string (trecho do edital)",
   "processos_ativos": "string",
   "matricula_status": "string",
   "obs_juridicas": "string",
   "preco_m2_imovel": 0,
   "preco_m2_mercado": 0,
+  "preco_m2_fonte": "string (ex: ZAP bairro Europa/Contagem)",
+  "comparaveis": [{"descricao":"string","valor":0,"area_m2":0,"preco_m2":0}],
+  "valor_mercado_estimado": null,
+  "desconto_sobre_mercado_pct": null,
   "aluguel_mensal_estimado": 0,
-  "liquidez": "Alta|MÃ©dia|Baixa",
+  "liquidez": "Alta|Média|Baixa",
   "prazo_revenda_meses": 0,
   "score_localizacao": 0,
   "score_desconto": 0,
@@ -358,24 +425,27 @@ RETORNE APENAS JSON VÃLIDO (sem markdown, sem texto fora do JSON):
   "score_mercado": 0,
   "positivos": ["string1","string2","string3"],
   "negativos": ["string1","string2"],
-  "alertas": ["string1"],
+  "alertas": ["string acionável em linguagem clara"],
   "recomendacao": "COMPRAR|AGUARDAR|EVITAR",
-  "justificativa": "string detalhada explicando a recomendaÃ§Ã£o",
-  "estrutura_recomendada": "CPF Ãºnico|CondomÃ­nio VoluntÃ¡rio|PJ|ProcuraÃ§Ã£o",
+  "justificativa": "string detalhada 3-5 linhas explicando a decisão",
+  "estrategia_recomendada": "flip|locacao|temporada",
+  "estrutura_recomendada": "cpf_unico|condominio_voluntario|holding|ltda",
   "custo_regularizacao": 0,
   "custo_reforma": 0,
+  "custo_reforma_estimado": 0,
+  "escopo_reforma": "refresh_giro|leve_funcional|leve_reforcada_1_molhado|media|pesada",
+  "prazo_reforma_meses": null,
+  "valor_pos_reforma_estimado": null,
   "retorno_venda_pct": 0,
   "retorno_locacao_anual_pct": 0,
-  "mercado_tendencia": "Alta|EstÃ¡vel|Queda",
-  "mercado_demanda": "Alta|MÃ©dia|Baixa",
+  "mercado_tendencia": "alta|estavel|queda",
+  "mercado_tendencia_pct_12m": null,
+  "mercado_demanda": "muito_alta|alta|media|baixa",
   "mercado_tempo_venda_meses": 0,
   "mercado_obs": "string",
-  "modalidade_leilao": "judicial|extrajudicial_fiduciario|caixa_leilao|caixa_venda_direta",
   "riscos_presentes": ["risco_id1","risco_id2"],
   "custo_juridico_estimado": 0,
   "prazo_liberacao_estimado_meses": 0,
-  "escopo_reforma": "refresh_giro|leve_funcional|leve_reforcada_1_molhado",
-  "custo_reforma_estimado": 0,
   "alerta_sobrecap": "verde|amarelo|vermelho"
 }`
 
@@ -468,12 +538,16 @@ export function validarECorrigirAnalise(analise) {
   const erros = []
   const avisos = []
 
-  // 1. Área usada para cálculo — corrigir se usou total em vez de privativa
-  if (analise.area_total_m2 && analise.area_privativa_m2) {
-    if (analise.area_usada_calculo_m2 === analise.area_total_m2) {
-      analise.area_usada_calculo_m2 = analise.area_privativa_m2
-      erros.push('CORRIGIDO: área de cálculo era total, substituída pela privativa')
-    }
+  // 1. Área usada para cálculo — corrigir se usou total/real em vez de privativa
+  const areaReal = analise.area_real_total_m2 || analise.area_total_m2
+  const areaPriv = analise.area_privativa_m2
+  if (areaReal && areaPriv && analise.area_usada_calculo_m2 === areaReal) {
+    analise.area_usada_calculo_m2 = areaPriv
+    erros.push('CORRIGIDO: área de cálculo era total/registral, substituída pela privativa')
+  }
+  // Se não definiu area_usada_calculo, inferir
+  if (!analise.area_usada_calculo_m2) {
+    analise.area_usada_calculo_m2 = areaPriv || analise.area_coberta_privativa_m2 || analise.area_m2 || areaReal
   }
   // Garantir area_m2 = área usada no cálculo (backward compat)
   if (analise.area_usada_calculo_m2) {
