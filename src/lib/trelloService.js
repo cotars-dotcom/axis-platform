@@ -39,8 +39,9 @@ export async function criarEtiquetasBoard(boardId, key, token) {
   return criadas
 }
 
-// ── Criar card do imóvel com etiquetas ─────────────────────────
+// ── Criar card premium do imóvel com fotos, métricas e checklist ──
 export async function criarCardImovel(imovel, listId, boardId, key, token) {
+  // Buscar labels existentes do board
   let labelIds = []
   try {
     const res = await fetch(
@@ -50,74 +51,121 @@ export async function criarCardImovel(imovel, listId, boardId, key, token) {
       const labels = await res.json()
       const labelsDoImovel = []
       if (imovel.recomendacao) {
-        const lRec = labels.find(l => l.name.includes(imovel.recomendacao))
+        const lRec = labels.find(l => l.name?.includes(imovel.recomendacao))
         if (lRec) labelsDoImovel.push(lRec.id)
       }
-      const scoreLabel = SCORE_LABEL(imovel.score_total || 0)
-      const lScore = labels.find(l => l.name.includes(scoreLabel.name.split(' ')[1]))
-      if (lScore) labelsDoImovel.push(lScore.id)
-
-      const lOcup = labels.find(l => l.name.includes(imovel.ocupacao === 'Desocupado' ? 'Desocupado' : 'Ocupado'))
-      if (lOcup) labelsDoImovel.push(lOcup.id)
-
+      if ((imovel.score_total || 0) >= 7.5) {
+        const lScore = labels.find(l => l.name?.includes('Score Forte'))
+        if (lScore) labelsDoImovel.push(lScore.id)
+      }
+      if (imovel.ocupacao === 'Desocupado') {
+        const lOcup = labels.find(l => l.name?.includes('Desocupado'))
+        if (lOcup) labelsDoImovel.push(lOcup.id)
+      }
       if (imovel.financiavel) {
-        const lFin = labels.find(l => l.name.includes('Financiável'))
+        const lFin = labels.find(l => l.name?.includes('Financiável'))
         if (lFin) labelsDoImovel.push(lFin.id)
       }
       labelIds = labelsDoImovel
     }
   } catch {}
 
-  const desc = `## 📊 Score: ${(imovel.score_total || 0).toFixed(1)}/10
+  // Formatar valores
+  const fmt = (n) => n ? `R$ ${Number(n).toLocaleString('pt-BR')}` : '—'
+  const pct = (n) => n ? `${Number(n).toFixed(1)}%` : '—'
+  const score = (n) => n !== undefined ? `${Number(n).toFixed(1)}/10` : '—'
+  const recIcon = imovel.recomendacao === 'COMPRAR' ? '🟢'
+    : imovel.recomendacao === 'AGUARDAR' ? '🟡' : '🔴'
 
-**Recomendação:** ${imovel.recomendacao || '—'}
-**Endereço:** ${imovel.endereco || '—'}
-**Cidade:** ${imovel.cidade || '—'}/${imovel.estado || '—'}
-**Tipo:** ${imovel.tipo || '—'} | **Área:** ${imovel.area_m2 || '—'}m²
+  // Descrição completa do card
+  const desc = `${recIcon} **${imovel.recomendacao || 'AGUARDAR'}** · Score AXIS: **${(imovel.score_total || 0).toFixed(1)}/10**
 
 ---
 
-## 💰 Valores
+## 📍 Localização e Tipo
+- **Endereço:** ${imovel.endereco || '—'}
+- **Cidade/Estado:** ${imovel.cidade || '—'}/${imovel.estado || '—'}
+- **Tipo:** ${imovel.tipologia || imovel.tipo || '—'}
+- **Área:** ${imovel.area_m2 || '—'} m²
+- **Quartos:** ${imovel.quartos || '—'} | **Vagas:** ${imovel.vagas || '—'}
 
-- **Avaliação:** R$ ${(imovel.valor_avaliacao || 0).toLocaleString('pt-BR')}
-- **Mínimo:** R$ ${(imovel.valor_minimo || 0).toLocaleString('pt-BR')}
-- **Desconto:** ${imovel.desconto_percentual || 0}%
+---
 
-## 📈 Scores por Dimensão
+## 💰 Valores e Desconto
+- **Valor de Avaliação:** ${fmt(imovel.valor_avaliacao)}
+- **Lance Mínimo:** ${fmt(imovel.valor_minimo)}
+- **Desconto:** ${pct(imovel.desconto_percentual)} abaixo da avaliação
+- **Preço/m² do Imóvel:** ${fmt(imovel.preco_m2_imovel)}/m²
+- **Preço/m² de Mercado:** ${fmt(imovel.preco_m2_mercado)}/m²
+- **Aluguel Estimado:** ${fmt(imovel.aluguel_mensal_estimado)}/mês
+- **Modalidade:** ${imovel.modalidade || '—'}
+- **Leiloeiro:** ${imovel.leiloeiro || '—'}
+- **Data do Leilão:** ${imovel.data_leilao || '—'}
 
-- Localização: ${imovel.score_localizacao || 0}/10
-- Desconto: ${imovel.score_desconto || 0}/10
-- Jurídico: ${imovel.score_juridico || 0}/10
-- Ocupação: ${imovel.score_ocupacao || 0}/10
-- Liquidez: ${imovel.score_liquidez || 0}/10
-- Mercado: ${imovel.score_mercado || 0}/10
+---
 
-## ⚖️ Jurídico
+## 📊 Score por Dimensão
+| Dimensão | Score |
+|---|---|
+| 📍 Localização | ${score(imovel.score_localizacao)} |
+| 💸 Desconto | ${score(imovel.score_desconto)} |
+| ⚖️ Jurídico | ${score(imovel.score_juridico)} |
+| 🏠 Ocupação | ${score(imovel.score_ocupacao)} |
+| 📈 Liquidez | ${score(imovel.score_liquidez)} |
+| 🏙️ Mercado | ${score(imovel.score_mercado)} |
 
-- Ocupação: ${imovel.ocupacao || '—'}
-- Financiável: ${imovel.financiavel ? 'Sim' : 'Não'}
-- FGTS: ${imovel.fgts_aceito ? 'Sim' : 'Não'}
-- Débitos IPTU: ${imovel.debitos_iptu || '—'}
-- Débitos Condomínio: ${imovel.debitos_condominio || '—'}
-- Processos: ${imovel.processos_ativos || '—'}
+---
 
-## 💡 Positivos
+## ⚖️ Análise Jurídica
+- **Ocupação:** ${imovel.ocupacao || '—'}
+- **Financiável:** ${imovel.financiavel ? '✅ Sim' : '❌ Não'}
+- **FGTS Aceito:** ${imovel.fgts_aceito ? '✅ Sim' : '❌ Não'}
+- **Débitos IPTU:** ${imovel.debitos_iptu || '—'}
+- **Débitos Condomínio:** ${imovel.debitos_condominio || '—'}
+- **Processos Ativos:** ${imovel.processos_ativos || '—'}
+- **Status Matrícula:** ${imovel.matricula_status || '—'}
+- **Obs. Jurídicas:** ${imovel.obs_juridicas || '—'}
 
+---
+
+## 🏗️ Estrutura e Viabilidade
+- **Estrutura Recomendada:** ${imovel.estrutura_recomendada || '—'}
+- **Custo Regularização:** ${fmt(imovel.custo_regularizacao)}
+- **Custo Reforma:** ${fmt(imovel.custo_reforma_previsto || imovel.custo_reforma)}
+- **Escopo Reforma:** ${imovel.escopo_reforma || '—'}
+- **Retorno Venda:** ${pct(imovel.retorno_venda_pct)}
+- **Retorno Locação/ano:** ${pct(imovel.retorno_locacao_anual_pct)}
+
+---
+
+## 🏙️ Mercado Regional
+- **Tendência:** ${imovel.mercado_tendencia || '—'}
+- **Demanda:** ${imovel.mercado_demanda || '—'}
+- **Tempo Médio Venda:** ${imovel.mercado_tempo_venda_meses || '—'} meses
+- **Obs. Mercado:** ${imovel.mercado_obs || '—'}
+
+---
+
+## ✅ Pontos Positivos
 ${(imovel.positivos || []).map(p => `- ✅ ${p}`).join('\n') || '—'}
 
 ## ⚠️ Alertas
-
 ${(imovel.alertas || []).map(a => `- ⚠️ ${a}`).join('\n') || '—'}
 
-## 🏗️ Estrutura Recomendada
-
-${imovel.estrutura_recomendada || '—'}
+## ❌ Pontos Negativos
+${(imovel.negativos || []).map(n => `- ❌ ${n}`).join('\n') || '—'}
 
 ---
 
-*Analisado pelo LEILAX — Motor Duplo IA (Claude + ChatGPT)*
-${imovel.fonte_url ? `[Ver anúncio](${imovel.fonte_url})` : ''}`
+## 💬 Justificativa AXIS
+${imovel.justificativa || '—'}
 
+---
+*Analisado pelo LEILAX · Motor Duplo IA (Claude + ChatGPT)*
+${imovel.fonte_url ? `🔗 [Ver anúncio original](${imovel.fonte_url})` : ''}`
+
+  // Criar o card
+  const nomeCard = `${recIcon} ${imovel.titulo || imovel.endereco || 'Imóvel'} · Score ${(imovel.score_total || 0).toFixed(1)}`
   const res = await fetch(
     `https://api.trello.com/1/cards?key=${key}&token=${token}`,
     {
@@ -125,15 +173,94 @@ ${imovel.fonte_url ? `[Ver anúncio](${imovel.fonte_url})` : ''}`
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         idList: listId,
-        name: `${imovel.recomendacao === 'COMPRAR' ? '🟢' : imovel.recomendacao === 'AGUARDAR' ? '🟡' : '🔴'} ${imovel.titulo || imovel.endereco || 'Imóvel'} — Score ${(imovel.score_total || 0).toFixed(1)}`,
+        name: nomeCard,
         desc,
         idLabels: labelIds,
-        due: imovel.data_leilao ? new Date(imovel.data_leilao.split('/').reverse().join('-')).toISOString() : null
+        due: imovel.data_leilao
+          ? (() => { try { const [d,m,a] = (imovel.data_leilao||'').split('/'); return a ? new Date(`${a}-${m}-${d}`).toISOString() : null } catch { return null } })()
+          : null
       })
     }
   )
   if (!res.ok) throw new Error(`Trello card error: ${res.status}`)
-  return await res.json()
+  const card = await res.json()
+
+  // Adicionar foto de capa
+  if (imovel.foto_principal && card.id) {
+    try {
+      await fetch(
+        `https://api.trello.com/1/cards/${card.id}/attachments?key=${key}&token=${token}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: imovel.foto_principal,
+            name: 'Foto Principal',
+            setCover: true
+          })
+        }
+      )
+    } catch { /* CORS pode bloquear */ }
+  }
+
+  // Adicionar demais fotos como attachments
+  if (imovel.fotos?.length && card.id) {
+    for (const foto of (imovel.fotos || []).slice(1, 5)) {
+      try {
+        await fetch(
+          `https://api.trello.com/1/cards/${card.id}/attachments?key=${key}&token=${token}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: foto, name: 'Foto do imóvel' })
+          }
+        )
+      } catch { }
+    }
+  }
+
+  // Adicionar checklist de due diligence
+  if (card.id) {
+    try {
+      const chRes = await fetch(
+        `https://api.trello.com/1/checklists?key=${key}&token=${token}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idCard: card.id, name: '✅ Checklist de Due Diligence' })
+        }
+      )
+      if (chRes.ok) {
+        const checklist = await chRes.json()
+        const items = [
+          '⚖️ Matrícula atualizada (máx. 30 dias)',
+          '⚖️ Certidão negativa de IPTU',
+          '⚖️ Certidão negativa condominial',
+          '⚖️ Pesquisa TJ + CNJ sem processos relevantes',
+          '⚖️ Edital lido integralmente',
+          '🏗️ Vistoria presencial ou fotos detalhadas',
+          '🏗️ Estimativa de custo de reforma',
+          '💰 Capital disponível confirmado por todos os sócios',
+          '💰 Estrutura de aquisição definida',
+          '💰 Acordo de Copropriedade assinado (se condomínio)',
+          '📋 Proposta/lance registrado no portal',
+          '📋 Boleto emitido e pago no prazo',
+        ]
+        for (const item of items) {
+          await fetch(
+            `https://api.trello.com/1/checklists/${checklist.id}/checkItems?key=${key}&token=${token}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: item, checked: false })
+            }
+          )
+        }
+      }
+    } catch { }
+  }
+
+  return card
 }
 
 // ── Criar lista "Manual de Métricas" no board ───────────────────

@@ -325,6 +325,59 @@ export function calcularScore(analise, parametros) {
 
 // ââ FUNÃÃO PRINCIPAL: orquestrar tudo âââââââââââââââââââââââââââ
 
+// -- FASE 4: Extrair fotos do site do imovel via Claude --
+
+export async function extrairFotosImovel(url, claudeKey) {
+  if (!url || !claudeKey) return { fotos: [], foto_principal: null }
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': claudeKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{
+          role: 'user',
+          content: `Acesse esta URL de imovel: ${url}
+Extraia TODAS as URLs de imagens/fotos do imovel que aparecem na pagina.
+Procure por tags <img>, atributos src, srcset, data-src, background-image.
+Priorize fotos grandes (nao icones, nao logos).
+Retorne APENAS um JSON valido no formato:
+{
+  "fotos": [
+    "https://url-foto-1.jpg",
+    "https://url-foto-2.jpg"
+  ],
+  "foto_principal": "https://url-foto-capa.jpg"
+}
+Maximo de 12 fotos. A foto_principal deve ser a fachada ou melhor angulo externo.`
+        }]
+      })
+    })
+    if (!res.ok) return { fotos: [], foto_principal: null }
+    const data = await res.json()
+    let txt = ''
+    for (const block of (data.content || [])) {
+      if (block.type === 'text') txt += block.text
+    }
+    const jsonMatch = txt.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return { fotos: [], foto_principal: null }
+    const parsed = JSON.parse(jsonMatch[0])
+    return {
+      fotos: (parsed.fotos || []).filter(f => f && f.startsWith('http')).slice(0, 12),
+      foto_principal: parsed.foto_principal || parsed.fotos?.[0] || null
+    }
+  } catch {
+    return { fotos: [], foto_principal: null }
+  }
+}
+
 export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametros, criterios, onProgress, anexos) {
   const progress = onProgress || (() => {})
 
@@ -380,6 +433,21 @@ DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
   progress('ð Calculando score com parÃ¢metros do grupo...')
   const score_total = calcularScore(analise, parametros)
 
+  // Enriquecer com dados de mercado regional (se detectou região)
+  if (dadosMercado) {
+    const regiaoFinal = detectarRegiao(analise.cidade || '', analise.endereco || '')
+    const mercadoFinal = regiaoFinal ? getMercado(regiaoFinal) : dadosMercado
+    if (mercadoFinal) {
+      if (!analise.preco_m2_mercado) analise.preco_m2_mercado = mercadoFinal.preco_m2_venda_medio
+      if (!analise.aluguel_mensal_estimado && analise.area_m2)
+        analise.aluguel_mensal_estimado = mercadoFinal.preco_m2_locacao * analise.area_m2
+      if (!analise.mercado_tendencia) analise.mercado_tendencia = mercadoFinal.tendencia
+      if (!analise.mercado_demanda) analise.mercado_demanda = mercadoFinal.demanda
+      if (mercadoFinal.alertas && mercadoFinal.alertas.length)
+        analise.alertas = [...(analise.alertas||[]), ...mercadoFinal.alertas]
+    }
+  }
+
   if (dadosGPT) {
     if (!analise.preco_m2_mercado && dadosGPT.preco_m2_mercado)
       analise.preco_m2_mercado = dadosGPT.preco_m2_mercado
@@ -395,6 +463,13 @@ DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
       analise.alertas = [...(analise.alertas||[]), ...dadosGPT.noticias.map(n => `ð° ${n}`)]
   }
 
+  // Extrair fotos do site
+  progress('\xf0\x9f\x93\xb8 Extraindo fotos do imovel...')
+  let fotosResult = { fotos: [], foto_principal: null }
+  try {
+    fotosResult = await extrairFotosImovel(url, claudeKey) || { fotos: [], foto_principal: null }
+  } catch { /* ignorar erro de fotos */ }
+
   return {
     ...analise,
     score_total,
@@ -403,6 +478,8 @@ DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
     id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
     fonte_url: url,
     status: 'analisado',
-    analise_dupla_ia: !!dadosGPT
+    analise_dupla_ia: !!dadosGPT,
+    fotos: fotosResult.fotos || [],
+    foto_principal: fotosResult.foto_principal || null
   }
 }
