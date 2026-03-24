@@ -629,16 +629,17 @@ export async function getImovelByCodigo(codigoAxis) {
 
 // ── Gerar código AXIS único por imóvel ────────────────────────────
 export async function gerarAxisId(cidade) {
-  const prefixos = {
+  const PREFIXOS = {
     'belo horizonte': 'BH', 'bh': 'BH',
-    'contagem': 'CT', 'juiz de fora': 'JF',
-    'betim': 'BT', 'nova lima': 'NL',
-    'ribeirao das neves': 'RN', 'ribeirão das neves': 'RN',
-    'santa luzia': 'SL', 'sabara': 'SB', 'sabará': 'SB',
+    'contagem': 'CT', 'betim': 'BT',
+    'juiz de fora': 'JF', 'nova lima': 'NL',
+    'ribeirao das neves': 'RN',
+    'santa luzia': 'SL', 'sabara': 'SB',
   }
-  const cidadeNorm = (cidade || '').toLowerCase().trim()
-  const prefixo = Object.entries(prefixos).find(([k]) =>
-    cidadeNorm.includes(k))?.[1] || 'MG'
+  const norm = (cidade || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+  const prefixo = Object.entries(PREFIXOS)
+    .find(([k]) => norm.includes(k))?.[1] || 'MG'
   const ano = new Date().getFullYear()
 
   const { data } = await supabase
@@ -649,9 +650,9 @@ export async function gerarAxisId(cidade) {
     .limit(1)
 
   let seq = 1
-  if (data && data.length > 0 && data[0].codigo_axis) {
-    const partes = data[0].codigo_axis.split('-')
-    seq = parseInt(partes[partes.length - 1]) + 1
+  if (data?.[0]?.codigo_axis) {
+    const n = parseInt(data[0].codigo_axis.split('-').pop(), 10)
+    if (!isNaN(n)) seq = n + 1
   }
   return `${prefixo}-${ano}-${String(seq).padStart(4, '0')}`
 }

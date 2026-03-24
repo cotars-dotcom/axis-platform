@@ -484,7 +484,7 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
     },
     body: JSON.stringify({
       model: CLAUDE_MODEL,
-      max_tokens: 6000,
+      max_tokens: 3500,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: (() => {
         const parts = [{type:'text',text:prompt}]
@@ -723,8 +723,8 @@ Retorne SOMENTE este JSON (sem texto adicional):
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 1000,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: promptFotos }]
       })
@@ -764,6 +764,25 @@ Retorne SOMENTE este JSON (sem texto adicional):
 
 export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametros, criterios, onProgress, anexos) {
   const progress = onProgress || (() => {})
+
+  // Modo teste: retorna dados simulados sem chamar API
+  const MODO_TESTE = localStorage.getItem('axis-modo-teste') === 'true'
+  if (MODO_TESTE) {
+    console.warn('[AXIS] MODO TESTE — sem chamadas de API')
+    return {
+      titulo: 'Imóvel de Teste',
+      score_total: 7.5, recomendacao: 'AGUARDAR',
+      score_localizacao: 7.5, score_desconto: 7.0,
+      score_juridico: 7.5, score_ocupacao: 7.0,
+      score_liquidez: 7.5, score_mercado: 7.0,
+      alertas: ['[TESTE] Análise simulada — sem dados reais'],
+      positivos: ['[TESTE] Ative o modo real para análise completa'],
+      negativos: [],
+      sintese_executiva: 'Análise simulada. Desative o Modo Teste para análise real.',
+      custo_api_usd: 0,
+      modo_teste: true,
+    }
+  }
 
   const cidade = 'Brasil'
   const tipo = 'Imóvel'
