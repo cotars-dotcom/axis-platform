@@ -7,7 +7,7 @@ import { useIsMobile } from "./hooks/useIsMobile.js"
 import BuscaGPT from "./components/BuscaGPT.jsx"
 import { useAuth } from "./lib/AuthContext.jsx"
 import Login from "./pages/Login.jsx"
-import { supabase, getImoveis, saveImovel, deleteImovel } from "./lib/supabase.js"
+import { supabase, getImoveis, saveImovel, deleteImovel, getUsoChamadas } from "./lib/supabase.js"
 import Tarefas from "./pages/Tarefas.jsx"
 import { analisarImovelCompleto } from "./lib/dualAI.js"
 import { setupBoardLeilax, criarCardImovel } from "./lib/trelloService.js"
@@ -1475,6 +1475,144 @@ function AbaJuridica({ imovel, onReclassificado }) {
   )
 }
 
+// ── ABA CUSTOS API ───────────────────────────────────────────────────────────
+function AbaCustoAPI({ isPhone }) {
+  const USD = 5.80
+  const [logs, setLogs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [filtro, setFiltro] = useState(30)
+  const TIPO_LABEL = {
+    analise_principal: '🔍 Análise', fotos: '📷 Fotos',
+    mercado_chatgpt: '📊 Mercado', busca_gpt: '🔎 Busca GPT', reanalise: '🔄 Reanálise',
+  }
+
+  useEffect(() => {
+    setLoading(true)
+    getUsoChamadas({ dias: filtro }).then(d => { setLogs(d); setLoading(false) })
+  }, [filtro])
+
+  const totalUSD = logs.reduce((s, l) => s + parseFloat(l.custo_usd || 0), 0)
+  const totalBRL = totalUSD * USD
+  const totalChamadas = logs.length
+  const mediaUSD = totalChamadas > 0 ? totalUSD / totalChamadas : 0
+
+  const porTipo = logs.reduce((acc, l) => {
+    const t = l.tipo || 'outro'
+    if (!acc[t]) acc[t] = { chamadas: 0, custo: 0 }
+    acc[t].chamadas++
+    acc[t].custo += parseFloat(l.custo_usd || 0)
+    return acc
+  }, {})
+
+  const porDia = logs.reduce((acc, l) => {
+    const dia = new Date(l.criado_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' })
+    if (!acc[dia]) acc[dia] = 0
+    acc[dia] += parseFloat(l.custo_usd || 0)
+    return acc
+  }, {})
+
+  return (
+    <div style={{ paddingTop: 16 }}>
+      {/* Filtro */}
+      <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+        {[7,30,90].map(d => (
+          <button key={d} onClick={() => setFiltro(d)} style={{
+            padding:'5px 14px', borderRadius:20, fontSize:12, fontWeight:600,
+            cursor:'pointer', border:'none',
+            background: filtro===d ? C.navy : C.surface,
+            color: filtro===d ? '#fff' : C.muted,
+          }}>{d} dias</button>
+        ))}
+      </div>
+      {/* KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns: isPhone ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:10, marginBottom:20 }}>
+        {[
+          ['Total gasto', `R$ ${totalBRL.toFixed(2)}`, `$${totalUSD.toFixed(3)} USD`],
+          ['Chamadas', totalChamadas, `últimos ${filtro} dias`],
+          ['Por chamada', `R$ ${(mediaUSD*USD).toFixed(2)}`, 'média'],
+          ['Projeção 30d', `R$ ${(filtro > 0 ? totalUSD/filtro*30*USD : 0).toFixed(0)}`, 'extrapolado'],
+        ].map(([l,v,s]) => (
+          <div key={l} style={{ background:C.surface, borderRadius:10,
+            padding:'12px 14px', border:`1px solid ${C.borderW}` }}>
+            <p style={{ margin:'0 0 3px', fontSize:10, color:C.muted }}>{l}</p>
+            <p style={{ margin:0, fontSize:16, fontWeight:800, color:C.navy }}>{v}</p>
+            <p style={{ margin:0, fontSize:10, color:C.hint }}>{s}</p>
+          </div>
+        ))}
+      </div>
+      {/* Por tipo */}
+      <p style={{ margin:'0 0 8px', fontSize:12, fontWeight:700, color:C.navy }}>Por tipo de chamada</p>
+      <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:20 }}>
+        {Object.entries(porTipo).sort((a,b) => b[1].custo - a[1].custo).map(([tipo, { chamadas, custo }]) => (
+          <div key={tipo} style={{ display:'flex', justifyContent:'space-between',
+            alignItems:'center', background:C.white,
+            border:`1px solid ${C.borderW}`, borderRadius:8, padding:'10px 14px' }}>
+            <div>
+              <p style={{ margin:0, fontSize:12, fontWeight:600, color:C.navy }}>{TIPO_LABEL[tipo] || tipo}</p>
+              <p style={{ margin:0, fontSize:10, color:C.muted }}>{chamadas} chamadas</p>
+            </div>
+            <span style={{ fontSize:13, fontWeight:700, color:C.emerald }}>R$ {(custo*USD).toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+      {/* Por dia */}
+      <p style={{ margin:'0 0 8px', fontSize:12, fontWeight:700, color:C.navy }}>Por dia</p>
+      <div style={{ display:'flex', flexDirection:'column', gap:4, marginBottom:20 }}>
+        {Object.entries(porDia).slice(0,7).map(([dia, custo]) => (
+          <div key={dia} style={{ display:'flex', justifyContent:'space-between',
+            alignItems:'center', padding:'8px 14px', background:C.surface,
+            borderRadius:8, border:`1px solid ${C.borderW}` }}>
+            <span style={{ fontSize:12, color:C.navy, fontWeight:600 }}>{dia}</span>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <div style={{ width:80, height:6, borderRadius:3, background:C.borderW, overflow:'hidden' }}>
+                <div style={{ height:'100%', borderRadius:3,
+                  background: custo*USD > 5 ? C.mustard : C.emerald,
+                  width:`${Math.min(100, (custo*USD/10)*100)}%` }} />
+              </div>
+              <span style={{ fontSize:12, fontWeight:700, color: custo*USD > 5 ? C.mustard : C.emerald }}>
+                R$ {(custo*USD).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        ))}
+        {Object.keys(porDia).length === 0 && !loading && (
+          <p style={{ fontSize:12, color:C.hint, textAlign:'center', padding:16 }}>
+            Nenhum dado no período. As próximas análises serão registradas aqui.
+          </p>
+        )}
+      </div>
+      {/* Últimas chamadas */}
+      <p style={{ margin:'0 0 8px', fontSize:12, fontWeight:700, color:C.navy }}>Últimas chamadas</p>
+      <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+        {logs.slice(0,10).map(l => (
+          <div key={l.id} style={{ display:'flex', justifyContent:'space-between',
+            alignItems:'center', padding:'8px 14px', background:C.white,
+            border:`1px solid ${C.borderW}`, borderRadius:8 }}>
+            <div>
+              <p style={{ margin:0, fontSize:11, fontWeight:600, color:C.navy }}>
+                {TIPO_LABEL[l.tipo] || l.tipo}
+                {l.imovel_id && <span style={{ color:C.emerald }}> · #{l.imovel_id}</span>}
+              </p>
+              <p style={{ margin:0, fontSize:10, color:C.muted }}>
+                {new Date(l.criado_em).toLocaleString('pt-BR')}
+                {' · '}{l.modelo?.includes('haiku') ? 'Haiku' : l.modelo?.includes('gpt') ? 'ChatGPT' : 'Sonnet'}
+                {' · '}{((l.tokens_input||0)+(l.tokens_output||0)).toLocaleString()} tokens
+              </p>
+            </div>
+            <span style={{ fontSize:12, fontWeight:700, color:C.emerald }}>
+              R$ {(parseFloat(l.custo_usd||0)*USD).toFixed(3)}
+            </span>
+          </div>
+        ))}
+        {loading && <p style={{ fontSize:12, color:C.hint, textAlign:'center', padding:16 }}>Carregando...</p>}
+      </div>
+      <p style={{ margin:'12px 0 0', fontSize:10, color:C.hint }}>
+        * Modo Teste não contabilizado. Sonnet: $3/$15 · Haiku: $1/$5 · ChatGPT: $2.50/$10 por 1M tokens.
+      </p>
+    </div>
+  )
+}
+
 // ── PAINEL ADMIN (convites + usuários) ────────────────────────────────────────
 function PainelConvitesAdmin({ session, imoveis: propImoveis, isPhone }) {
   const [aba, setAba] = useState('convites')
@@ -1800,58 +1938,7 @@ function PainelConvitesAdmin({ session, imoveis: propImoveis, isPhone }) {
           </div>
         </div>
       )}
-      {aba === 'custos' && (() => {
-        const USD = 5.80
-        const lista = propImoveis || []
-        const totalUSD = lista.reduce((s,p) => s + (p.custo_api_usd || 0.10), 0)
-        const media = lista.length ? totalUSD / lista.length : 0
-        return (
-          <div style={{ paddingTop: 16 }}>
-            <div style={{ display:'grid', gridTemplateColumns: isPhone ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:10, marginBottom:20 }}>
-              {[
-                ['Total gasto', `R$ ${(totalUSD*USD).toFixed(2)}`],
-                ['Por análise', `R$ ${(media*USD).toFixed(2)}`],
-                ['Análises', lista.length],
-                ['Projeção 50/mês', `R$ ${(media*USD*50).toFixed(0)}`],
-              ].map(([l,v]) => (
-                <div key={l} style={{ background:C.surface, borderRadius:10,
-                  padding:'12px 14px', border:`1px solid ${C.borderW}` }}>
-                  <p style={{ margin:'0 0 3px', fontSize:10, color:C.muted }}>{l}</p>
-                  <p style={{ margin:0, fontSize:16, fontWeight:800, color:C.navy }}>{v}</p>
-                </div>
-              ))}
-            </div>
-            <p style={{ margin:'0 0 8px', fontSize:12, fontWeight:700, color:C.navy }}>Por imóvel</p>
-            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-              {[...lista]
-                .sort((a,b) => (b.custo_api_usd||0.10)-(a.custo_api_usd||0.10))
-                .map(p => (
-                <div key={p.id} style={{ display:'flex', justifyContent:'space-between',
-                  alignItems:'center', background:C.white,
-                  border:`1px solid ${C.borderW}`, borderRadius:8, padding:'10px 14px' }}>
-                  <div>
-                    <p style={{ margin:0, fontSize:12, fontWeight:600, color:C.navy }}>
-                      {p.codigo_axis && <span style={{ color:C.emerald }}>#{p.codigo_axis} · </span>}
-                      {(p.titulo||p.endereco||'Imóvel').slice(0,40)}
-                      {p.modo_teste && <span style={{ color:C.hint }}> · TESTE</span>}
-                    </p>
-                    <p style={{ margin:0, fontSize:10, color:C.muted }}>
-                      {new Date(p.criado_em||Date.now()).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
-                  <span style={{ fontSize:13, fontWeight:700,
-                    color: (p.custo_api_usd||0.10)*USD > 0.80 ? C.mustard : C.emerald }}>
-                    R$ {((p.custo_api_usd||0.10)*USD).toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p style={{ margin:'12px 0 0', fontSize:10, color:C.hint }}>
-              * Estimativas. Sonnet: $3/1M input · $15/1M output. ChatGPT: ~$0,04/análise.
-            </p>
-          </div>
-        )
-      })()}
+      {aba === 'custos' && <AbaCustoAPI isPhone={isPhone} />}
     </div>
   )
 }

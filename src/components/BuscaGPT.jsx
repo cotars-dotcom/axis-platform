@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useIsMobile } from "../hooks/useIsMobile.js";
 import { useAuth } from "../lib/AuthContext.jsx";
-import { supabase } from "../lib/supabase.js";
+import { supabase, logUsoChamadaAPI } from "../lib/supabase.js";
 
 const K = {
   bg:"#080B10", s1:"#111620", s2:"#171E2C", bd:"#1C2438",
@@ -63,6 +63,13 @@ Retorne no mínimo 3 e no máximo 10 imóveis relevantes.`;
     throw new Error(err.error?.message || `OpenAI erro ${r.status}`);
   }
   const d = await r.json();
+  // Log de uso BuscaGPT
+  const usageBusca = d.usage || {}
+  logUsoChamadaAPI({
+    tipo: 'busca_gpt', modelo: 'gpt-4o',
+    tokensInput: usageBusca.prompt_tokens || 0,
+    tokensOutput: usageBusca.completion_tokens || 0,
+  })
   const txt = d.choices?.[0]?.message?.content || "";
   try { return JSON.parse(txt.replace(/```json|```/g, "").trim()); }
   catch { throw new Error("Falha ao interpretar resposta do ChatGPT."); }

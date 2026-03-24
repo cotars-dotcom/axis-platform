@@ -5,6 +5,7 @@
 // Fase 3: Score calculado com os pesos definidos pelo admin
 // ═══════════════════════════════════════════════════════════════
 
+import { logUsoChamadaAPI } from './supabase.js'
 import { detectarRegiao, getMercado } from '../data/mercado_regional.js'
 import {
   BAIRROS_BH,
@@ -330,6 +331,13 @@ Retorne APENAS JSON válido (sem markdown):
       .map(c => c.text)
       .join('') || ''
     const resultado = JSON.parse(txt.replace(/```json|```/g, '').trim())
+    // Log de uso
+    const usageGPT = data.usage || {}
+    logUsoChamadaAPI({
+      tipo: 'mercado_chatgpt', modelo: GPT_MODEL,
+      tokensInput: usageGPT.input_tokens || usageGPT.prompt_tokens || 0,
+      tokensOutput: usageGPT.output_tokens || usageGPT.completion_tokens || 0,
+    })
     // Salvar no cache
     try {
       const { supabase } = await import('./supabase')
@@ -557,6 +565,14 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
     }
   }
 
+  // Log de uso Claude principal
+  const usageClaude = data.usage || {}
+  logUsoChamadaAPI({
+    tipo: 'analise_principal', modelo: CLAUDE_MODEL,
+    tokensInput: usageClaude.input_tokens || 0,
+    tokensOutput: usageClaude.output_tokens || 0,
+  })
+
   const jsonMatch = txt.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('Claude não retornou JSON válido')
   return JSON.parse(jsonMatch[0])
@@ -773,6 +789,13 @@ Retorne SOMENTE este JSON (sem texto adicional):
       return { fotos: [], foto_principal: null }
     }
     const data = await res.json()
+    // Log de uso Haiku fotos
+    const usageFotos = data.usage || {}
+    logUsoChamadaAPI({
+      tipo: 'fotos', modelo: 'claude-haiku-4-5-20251001',
+      tokensInput: usageFotos.input_tokens || 0,
+      tokensOutput: usageFotos.output_tokens || 0,
+    })
     let txt = ''
     for (const block of (data.content || [])) {
       if (block.type === 'text') txt += block.text
