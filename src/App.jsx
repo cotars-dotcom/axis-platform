@@ -60,14 +60,31 @@ const RED = "#E5484D"
 // Normalizar texto de alertas — corrige double-encoding UTF-8 e converte tags para emojis
 function normalizarTextoAlerta(texto) {
   if (!texto) return ''
-  return texto
-    .replace(/Ã°Â[^\s]*/g, '')
+
+  // Decodificar double-encoding UTF-8 (latin1 interpretado como UTF-8)
+  let s = texto
+  try {
+    s = decodeURIComponent(escape(texto))
+  } catch {
+    s = texto
+  }
+
+  // Limpar padrões garbled específicos
+  s = s
+    .replace(/ÃÂÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°/g, '⚠️')
+    .replace(/Ã°ÂÃÂÃ°/g, '⚠️')
+    .replace(/Ã°Â\S*/g, '')
+    .replace(/ÃÂÂ[^\s]*/g, '')
     .replace(/Ã¢ÂÂ[^\s]*/g, '')
-    .replace(/[\uFFFD]/g, '')
+    .replace(/[\uFFFD\uFFFE\uFFFF]/g, '')
+    // Tags de texto para emojis
     .replace(/\[CRITICO\]/gi, '🔴')
     .replace(/\[ATENCAO\]/gi, '⚠️')
     .replace(/\[OK\]/gi, '✅')
+    .replace(/\[INFO\]/gi, '💡')
     .trim()
+
+  return s
 }
 const scoreColor = s => s >= 7.5 ? C.emerald : s >= 6 ? C.emerald : s >= 4.5 ? C.mustard : RED
 const scoreLabel = s => s >= 7.5 ? "FORTE" : s >= 6 ? "BOM" : s >= 4.5 ? "MÉDIO" : "FRACO"
