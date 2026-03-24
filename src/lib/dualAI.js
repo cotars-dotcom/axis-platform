@@ -14,16 +14,6 @@ import {
   REFERENCIAS_BH,
   YIELD_POR_ZONA,
 } from '../data/metricas_bairros_bh.js'
-import {
-  calcularCustoReforma,
-  verificarSobrecapitalizacao,
-  detectarClasseMercado,
-} from '../data/custos_reforma.js'
-import {
-  RISCOS_JURIDICOS,
-  REGRAS_MODALIDADE,
-  calcularCustoJuridico,
-} from '../data/riscos_juridicos.js'
 
 const CLAUDE_MODEL = 'claude-sonnet-4-20250514'
 const GPT_MODEL = 'gpt-4o'
@@ -457,10 +447,10 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
   "recomendacao": "COMPRAR|AGUARDAR|EVITAR",
   "justificativa": "string detalhada 3-5 linhas explicando a decisão",
   "estrategia_recomendada": "flip|locacao|temporada",
-  "sintese_executiva": "string — 3 frases em linguagem simples para membros não-especialistas. Ex: 'Este apartamento está sendo vendido por menos da metade do preço de mercado em um bairro de alta demanda. O maior risco é a ocupação incerta, que pode exigir ação judicial de 6 a 18 meses. Para o grupo AXIS, o cenário mais conservador ainda entrega retorno acima de 40%.'",
+  "sintese_executiva": "string â 3 frases em linguagem simples para membros nÃ£o-especialistas. Ex: 'Este apartamento estÃ¡ sendo vendido por menos da metade do preÃ§o de mercado em um bairro de alta demanda. O maior risco Ã© a ocupaÃ§Ã£o incerta, que pode exigir aÃ§Ã£o judicial de 6 a 18 meses. Para o grupo AXIS, o cenÃ¡rio mais conservador ainda entrega retorno acima de 40%.'",
   "estrategia_recomendada_detalhe": {
     "tipo": "flip_rapido|renda_passiva|airbnb|reforma_revenda|locacao_longa",
-    "motivo": "string — por que este imóvel se encaixa nessa estratégia",
+    "motivo": "string â por que este imÃ³vel se encaixa nessa estratÃ©gia",
     "prazo_estimado_meses": 0,
     "roi_estimado_pct": 0
   },
@@ -809,7 +799,7 @@ DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
 
 
 
-  // ── Enriquecimento com dados por bairro (metricas_bairros_bh.js) ──
+  // ââ Enriquecimento com dados por bairro (metricas_bairros_bh.js) ââ
   const bairroNome = dadosGPT?.bairro || ''
   const dadosBairro = getBairroDados(bairroNome)
   const gapPctBairro = dadosBairro ? calcGapPrecoPct(dadosBairro) : null
@@ -819,22 +809,22 @@ DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
   let contextoBairro = ''
   if (dadosBairro) {
     contextoBairro = `
-DADOS DE BAIRRO (granularidade fina — ${dadosBairro.label}):
+DADOS DE BAIRRO (granularidade fina â ${dadosBairro.label}):
 - Zona: ${dadosBairro.zona}
-- Preço anúncio (FipeZAP fev/2026): ${dadosBairro.precoAnuncioM2 ? `R$ ${dadosBairro.precoAnuncioM2.toLocaleString('pt-BR')}/m²` : 'não disponível'}
-- Preço contrato (QuintoAndar 3T2025): ${dadosBairro.precoContratoM2 ? `R$ ${dadosBairro.precoContratoM2.toLocaleString('pt-BR')}/m²` : 'não disponível'}
-- Tipo de dado: ${dadosBairro.tipoPreco === 'proxy_zona' ? '⚠️ estimativa por zona — usar com cautela' : 'dado real de transação'}
-${gapPctBairro !== null ? `- Gap anúncio vs contrato: ${gapPctBairro.toFixed(1)}% (negociação média)` : ''}
+- PreÃ§o anÃºncio (FipeZAP fev/2026): ${dadosBairro.precoAnuncioM2 ? `R$ ${dadosBairro.precoAnuncioM2.toLocaleString('pt-BR')}/mÂ²` : 'nÃ£o disponÃ­vel'}
+- PreÃ§o contrato (QuintoAndar 3T2025): ${dadosBairro.precoContratoM2 ? `R$ ${dadosBairro.precoContratoM2.toLocaleString('pt-BR')}/mÂ²` : 'nÃ£o disponÃ­vel'}
+- Tipo de dado: ${dadosBairro.tipoPreco === 'proxy_zona' ? 'â ï¸ estimativa por zona â usar com cautela' : 'dado real de transaÃ§Ã£o'}
+${gapPctBairro !== null ? `- Gap anÃºncio vs contrato: ${gapPctBairro.toFixed(1)}% (negociaÃ§Ã£o mÃ©dia)` : ''}
 - Yield bruto estimado: ${dadosBairro.yieldBruto}% a.a.
-- Tendência 12m: ${dadosBairro.tendencia12m > 20 ? `⚠️ ${dadosBairro.tendencia12m}% (verificar amostra)` : `${dadosBairro.tendencia12m}%`}
-- Classe socioeconômica IPEAD: ${dadosBairro.classeIpead} — ${dadosBairro.classeIpeadLabel}
-${dadosBairro.obs ? `- Observação: ${dadosBairro.obs}` : ''}
-IMPORTANTE: Use o gap asking/closing para calibrar a negociação e o score de oportunidade.`
+- TendÃªncia 12m: ${dadosBairro.tendencia12m > 20 ? `â ï¸ ${dadosBairro.tendencia12m}% (verificar amostra)` : `${dadosBairro.tendencia12m}%`}
+- Classe socioeconÃ´mica IPEAD: ${dadosBairro.classeIpead} â ${dadosBairro.classeIpeadLabel}
+${dadosBairro.obs ? `- ObservaÃ§Ã£o: ${dadosBairro.obs}` : ''}
+IMPORTANTE: Use o gap asking/closing para calibrar a negociaÃ§Ã£o e o score de oportunidade.`
   } else if (classeIPEAD) {
     contextoBairro = `
 DADOS DE BAIRRO (parcial):
-- Classe IPEAD: ${classeIPEAD.classe} — ${classeIPEAD.label}
-- Dados de preço específico não disponíveis para este bairro`
+- Classe IPEAD: ${classeIPEAD.classe} â ${classeIPEAD.label}
+- Dados de preÃ§o especÃ­fico nÃ£o disponÃ­veis para este bairro`
   }
   // Append bairro context to market context
   const contextoCompleto = (contextoMercadoRegional || '') + contextoBairro
@@ -919,16 +909,16 @@ DADOS DE BAIRRO (parcial):
             analiseValidada.alerta_sobrecap = sobrecap.status
             if (sobrecap.status !== 'verde') {
               analiseValidada.alertas = [...(analiseValidada.alertas || []),
-                `${sobrecap.status === 'vermelho' ? '🔴' : '🟡'} ${sobrecap.mensagem}`
+                `${sobrecap.status === 'vermelho' ? 'ð´' : 'ð¡'} ${sobrecap.mensagem}`
               ]
             }
           }
         }
       }
     }
-  } catch(e) { console.warn('[AXIS] Cálculo reforma:', e.message) }
+  } catch(e) { console.warn('[AXIS] CÃ¡lculo reforma:', e.message) }
 
-  // Calcular custo jurídico usando a base estruturada
+  // Calcular custo jurÃ­dico usando a base estruturada
   try {
     if (analiseValidada.riscos_presentes?.length > 0) {
       const aluguelEst = analiseValidada.aluguel_mensal_estimado || 0
@@ -944,7 +934,7 @@ DADOS DE BAIRRO (parcial):
     const cidadeLower = (analiseValidada.cidade || '').toLowerCase()
     if (cidadeLower.includes('belo horizonte') || cidadeLower.includes('bh'))
       analiseValidada.itbi_pct = 3
-  } catch(e) { console.warn('[AXIS] Cálculo jurídico:', e.message) }
+  } catch(e) { console.warn('[AXIS] CÃ¡lculo jurÃ­dico:', e.message) }
 
   // Recalcular score se a validação corrigiu algo
   const scoreFinal = (analiseValidada._erros_validacao?.length || analiseValidada._avisos_validacao?.length)
