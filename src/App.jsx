@@ -1469,7 +1469,7 @@ function AbaJuridica({ imovel, onReclassificado }) {
 }
 
 // ── PAINEL ADMIN (convites + usuários) ────────────────────────────────────────
-function PainelConvitesAdmin({ session }) {
+function PainelConvitesAdmin({ session, imoveis: propImoveis }) {
   const [aba, setAba] = useState('convites')
   const [convites, setConvites] = useState([])
   const [usuarios, setUsuarios] = useState([])
@@ -1550,7 +1550,7 @@ function PainelConvitesAdmin({ session }) {
       </p>
       <div style={{ display:'flex', gap:4, marginBottom:24,
         borderBottom:`1px solid ${C.borderW}`, paddingBottom:0 }}>
-        {[['convites','🔗 Convites'],['usuarios','👥 Usuários']].map(([k,l]) => (
+        {[['convites','🔗 Convites'],['usuarios','👥 Usuários'],['custos','💰 Custos API']].map(([k,l]) => (
           <button key={k} onClick={() => setAba(k)} style={{
             padding:'8px 20px', border:'none', background:'none',
             fontSize:13.5, fontWeight: aba===k ? 700 : 400,
@@ -1780,6 +1780,58 @@ function PainelConvitesAdmin({ session }) {
           </div>
         </div>
       )}
+      {aba === 'custos' && (() => {
+        const USD = 5.80
+        const lista = propImoveis || []
+        const totalUSD = lista.reduce((s,p) => s + (p.custo_api_usd || 0.10), 0)
+        const media = lista.length ? totalUSD / lista.length : 0
+        return (
+          <div style={{ paddingTop: 16 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:20 }}>
+              {[
+                ['Total gasto', `R$ ${(totalUSD*USD).toFixed(2)}`],
+                ['Por análise', `R$ ${(media*USD).toFixed(2)}`],
+                ['Análises', lista.length],
+                ['Projeção 50/mês', `R$ ${(media*USD*50).toFixed(0)}`],
+              ].map(([l,v]) => (
+                <div key={l} style={{ background:C.surface, borderRadius:10,
+                  padding:'12px 14px', border:`1px solid ${C.borderW}` }}>
+                  <p style={{ margin:'0 0 3px', fontSize:10, color:C.muted }}>{l}</p>
+                  <p style={{ margin:0, fontSize:16, fontWeight:800, color:C.navy }}>{v}</p>
+                </div>
+              ))}
+            </div>
+            <p style={{ margin:'0 0 8px', fontSize:12, fontWeight:700, color:C.navy }}>Por imóvel</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {[...lista]
+                .sort((a,b) => (b.custo_api_usd||0.10)-(a.custo_api_usd||0.10))
+                .map(p => (
+                <div key={p.id} style={{ display:'flex', justifyContent:'space-between',
+                  alignItems:'center', background:C.white,
+                  border:`1px solid ${C.borderW}`, borderRadius:8, padding:'10px 14px' }}>
+                  <div>
+                    <p style={{ margin:0, fontSize:12, fontWeight:600, color:C.navy }}>
+                      {p.codigo_axis && <span style={{ color:C.emerald }}>#{p.codigo_axis} · </span>}
+                      {(p.titulo||p.endereco||'Imóvel').slice(0,40)}
+                      {p.modo_teste && <span style={{ color:C.hint }}> · TESTE</span>}
+                    </p>
+                    <p style={{ margin:0, fontSize:10, color:C.muted }}>
+                      {new Date(p.criado_em||Date.now()).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                  <span style={{ fontSize:13, fontWeight:700,
+                    color: (p.custo_api_usd||0.10)*USD > 0.80 ? C.mustard : C.emerald }}>
+                    R$ {((p.custo_api_usd||0.10)*USD).toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p style={{ margin:'12px 0 0', fontSize:10, color:C.hint }}>
+              * Estimativas. Sonnet: $3/1M input · $15/1M output. ChatGPT: ~$0,04/análise.
+            </p>
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -2985,7 +3037,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
     {view==="tarefas"&&<Tarefas/>}
     {view==="arquivados"&&<BancoArquivados session={session} isAdmin={isAdmin}/>}
     {view==="portfolio"&&isAdmin&&<PainelPortfolio props={props} isMobile={isMobile} isPhone={isPhone}/>}
-    {view==="admin"&&isAdmin&&<PainelConvitesAdmin session={session}/>}
+    {view==="admin"&&isAdmin&&<PainelConvitesAdmin session={session} imoveis={props}/>}
     </div>
 
     {toast&&<div style={{position:"fixed",bottom:"16px",right:"16px",background:C.white,color:C.text,padding:"12px 20px",borderRadius:"10px",fontSize:"13px",fontWeight:"600",zIndex:9999,boxShadow:"0 8px 32px rgba(0,33,128,0.15)",maxWidth:"340px",border:`1px solid ${C.borderW}`}}>{toast.msg}</div>}
