@@ -559,6 +559,7 @@ function ModalAuditoriaTrello({ config, imoveis, onClose }) {
 function ApiKeyModal({onClose}) {
  const [key,setKey]=useState(localStorage.getItem("axis-api-key")||"")
  const [oaiKey,setOaiKey]=useState(localStorage.getItem("axis-openai-key")||"")
+ const [modoTeste,setModoTeste]=useState(localStorage.getItem('axis-modo-teste')==='true')
  const save=()=>{localStorage.setItem("axis-api-key",key.trim());if(oaiKey.trim())localStorage.setItem("axis-openai-key",oaiKey.trim());onClose()}
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:"20px"}}>
     <div style={{background:K.s1,border:`1px solid ${K.bd}`,borderRadius:"10px",padding:"28px",maxWidth:"480px",width:"100%"}}>
@@ -586,7 +587,16 @@ function ApiKeyModal({onClose}) {
       <div style={{background:`${K.amb}10`,border:`1px solid ${K.amb}30`,borderRadius:"6px",padding:"12px",marginBottom:"16px",fontSize:"11.5px",color:K.amb}}>
  ⚠️ As chaves ficam salvas apenas no seu navegador (localStorage). Nunca são enviadas para servidores externos além da Anthropic/OpenAI.
       </div>
-      <button style={btn()} onClick={save}>💾 Salvar</button>
+      <div style={{marginTop:16,display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:K.s2,borderRadius:8,border:`1px solid ${K.bd}`}}>
+        <div>
+          <p style={{margin:0,fontSize:13,fontWeight:600,color:K.wh}}>Modo Teste</p>
+          <p style={{margin:0,fontSize:11,color:K.t3}}>Análises sem custo de API — para desenvolvimento</p>
+        </div>
+        <button onClick={()=>{const atual=modoTeste;localStorage.setItem('axis-modo-teste',String(!atual));setModoTeste(!atual)}} style={{padding:'6px 16px',borderRadius:20,border:'none',fontWeight:700,fontSize:12,cursor:'pointer',background:modoTeste?K.teal:K.s2,color:modoTeste?'#fff':K.t3}}>
+          {modoTeste?'✅ Ativo':'Desativado'}
+        </button>
+      </div>
+      <button style={{...btn(),marginTop:12}} onClick={save}>💾 Salvar</button>
     </div>
   </div>
 }
