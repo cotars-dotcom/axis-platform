@@ -2213,6 +2213,34 @@ function PainelPortfolio({ props: imoveis, isMobile, isPhone }) {
   )
 }
 
+// ── CARD COMPARÁVEL (Accordion) ──────────────────────────────────────────────
+function CardComparavel({item:c, K, isPhone}) {
+  const [aberto, setAberto] = useState(false)
+  const fmtV = v => v ? `R$ ${Number(v).toLocaleString('pt-BR')}` : '—'
+  return <div style={{marginBottom:6,borderRadius:8,overflow:"hidden",border:`1px solid ${K.bd}`}}>
+    <div onClick={()=>setAberto(!aberto)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",cursor:"pointer",background:K.s2}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:13,fontWeight:600,color:K.wh,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.descricao||'Comparável'}</div>
+        <div style={{fontSize:11,color:K.t3}}>
+          {c.preco_m2?`R$ ${c.preco_m2.toLocaleString('pt-BR')}/m²`:''}
+          {c.similaridade?` · ${c.similaridade.toFixed(1)} compatib.`:''}
+          {c.fonte?` · ${c.fonte}`:''}
+        </div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0,marginLeft:8}}>
+        <span style={{fontWeight:700,fontSize:13,color:K.teal}}>{c.valor?`${(c.valor/1000).toFixed(0)}K`:''}</span>
+        <span style={{fontSize:14,color:K.t3}}>{aberto?'▲':'▼'}</span>
+      </div>
+    </div>
+    {aberto&&<div style={{padding:"10px 12px",background:K.bg,borderTop:`1px solid ${K.bd}`,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+      {[['Área',c.area_m2?`${c.area_m2}m²`:'—'],['Quartos',c.quartos??'—'],['Vagas',c.vagas??'—'],
+        ['Tipo',c.tipo??'—'],['Andar',c.andar??'—'],['Cond./mês',c.condominio_mes?fmtV(c.condominio_mes):'—']
+      ].map(([label,val],i)=><div key={i}><div style={{fontSize:10,color:K.t3,textTransform:"uppercase",letterSpacing:.5}}>{label}</div><div style={{fontSize:12.5,fontWeight:600,color:K.wh}}>{val}</div></div>)}
+      {c.link&&<a href={c.link} target="_blank" rel="noreferrer" style={{gridColumn:"1/-1",fontSize:11,color:K.teal,textDecoration:"none"}}>Ver anúncio →</a>}
+    </div>}
+  </div>
+}
+
 // ── DETAIL ────────────────────────────────────────────────────────────────────
 function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze,isAdmin,onArchive,isMobile,isPhone}) {
   const [sending,setSending]=useState(false)
@@ -2489,13 +2517,8 @@ function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze,isAdmin,onArch
       </div>
       {/* Comparáveis */}
       {p.comparaveis?.length>0&&<div style={{...card(),marginBottom:"14px"}}>
-        <div style={{fontWeight:"600",color:K.wh,marginBottom:"10px",fontSize:"13px"}}>🏘️ Comparáveis encontrados</div>
-        {p.comparaveis.map((c,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:"12px",marginBottom:"6px",padding:"6px 8px",background:K.s2,borderRadius:"6px"}}>
-            <span style={{color:K.t2,flex:1}}>{c.descricao}</span>
-            <span style={{color:K.wh,fontWeight:"600",whiteSpace:"nowrap",marginLeft:"8px"}}>R$ {c.valor?.toLocaleString('pt-BR')} · R$ {c.preco_m2?.toLocaleString('pt-BR')}/m²</span>
-          </div>
-        ))}
+        <div style={{fontWeight:"600",color:K.wh,marginBottom:"10px",fontSize:"13px"}}>🏘️ Comparáveis encontrados ({p.comparaveis.length})</div>
+        {p.comparaveis.map((c,i)=><CardComparavel key={i} item={c} K={K} isPhone={isPhone}/>)}
       </div>}
       {/* Responsabilidade passivos */}
       {p.responsabilidade_debitos&&<div style={{...card(),marginBottom:"14px",background:p.responsabilidade_debitos==='exonerado'?`${K.grn}15`:p.responsabilidade_debitos==='sub_rogado'?`${K.teal}15`:`${K.red}15`,border:`1px solid ${p.responsabilidade_debitos==='exonerado'?K.grn:p.responsabilidade_debitos==='sub_rogado'?K.teal:K.red}30`}}>
