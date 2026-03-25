@@ -597,6 +597,7 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
   const [error,setError]=useState("")
   const [trelloMsg,setTrelloMsg]=useState("")
   const [anexos,setAnexos]=useState([])
+  const [urlsDocumentos,setUrlsDocumentos]=useState("")
   const [duplicado,setDuplicado]=useState(null)
   const fileRef=useRef(null)
 
@@ -635,6 +636,37 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
       const openaiKey = localStorage.getItem("axis-openai-key") || ""
         const data = await analisarImovelCompleto(url.trim(), hasKey, openaiKey, parametrosBanco, criteriosBanco, (msg) => setStep(msg), anexos)
       data.fonte_url = url.trim()
+      // Analisar documentos (edital, RGI, débitos) se fornecidos
+      const docUrls = urlsDocumentos.split('\n').map(u=>u.trim()).filter(Boolean)
+      if (docUrls.length > 0) {
+        try {
+          setStep("📄 Analisando documentos do leilão...")
+          const { analisarDocumentos } = await import('./lib/analisadorDocumentos.js')
+          const docs = await analisarDocumentos(docUrls, hasKey, (msg) => setStep(msg))
+          if (docs.edital) {
+            data.edital_dados = docs.edital
+            if (docs.edital.valor_avaliacao && !data.valor_avaliacao) data.valor_avaliacao = docs.edital.valor_avaliacao
+            if (docs.edital.data_leilao && !data.data_leilao) data.data_leilao = docs.edital.data_leilao
+            if (docs.edital.leiloeiro && !data.leiloeiro) data.leiloeiro = docs.edital.leiloeiro
+            if (docs.edital.comissao_pct && !data.comissao_leiloeiro_pct) data.comissao_leiloeiro_pct = docs.edital.comissao_pct
+            if (docs.edital.ocupacao && !data.ocupacao) data.ocupacao = docs.edital.ocupacao
+            if (docs.edital.processo_numero && !data.processo_numero) data.processo_numero = docs.edital.processo_numero
+          }
+          if (docs.rgi) {
+            data.rgi_dados = docs.rgi
+            if (docs.rgi.area_m2 && !data.area_usada_calculo_m2) data.area_usada_calculo_m2 = docs.rgi.area_m2
+            if (docs.rgi.onus?.length > 0) data.riscos_presentes = [...(data.riscos_presentes||[]), ...docs.rgi.onus]
+          }
+          if (docs.debitos) {
+            data.debitos_dados = docs.debitos
+            if (docs.debitos.iptu_atraso) data.debitos_iptu = `R$ ${docs.debitos.iptu_atraso.toLocaleString('pt-BR')}`
+            if (docs.debitos.condominio_atraso) data.debitos_condominio = `R$ ${docs.debitos.condominio_atraso.toLocaleString('pt-BR')}`
+            if (docs.debitos.responsabilidade_arrematante === false) data.responsabilidade_debitos = 'sub_rogado'
+            else if (docs.debitos.responsabilidade_arrematante === true) data.responsabilidade_debitos = 'arrematante'
+          }
+          if (docs.erros.length > 0) setTrelloMsg(prev => (prev ? prev + ' | ' : '') + `⚠️ Docs: ${docs.erros.join('; ')}`)
+        } catch (e) { console.warn('[AXIS] Erro documentos:', e.message) }
+      }
       const property = {...data, id:uid(), createdAt:new Date().toISOString()}
       if(trello?.listId&&trello?.boardId) {
         setStep("🔷 Enviando para o Trello...")
@@ -689,6 +721,16 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
             <span style={{cursor:"pointer",color:K.red,fontWeight:700}} onClick={()=>setAnexos(anexos.filter((_,j)=>j!==i))}>×</span>
           </span>)}
         </div>}
+      </div>
+      <div style={{marginTop:"12px"}}>
+        <label style={{fontSize:"13px",color:K.t2,fontWeight:600,display:"block",marginBottom:"6px"}}>📄 URLs de documentos — Edital, RGI, Débitos (opcional)</label>
+        <textarea
+          placeholder={"URLs dos documentos (uma por linha)\nEx: https://site.com/edital.pdf\nhttps://site.com/rgi.pdf"}
+          value={urlsDocumentos}
+          onChange={e=>setUrlsDocumentos(e.target.value)}
+          style={{...inp,minHeight:"72px",resize:"vertical",fontSize:isPhone?14:13,lineHeight:"1.5"}}
+        />
+        <div style={{fontSize:"11px",color:K.t3,marginTop:"4px"}}>PDFs de edital, matrícula/RGI e planilha de débitos — serão analisados automaticamente pela IA</div>
       </div>
       </div>
 
