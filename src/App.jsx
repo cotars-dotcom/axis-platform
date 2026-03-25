@@ -864,7 +864,7 @@ function AxisHeader({profile:prof, imoveis=[], onNav}) {
       </div>
       <div style={{display:"flex",alignItems:"center",gap:14}}>
         <button style={{
-          display:"flex",alignItems:"center",gap:7,
+          display:"flex",alignItems:"center",gap:7,whiteSpace:"nowrap",
           padding:"8px 16px",borderRadius:8,
           border:`1px solid ${C.borderW}`,background:C.white,color:C.navy,
           fontSize:13,fontWeight:500,cursor:"pointer",
@@ -972,9 +972,9 @@ function AxisHeader({profile:prof, imoveis=[], onNav}) {
           }}>
             {(prof?.nome||"U")[0].toUpperCase()}{(prof?.nome||"U").split(" ")[1]?.[0]?.toUpperCase()||""}
           </div>
-          <div>
-            <p style={{margin:0,fontSize:13,fontWeight:600,color:C.navy}}>{prof?.nome||"Usuário"}</p>
-            <p style={{margin:0,fontSize:11,color:C.muted}}>{prof?.role==="admin"?"Administrador":"Membro"}</p>
+          <div style={{minWidth:0,overflow:"hidden"}}>
+            <p style={{margin:0,fontSize:13,fontWeight:600,color:C.navy,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:100}}>{prof?.nome||"Usuário"}</p>
+            <p style={{margin:0,fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>{prof?.role==="admin"?"Administrador":"Membro"}</p>
           </div>
         </div>
       </div>
@@ -3045,9 +3045,9 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
       <div style={{width:30,height:30,borderRadius:'50%',background:`${C.emerald}25`,border:`1px solid ${C.emerald}50`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C.emerald}}>
         {(profile?.nome||'U')[0].toUpperCase()}
       </div>
-      <div>
-        <p style={{margin:0,fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.8)'}}>{profile?.nome||'Usuário'}</p>
-        <p style={{margin:0,fontSize:10,color:'rgba(255,255,255,0.35)'}}>{profile?.role||'membro'}</p>
+      <div style={{minWidth:0,overflow:"hidden"}}>
+        <p style={{margin:0,fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.8)',whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{profile?.nome||'Usuário'}</p>
+        <p style={{margin:0,fontSize:10,color:'rgba(255,255,255,0.35)',whiteSpace:"nowrap"}}>{profile?.role||'membro'}</p>
       </div>
     </div>
   </div>

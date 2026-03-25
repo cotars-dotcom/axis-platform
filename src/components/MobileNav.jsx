@@ -18,10 +18,10 @@ export default function MobileNav({ items = [], activeKey = "", onNavigate = () 
   if (!isMobile) return <style>{css}</style>;
 
   return <><style>{css}</style>
-    <nav style={{ position:"fixed", left:10, right:10, bottom:10, background:"rgba(15,20,32,0.92)", border:`1px solid ${THEME.border}`, borderRadius:16, padding:"10px", paddingBottom:"calc(10px + env(safe-area-inset-bottom))", display:"grid", gridTemplateColumns:`repeat(${Math.max(1,items.length)},1fr)`, gap:6, backdropFilter:"blur(10px)", boxShadow:"0 20px 44px rgba(0,0,0,0.6)", zIndex:9999 }}>
-      {items.map(it => { const a = String(it.key||it.v)===String(activeKey); return <button key={it.key||it.v} onClick={()=>onNavigate(it.key||it.v)} style={{ appearance:"none", border:`1px solid ${a?"rgba(0,229,187,0.45)":"transparent"}`, background:a?"rgba(0,229,187,0.10)":"transparent", borderRadius:14, padding:"10px 8px", color:THEME.text, cursor:"pointer", display:"grid", gap:4, justifyItems:"center" }}>
+    <nav style={{ position:"fixed", left:10, right:10, bottom:10, background:"rgba(15,20,32,0.92)", border:`1px solid ${THEME.border}`, borderRadius:16, padding:"10px 12px", paddingBottom:"calc(10px + env(safe-area-inset-bottom))", display:"flex", overflowX:"auto", overflowY:"hidden", WebkitOverflowScrolling:"touch", scrollSnapType:"x mandatory", gap:4, backdropFilter:"blur(10px)", boxShadow:"0 20px 44px rgba(0,0,0,0.6)", zIndex:9999 }}>
+      {items.map(it => { const a = String(it.key||it.v)===String(activeKey); return <button key={it.key||it.v} onClick={()=>onNavigate(it.key||it.v)} style={{ appearance:"none", border:`1px solid ${a?"rgba(0,229,187,0.45)":"transparent"}`, background:a?"rgba(0,229,187,0.10)":"transparent", borderRadius:14, padding:"10px 8px", color:THEME.text, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4, flex:"0 0 auto", minWidth:64, scrollSnapAlign:"start" }}>
         <div style={{ fontSize:18, lineHeight:"18px" }}>{it.icon||it.i||"•"}</div>
-        <div style={{ fontSize:11, color:a?THEME.text:THEME.muted, fontWeight:800 }}>{it.label||it.l||it.key||it.v}</div>
+        <div style={{ fontSize:11, color:a?THEME.text:THEME.muted, fontWeight:800, whiteSpace:"nowrap" }}>{it.label||it.l||it.key||it.v}</div>
       </button>; })}
     </nav></>;
 }
