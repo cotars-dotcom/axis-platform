@@ -7,7 +7,7 @@ import { useIsMobile } from "./hooks/useIsMobile.js"
 import BuscaGPT from "./components/BuscaGPT.jsx"
 import { useAuth } from "./lib/AuthContext.jsx"
 import Login from "./pages/Login.jsx"
-import { supabase, getImoveis, saveImovel, deleteImovel } from "./lib/supabase.js"
+import { supabase, getImoveis, deleteImovel } from "./lib/supabase.js"
 import Tarefas from "./pages/Tarefas.jsx"
 import { analisarImovelCompleto } from "./lib/dualAI.js"
 import { setupBoardAxis, criarCardImovel, AXIS_BOARDS } from "./lib/trelloService.js"
@@ -57,6 +57,13 @@ const K = {
 const RED = "#E5484D"
 
 // Normalizar texto de alertas — corrige double-encoding UTF-8 e converte tags para emojis
+const DISPLAY_MAP = {
+  estavel:'Estável', Estavel:'Estável', media:'Média', Media:'Média',
+  medio:'Médio', Medio:'Médio', alta:'Alta', baixa:'Baixa',
+  queda:'Queda', crescimento:'Crescimento',
+}
+function mapDisplay(v) { return (v && DISPLAY_MAP[v]) || v }
+
 function normalizarTextoAlerta(texto) {
   if (!texto) return ''
 
@@ -82,6 +89,7 @@ function normalizarTextoAlerta(texto) {
     .replace(/Ã¢ÂÂ[^\s]*/g, '')
     .replace(/Ã[ÂĈ][^\s]{2,8}/g, '')
     .replace(/[\uFFFD\uFFFE\uFFFF]/g, '')
+    .replace(/[\uD800-\uDFFF](?![\uD800-\uDFFF])/g, '')
     // Tags de texto para emojis
     .replace(/\[CRITICO\]/gi, '🔴')
     .replace(/\[ATENCAO\]/gi, '⚠️')
@@ -2357,7 +2365,7 @@ function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze,isAdmin,onArch
       {abaDetalhe==='mercado'&&<div>
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>🏙️ Mercado Regional</div>
-          {[["Tendência",p.mercado_tendencia,p.mercado_tendencia==="Alta"?K.grn:K.amb],["Demanda",p.mercado_demanda,p.mercado_demanda==="Alta"?K.grn:K.amb],["Tempo médio venda",p.mercado_tempo_venda_meses?`${p.mercado_tempo_venda_meses} meses`:"—",K.t2],["Preço/m² mercado",p.preco_m2_mercado?`R$ ${p.preco_m2_mercado}/m²`:"—",K.teal],["Aluguel estimado",fmtC(p.aluguel_mensal_estimado)+"/mês",K.pur],["Obs. mercado",p.mercado_obs||"—",K.t2]].map(([l,v,c])=>(
+          {[["Tendência",mapDisplay(p.mercado_tendencia),p.mercado_tendencia==="Alta"?K.grn:K.amb],["Demanda",mapDisplay(p.mercado_demanda),p.mercado_demanda==="Alta"?K.grn:K.amb],["Tempo médio venda",p.mercado_tempo_venda_meses?`${p.mercado_tempo_venda_meses} meses`:"—",K.t2],["Preço/m² mercado",p.preco_m2_mercado?`R$ ${p.preco_m2_mercado}/m²`:"—",K.teal],["Aluguel estimado",fmtC(p.aluguel_mensal_estimado)+"/mês",K.pur],["Obs. mercado",p.mercado_obs||"—",K.t2]].map(([l,v,c])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
               <span style={{fontSize:"12px",color:K.t3}}>{l}</span><span style={{fontSize:"12.5px",fontWeight:"600",color:c}}>{v}</span>
             </div>
@@ -2483,7 +2491,7 @@ function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze,isAdmin,onArch
         </div>
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>📈 Retorno e Custos</div>
-          {[["Custo regularização",fmtC(p.custo_regularizacao),K.amb],["Custo reforma",fmtC(p.custo_reforma),K.amb],["Retorno revenda",p.retorno_venda_pct?`+${p.retorno_venda_pct}%`:"—",K.grn],["Locação a.a.",p.retorno_locacao_anual_pct?`${p.retorno_locacao_anual_pct}%`:"—",K.teal],["Estrutura rec.",ESTRUTURA_MAP[p.estrutura_recomendada?.toLowerCase()]||p.estrutura_recomendada,K.pur],["Tendência",TENDENCIA_MAP[p.mercado_tendencia?.toLowerCase()]||p.mercado_tendencia,(TENDENCIA_MAP[p.mercado_tendencia?.toLowerCase()]||p.mercado_tendencia)==="Alta"?K.grn:K.amb],["Demanda",DEMANDA_MAP[p.mercado_demanda?.toLowerCase()]||p.mercado_demanda,(DEMANDA_MAP[p.mercado_demanda?.toLowerCase()]||p.mercado_demanda)==="Alta"?K.grn:K.amb]].filter(([,v])=>v&&v!=="—").map(([l,v,c])=>(
+          {[["Custo regularização",fmtC(p.custo_regularizacao),K.amb],["Custo reforma",fmtC(p.custo_reforma),K.amb],["Retorno revenda",p.retorno_venda_pct?`+${p.retorno_venda_pct}%`:"—",K.grn],["Locação a.a.",p.retorno_locacao_anual_pct?`${p.retorno_locacao_anual_pct}%`:"—",K.teal],["Estrutura rec.",mapDisplay(p.estrutura_recomendada),K.pur],["Tendência",mapDisplay(p.mercado_tendencia),p.mercado_tendencia==="Alta"?K.grn:K.amb],["Demanda",mapDisplay(p.mercado_demanda),p.mercado_demanda==="Alta"?K.grn:K.amb]].filter(([,v])=>v&&v!=="—").map(([l,v,c])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
               <span style={{fontSize:"12px",color:K.t3}}>{l}</span><span style={{fontSize:"12.5px",fontWeight:"600",color:c}}>{v}</span>
             </div>
