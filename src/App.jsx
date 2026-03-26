@@ -137,6 +137,7 @@ function AxisLogo({ collapsed = false, light = false, size }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 3, position: "relative" }}>
         <span style={{ fontFamily: "'Inter',sans-serif", fontWeight: 900, fontSize: 26, color: textColor, letterSpacing: "-1px", lineHeight: 1 }}>A</span>
+        <span style={{ color: arrowColor, fontWeight: 900, fontSize: 18, lineHeight: 1, marginBottom: -2 }}>·</span>
         <span style={{ position: "relative", fontFamily: "'Inter',sans-serif", fontWeight: 900, fontSize: 26, color: textColor, letterSpacing: "-1px", lineHeight: 1 }}>
           X
           <svg style={{ position: "absolute", top: -2, left: 0, width: "100%", height: "110%", pointerEvents: "none" }} viewBox="0 0 20 28">
@@ -144,11 +145,11 @@ function AxisLogo({ collapsed = false, light = false, size }) {
             <polyline points="11,4 16,4 16,9" fill="none" stroke={arrowColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </span>
-        <span style={{ fontFamily: "'Inter',sans-serif", fontWeight: 900, fontSize: 26, color: textColor, letterSpacing: "-1px", lineHeight: 1 }}>IS</span>
+        <span style={{ fontFamily: "'Inter',sans-serif", fontWeight: 900, fontSize: 26, color: textColor, letterSpacing: "-1px", lineHeight: 1 }}>IS.</span>
       </div>
       {!light && (
         <span style={{ fontSize: 8.5, color: C.muted, letterSpacing: "1.5px", textTransform: "uppercase", paddingLeft: 1 }}>
-          Intelig&ecirc;ncia Patrimonial
+          Inteligência Patrimonial
         </span>
       )}
     </div>
