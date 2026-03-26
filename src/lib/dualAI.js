@@ -366,28 +366,28 @@ export async function analisarComClaude(url, claudeKey, parametros, criterios, d
     .join('\n')
 
   const comparaveisTexto = (dadosGPT?.comparaveis || [])
-    .map(c => `    - ${c.descricao}: R$ ${c.valor?.toLocaleString('pt-BR')} (${c.area_m2}m\u00b2 = R$ ${c.preco_m2}/m\u00b2)${c.quartos?` ${c.quartos}Q`:''}${c.vagas?` ${c.vagas}V`:''}${c.tipo?` [${c.tipo}]`:''}${c.similaridade?` sim=${c.similaridade}`:''}`)
+    .map(c => `    - ${c.descricao}: R$ ${c.valor?.toLocaleString('pt-BR')} (${c.area_m2}m² = R$ ${c.preco_m2}/m²)${c.quartos?` ${c.quartos}Q`:''}${c.vagas?` ${c.vagas}V`:''}${c.tipo?` [${c.tipo}]`:''}${c.similaridade?` sim=${c.similaridade}`:''}`)
     .join('\n')
 
   const contextoGPT = dadosGPT ? `
-DADOS DE MERCADO PESQUISADOS PELO CHATGPT (use para enriquecer a an\u00e1lise):
+DADOS DE MERCADO PESQUISADOS PELO CHATGPT (use para enriquecer a análise):
 - Cidade/Bairro identificado: ${dadosGPT.cidade || '?'} / ${dadosGPT.bairro || '?'}
 - Tipologia: ${dadosGPT.tipologia || '?'}
-- Pre\u00e7o m\u00e9dio m\u00b2 na regi\u00e3o: R$ ${dadosGPT.preco_m2_mercado || 'n\u00e3o encontrado'}
-- Fonte do pre\u00e7o/m\u00b2: ${dadosGPT.preco_m2_fonte || 'n\u00e3o informado'}
-- Tend\u00eancia: ${dadosGPT.tendencia_mercado || 'n\u00e3o encontrado'}
-- Demanda: ${dadosGPT.demanda || 'n\u00e3o encontrado'}
-- Tempo m\u00e9dio de venda: ${dadosGPT.tempo_venda_meses || '?'} meses
-- Aluguel estimado: R$ ${dadosGPT.aluguel_estimado || 'n\u00e3o encontrado'}/m\u00eas
+- Preço médio m² na região: R$ ${dadosGPT.preco_m2_mercado || 'não encontrado'}
+- Fonte do preço/m²: ${dadosGPT.preco_m2_fonte || 'não informado'}
+- Tendência: ${dadosGPT.tendencia_mercado || 'não encontrado'}
+- Demanda: ${dadosGPT.demanda || 'não encontrado'}
+- Tempo médio de venda: ${dadosGPT.tempo_venda_meses || '?'} meses
+- Aluguel estimado: R$ ${dadosGPT.aluguel_estimado || 'não encontrado'}/mês
 - Infraestrutura: ${(dadosGPT.infraestrutura || []).join(', ')}
-- Observa\u00e7\u00f5es de mercado: ${dadosGPT.observacoes_mercado || ''}
-${comparaveisTexto ? `- Compar\u00e1veis encontrados:\n${comparaveisTexto}` : ''}
-- Avalia\u00e7\u00e3o judicial encontrada: ${dadosGPT.valor_avaliacao_encontrado || 'n\u00e3o verificado'}
-- Lance m\u00ednimo encontrado: ${dadosGPT.lance_minimo_encontrado || 'n\u00e3o verificado'}
-- Score localiza\u00e7\u00e3o sugerido pelo ChatGPT: ${dadosGPT.score_localizacao_sugerido || 'n\u00e3o calculado'}
-- Score mercado sugerido pelo ChatGPT: ${dadosGPT.score_mercado_sugerido || 'n\u00e3o calculado'}
+- Observações de mercado: ${dadosGPT.observacoes_mercado || ''}
+${comparaveisTexto ? `- Comparáveis encontrados:\n${comparaveisTexto}` : ''}
+- Avaliação judicial encontrada: ${dadosGPT.valor_avaliacao_encontrado || 'não verificado'}
+- Lance mínimo encontrado: ${dadosGPT.lance_minimo_encontrado || 'não verificado'}
+- Score localização sugerido pelo ChatGPT: ${dadosGPT.score_localizacao_sugerido || 'não calculado'}
+- Score mercado sugerido pelo ChatGPT: ${dadosGPT.score_mercado_sugerido || 'não calculado'}
 ` : `
-NOTA: ChatGPT n\u00e3o dispon\u00edvel no momento. Use seu conhecimento para estimar dados de mercado.
+NOTA: ChatGPT não disponível no momento. Use seu conhecimento para estimar dados de mercado.
 `
 
   const prompt = `Você é um especialista em análise de imóveis em leilão no Brasil.
