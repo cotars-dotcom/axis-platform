@@ -18,7 +18,8 @@ import { calcularCustoReforma, verificarSobrecapitalizacao } from '../data/custo
 import { calcularCustoJuridico } from '../data/riscos_juridicos.js'
 
 const CLAUDE_MODEL = 'claude-sonnet-4-20250514'
-const GPT_MODEL = 'gpt-4o'
+const GPT_MODEL_MARKET  = 'gpt-4o-mini'  // comparáveis e mercado (custo -87%)
+const GPT_MODEL_COMPLEX = 'gpt-4o'       // fallback se mini retornar vazio/inválido
 
 const REGRAS_MODALIDADE_TEXTO = `
 REGRAS CRÍTICAS POR MODALIDADE (APLIQUE SEMPRE):
@@ -301,7 +302,7 @@ Retorne APENAS JSON válido (sem markdown):
   "observacoes_mercado": "string detalhada"
 }`
 
-  try {
+  async function fetchMercado(model) {
     const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
@@ -309,7 +310,7 @@ Retorne APENAS JSON válido (sem markdown):
         'Authorization': `Bearer ${openaiKey}`
       },
       body: JSON.stringify({
-        model: GPT_MODEL,
+        model,
         max_output_tokens: 3000,
         tools: [{ type: 'web_search_preview' }],
         input: prompt
@@ -334,12 +335,27 @@ Retorne APENAS JSON válido (sem markdown):
     try {
       const { logUsoChamadaAPI } = await import('./supabase')
       logUsoChamadaAPI({
-        tipo: 'mercado_chatgpt', modelo: GPT_MODEL,
+        tipo: 'mercado_chatgpt', modelo: model,
         tokensInput: data.usage?.input_tokens || data.usage?.prompt_tokens || 0,
         tokensOutput: data.usage?.output_tokens || data.usage?.completion_tokens || 0,
         modoTeste: localStorage.getItem('axis-modo-teste') === 'true',
       })
     } catch(e) { console.warn('[AXIS dualAI] Log uso GPT:', e.message) }
+    return resultado
+  }
+
+  try {
+    // Tentar gpt-4o-mini primeiro (custo -87%)
+    let resultado = null
+    try {
+      resultado = await fetchMercado(GPT_MODEL_MARKET)
+    } catch(e) {
+      console.warn('[AXIS] gpt-4o-mini falhou, tentando gpt-4o:', e.message)
+    }
+    // Cascade: se mini falhou ou retornou inválido, usar gpt-4o
+    if (!resultado || !resultado.valor_mercado_m2) {
+      resultado = await fetchMercado(GPT_MODEL_COMPLEX)
+    }
     // Salvar no cache
     try {
       const { supabase } = await import('./supabase')
