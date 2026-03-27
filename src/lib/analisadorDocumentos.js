@@ -85,15 +85,33 @@ Formato: {"data_leilao":"","data_2o_leilao":"","valor_avaliacao":0,"lance_minimo
 export async function analisarRGI(url, apiKey) {
   const pdfBase64 = await fetchPdfBase64(url)
   if (!pdfBase64) throw new Error('Não foi possível baixar o PDF da matrícula/RGI')
-  return chamarClaude(apiKey, pdfBase64, `Extraia da matrícula/RGI APENAS:
-- Nome do proprietário atual
-- Ônus existentes (hipoteca, penhora, alienação fiduciária, usufruto, servidão)
-- Área total do imóvel (m²)
-- Número de matrícula
-- Cartório de registro
-- Se há averbação de indisponibilidade
-Responda SOMENTE em JSON, sem markdown.
-Formato: {"proprietario":"","onus":[],"area_m2":0,"matricula":"","cartorio":"","indisponibilidade":false}`, 1000)
+  return chamarClaude(apiKey, pdfBase64, `<instrucao>
+Você é um analista jurídico imobiliário.
+Extraia os campos abaixo da matrícula/RGI e retorne APENAS o JSON.
+Se não encontrar um campo, use null.
+Ônus incluem: hipoteca, penhora, alienação fiduciária, usufruto, servidão, indisponibilidade.
+Averbações camufladas são registros que parecem inofensivos mas alteram direitos reais (ex: cessão de direitos hereditários, doação com reserva de usufruto, compromisso de compra e venda não quitado).
+</instrucao>
+
+<documento>
+O documento PDF anexado é a matrícula/RGI do imóvel.
+</documento>
+
+<formato_saida>
+{
+  "proprietario": "nome do proprietário atual",
+  "onus": ["descrição de cada ônus encontrado"],
+  "area_m2": 0,
+  "matricula": "número da matrícula",
+  "cartorio": "nome do cartório de registro",
+  "indisponibilidade": false,
+  "penhoras": ["descrição de cada penhora com vara e processo"],
+  "fracao_ideal": null,
+  "matriculas_predecessoras": ["números de matrículas anteriores mencionadas"],
+  "averbacoes_camufladas": ["descrição de cada averbação que altera direitos reais"],
+  "vara_judicial": "vara judicial se mencionada em penhora/indisponibilidade"
+}
+</formato_saida>`, 1200)
 }
 
 export async function analisarDebitos(url, apiKey) {
