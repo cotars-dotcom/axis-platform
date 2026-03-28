@@ -723,8 +723,29 @@ function PropCard({p,onNav}) {
     onMouseEnter={e=>{e.currentTarget.style.borderColor=K.teal;e.currentTarget.style.transform="translateY(-2px)"}}
     onMouseLeave={e=>{e.currentTarget.style.borderColor=K.bd;e.currentTarget.style.transform="none"}}>
     {p.foto_principal && (
-      <div style={{marginBottom:10,borderRadius:8,overflow:"hidden",height:100,background:C.offwhite}}>
+      <div style={{marginBottom:10,borderRadius:8,overflow:"hidden",height:100,background:C.offwhite,position:"relative"}}>
         <img src={p.foto_principal} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.parentElement.style.display="none"}} />
+        {(p.score_total||0) >= 7.5 && (
+          <div style={{
+            position:'absolute', top:8, right:8,
+            background:'#10B981', color:'#fff',
+            fontSize:9, fontWeight:700,
+            padding:'2px 6px', borderRadius:4,
+            letterSpacing:0.3
+          }}>
+            OPORTUNIDADE
+          </div>
+        )}
+      </div>
+    )}
+    {!p.foto_principal && (p.score_total||0) >= 7.5 && (
+      <div style={{
+        background:'#10B981', color:'#fff',
+        fontSize:9, fontWeight:700,
+        padding:'2px 6px', borderRadius:4,
+        letterSpacing:0.3, display:'inline-block', marginBottom:6
+      }}>
+        OPORTUNIDADE
       </div>
     )}
     {(p.score_total||0) >= 7.5 && (

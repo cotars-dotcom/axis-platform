@@ -62,7 +62,7 @@ export async function getProfile(userId) {
 
 export async function getAllProfiles() {
   const { data, error } = await supabase
-    .from('profiles').select('*').order('criado_em')
+    .from('profiles').select('id, nome, email, role, ativo, pode_usar_api, criado_em').order('criado_em')
   if (error) throw error
   return data || []
 }
