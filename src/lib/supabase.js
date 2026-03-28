@@ -76,9 +76,21 @@ export async function updateProfile(id, updates) {
 // == IMOVEIS ==
 export async function getImoveis() {
   const { data, error } = await supabase
-    .from('imoveis').select('*').order('criado_em', { ascending: false })
-  if (error) throw error
-  return data || []
+    .from('imoveis')
+    .select('*, criador:profiles!imoveis_criado_por_fkey(nome)')
+    .order('criado_em', { ascending: false })
+  if (error) {
+    // Fallback sem join se FK não existir
+    const { data: d2, error: e2 } = await supabase
+      .from('imoveis').select('*').order('criado_em', { ascending: false })
+    if (e2) throw e2
+    return d2 || []
+  }
+  return (data || []).map(d => ({
+    ...d,
+    criador_nome: d.criador?.nome || null,
+    criador: undefined
+  }))
 }
 
 export async function saveImovel(imovel, userId) {
@@ -588,11 +600,24 @@ export async function desarquivarImovel(imovelId) {
 export async function getImoveisAtivos() {
   const { data, error } = await supabase
     .from('imoveis')
-    .select('*')
+    .select('*, criador:profiles!imoveis_criado_por_fkey(nome)')
     .or('status_operacional.eq.ativo,status_operacional.is.null')
     .order('criado_em', { ascending: false })
-  if (error) throw error
-  return data || []
+  if (error) {
+    // Fallback sem join se a FK não existir
+    const { data: d2, error: e2 } = await supabase
+      .from('imoveis')
+      .select('*')
+      .or('status_operacional.eq.ativo,status_operacional.is.null')
+      .order('criado_em', { ascending: false })
+    if (e2) throw e2
+    return d2 || []
+  }
+  return (data || []).map(d => ({
+    ...d,
+    criador_nome: d.criador?.nome || null,
+    criador: undefined
+  }))
 }
 
 export async function getBancoArquivados() {

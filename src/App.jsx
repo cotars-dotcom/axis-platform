@@ -722,6 +722,7 @@ function PropCard({p,onNav}) {
           {p.codigo_axis?<span style={{fontSize:"9.5px",fontWeight:700,padding:"1px 6px",borderRadius:3,background:"#002B8010",color:"#002B80",fontFamily:"monospace",flexShrink:0}}>{p.codigo_axis}</span>:<span style={{fontSize:10,color:C.hint}}>
             # pendente
           </span>}
+          {p.criador_nome&&<span style={{fontSize:9.5,color:K.t3,flexShrink:0}}>por {p.criador_nome}</span>}
         </div>
         <div style={{fontSize:"10.5px",color:K.t3,marginBottom:"8px"}}>📍 {p.cidade}/{p.estado} · {p.tipo} · {p.area_m2?`${p.area_m2}m²`:"—"}</div>
         <div style={{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"10px"}}>
