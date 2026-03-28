@@ -62,7 +62,7 @@ export async function getProfile(userId) {
 
 export async function getAllProfiles() {
   const { data, error } = await supabase
-    .from('profiles').select('*').order('criado_em')
+    .from('profiles').select('id, nome, email, role, ativo, pode_usar_api, criado_em').order('criado_em')
   if (error) throw error
   return data || []
 }
@@ -76,7 +76,21 @@ export async function updateProfile(id, updates) {
 // == IMOVEIS ==
 export async function getImoveis() {
   const { data, error } = await supabase
-    .from('imoveis').select('*').order('criado_em', { ascending: false })
+    .from('imoveis').select(`
+      id, codigo_axis, titulo, cidade, bairro, estado, tipo, tipologia,
+      score_total, recomendacao, status,
+      valor_minimo, desconto_percentual, area_m2,
+      ocupacao, processos_ativos,
+      foto_principal, fotos,
+      fonte_url, criado_em, criado_por,
+      num_leilao, data_leilao,
+      score_localizacao, score_desconto, score_juridico,
+      score_ocupacao, score_liquidez, score_mercado,
+      prazo_liberacao_estimado_meses,
+      aluguel_mensal_estimado, valor_mercado_estimado,
+      custo_reforma_calculado,
+      financiavel, analise_dupla_ia, modalidade
+    `).order('criado_em', { ascending: false }).limit(100)
   if (error) throw error
   return data || []
 }
