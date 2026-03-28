@@ -18,7 +18,8 @@ import { calcularCustoReforma, verificarSobrecapitalizacao } from '../data/custo
 import { calcularCustoJuridico } from '../data/riscos_juridicos.js'
 
 const CLAUDE_MODEL = 'claude-sonnet-4-20250514'
-const GPT_MODEL = 'gpt-4o'
+const GPT_MODEL_MARKET  = 'gpt-4o-mini'   // comparáveis e pesquisa de mercado (~16x mais barato)
+const GPT_MODEL_COMPLEX = 'gpt-4o'        // fallback se mini falhar ou retornar sem dados
 
 const REGRAS_MODALIDADE_TEXTO = `
 REGRAS CRÍTICAS POR MODALIDADE (APLIQUE SEMPRE):
@@ -228,7 +229,7 @@ export async function pesquisarMercadoGPT(url, cidade, tipo, openaiKey) {
         return cached.dados
       }
     }
-  } catch {}
+  } catch(e) { console.warn('[AXIS dualAI] Cache mercado read:', e.message) }
 
   const prompt = `Você é um especialista em mercado imobiliário brasileiro.
 Sempre responda em português com acentos corretos (ã, ç, é, ê, ó, ô, í, ú, à).
@@ -248,9 +249,16 @@ REGRAS DE PESQUISA:
    Para COBERTURA ou DUPLEX:
    - Buscar especificamente "cobertura [bairro] [cidade]"
    - Não comparar com apartamento padrão
-   Para cada comparável, preencher TODOS os campos: quartos, vagas, tipo, andar, condominio_mes, link, fonte.
-   Calcular similaridade (0-10): mesmo tipo +3, mesma faixa área ±20% +3, mesmos quartos +2, mesmas vagas +1, mesmo bairro +1.
-   Retornar apenas comparáveis com similaridade ≥ 6.0, ordenados do mais similar.
+   Para cada comparável, preencher OBRIGATORIAMENTE todos os campos:
+   - descricao: endereço ou nome do condomínio
+   - valor: preço total em R$, area_m2, preco_m2: valor/area
+   - quartos, vagas: números, tipo: apartamento|cobertura|casa
+   - andar, condominio_mes: se disponível
+   - link: URL COMPLETA do anúncio (obrigatório — não deixar null se encontrou)
+   - fonte: "ZAP"|"VivaReal"|"OLX"|"QuintoAndar"
+   - similaridade: 0-10 (mesmo tipo +3, área ±20% +3, quartos iguais +2, vagas +1, bairro +1)
+   Retornar apenas comparáveis com similaridade >= 6.0, ordenados do mais similar.
+   Se não encontrar nenhum comparável com link real, retornar array vazio — não inventar.
 
 3. COLETAR PREÇO/m² CORRETO:
    - Usar ZAP Imóveis → seção "Quanto vale o m² em [bairro]?"
@@ -263,9 +271,17 @@ REGRAS DE PESQUISA:
    - Verificar se há lances já registrados
    - Verificar data e hora do leilão
 
-5. SITUAÇÃO JURÍDICA:
-   - Verificar se há processos no TJMG além do leilão
-   - Confirmar modalidade (judicial/extrajudicial/extinção condomínio)
+5. SITUAÇÃO JURÍDICA (preencher campos com dados REAIS, não genéricos):
+   - processos_ativos: listar processos reais (ex: "Execução nº 0001234-56.2024.5.03.0001")
+     Se não houver: "Nenhum processo identificado no edital"
+   - matricula_status: estado real da matrícula
+     (ex: "Matrícula nº 45.123 — penhora R$120.000") Se limpa: "Matrícula sem ônus aparentes"
+   - obs_juridicas: observações específicas do caso
+     (ex: "IPTU 2019-2022 R$8.400 sub-rogado no preço") Se nada: "Sem observações adicionais"
+   - riscos_presentes: mapear para IDs do sistema:
+     ocupado→"ocupacao_judicial", inquilino→"inquilino_regular", penhora→"penhora_simples",
+     embargo→"embargo_arrematacao", iptu+caixa→"iptu_previo_caixa", iptu+judicial→"iptu_previo_judicial"
+   - Verificar modalidade (judicial/extrajudicial/extinção condomínio)
    - Verificar matrícula se disponível
 
 6. Preço médio de ${tipo} em ${cidade} (R$/m²)
@@ -301,7 +317,8 @@ Retorne APENAS JSON válido (sem markdown):
   "observacoes_mercado": "string detalhada"
 }`
 
-  try {
+  // Função interna de fetch com model paramétrico
+  const fetchMercado = async (model) => {
     const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
@@ -309,18 +326,17 @@ Retorne APENAS JSON válido (sem markdown):
         'Authorization': `Bearer ${openaiKey}`
       },
       body: JSON.stringify({
-        model: GPT_MODEL,
+        model,
         max_output_tokens: 3000,
         tools: [{ type: 'web_search_preview' }],
         input: prompt
-      })
+      }),
+      signal: AbortSignal.timeout(45000)
     })
-
     if (!res.ok) {
       const err = await res.json()
       throw new Error(err.error?.message || `OpenAI erro ${res.status}`)
     }
-
     const data = await res.json()
     const txt = (data.output || [])
       .filter(o => o.type === 'message')
@@ -329,23 +345,47 @@ Retorne APENAS JSON válido (sem markdown):
       .map(c => c.text)
       .join('') || ''
     const resultado = JSON.parse(txt.replace(/```json|```/g, '').trim())
+    return { resultado, data, model }
+  }
+
+  try {
+    let modeloUsado = GPT_MODEL_MARKET
+    let resultado, data
+
+    // Cascade: tenta mini primeiro, fallback para full se falhar ou sem dados de mercado
+    try {
+      ;({ resultado, data } = await fetchMercado(GPT_MODEL_MARKET))
+      if (!resultado?.valor_mercado_m2) {
+        console.warn('[AXIS] GPT-mini sem valor_mercado_m2, escalando para GPT-4o')
+        ;({ resultado, data, model: modeloUsado } = await fetchMercado(GPT_MODEL_COMPLEX))
+      }
+    } catch(e) {
+      console.warn('[AXIS] GPT-mini falhou, escalando para GPT-4o:', e.message)
+      ;({ resultado, data, model: modeloUsado } = await fetchMercado(GPT_MODEL_COMPLEX))
+    }
     // Log de uso ChatGPT
     try {
       const { logUsoChamadaAPI } = await import('./supabase')
       logUsoChamadaAPI({
-        tipo: 'mercado_chatgpt', modelo: GPT_MODEL,
+        tipo: 'mercado_chatgpt', modelo: modeloUsado,
         tokensInput: data.usage?.input_tokens || data.usage?.prompt_tokens || 0,
         tokensOutput: data.usage?.output_tokens || data.usage?.completion_tokens || 0,
         modoTeste: localStorage.getItem('axis-modo-teste') === 'true',
       })
-    } catch {}
-    // Salvar no cache
+    } catch(e) { console.warn('[AXIS dualAI] Log uso GPT:', e.message) }
+    // Salvar no cache com TTL variável por bairro
     try {
       const { supabase } = await import('./supabase')
+      const bairroCache = resultado?.bairro || ''
+      const bairrosNobres = ['Savassi','Lourdes','Belvedere','Serra','Funcionários',
+        'Buritis','Gutierrez','Mangabeiras','Santo Antônio','Jardim América']
+      const ttlHoras = bairrosNobres.includes(bairroCache) ? 168 : 72
+      const expiraEm = new Date(Date.now() + ttlHoras * 3600 * 1000).toISOString()
       await supabase.from('cache_mercado').upsert({
         chave: cacheKey,
         dados: resultado,
-        atualizado_em: new Date().toISOString()
+        atualizado_em: new Date().toISOString(),
+        expira_em: expiraEm
       }, { onConflict: 'chave' })
     } catch(e) { console.warn('[AXIS Cache] Falha ao salvar cache:', e.message) }
     return resultado
@@ -507,6 +547,15 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
   "custo_reforma": 0,
   "custo_reforma_estimado": 0,
   "escopo_reforma": "refresh_giro|leve_funcional|leve_reforcada_1_molhado|media|pesada",
+  "plano_reforma": {
+    "escopo_recomendado": "refresh_giro|leve_funcional|leve_reforcada_1_molhado|media|pesada",
+    "itens_principais": ["string — ex: Pintura geral", "Troca piso"],
+    "itens_facultativos": ["string — ex: Modernização cozinha"],
+    "custo_estimado_min": 0,
+    "custo_estimado_max": 0,
+    "prazo_obra_semanas": 0,
+    "observacao_mercado": "string — ex: Reforma leve valoriza 18-25% neste bairro"
+  },
   "prazo_reforma_meses": null,
   "valor_pos_reforma_estimado": null,
   "retorno_venda_pct": 0,
@@ -548,7 +597,8 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
         }
         return parts
       })() }]
-    })
+    }),
+    signal: AbortSignal.timeout(60000)
   })
 
   if (!res.ok) {
@@ -576,7 +626,7 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
       tokensOutput: data.usage?.output_tokens || 0,
       modoTeste: localStorage.getItem('axis-modo-teste') === 'true',
     })
-  } catch {}
+  } catch(e) { console.warn('[AXIS dualAI] Log uso Sonnet:', e.message) }
 
   const jsonMatch = txt.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('Claude não retornou JSON válido')
@@ -608,8 +658,9 @@ export function calcularScore(analise, parametros) {
     (analise.score_liquidez    || 0) * p.liquidez    +
     (analise.score_mercado     || 0) * p.mercado
 
-  if ((analise.score_juridico || 0) < 4) score *= 0.75
-  if ((analise.ocupacao || '').toLowerCase() === 'ocupado') score *= 0.85
+  // Penalidades removidas — score_juridico e score_ocupacao já refletem esses riscos nas dimensões
+  // if ((analise.score_juridico || 0) < 4) score *= 0.75
+  // if ((analise.ocupacao || '').toLowerCase() === 'ocupado') score *= 0.85
 
   return Math.min(10, Math.max(0, parseFloat(score.toFixed(2))))
 }
@@ -714,10 +765,11 @@ export function validarECorrigirAnalise(analise) {
       (analise.score_ocupacao    || 0) * pesos.ocupacao +
       (analise.score_liquidez    || 0) * pesos.liquidez +
       (analise.score_mercado     || 0) * pesos.mercado
-    let fator = 1
-    if ((analise.score_juridico || 0) < 4) fator *= 0.75
-    if (ocupLower === 'ocupado') fator *= 0.85
-    analise.score_total = Math.min(10, Math.round(scoreBase * fator * 10) / 10)
+    // Penalidades removidas — score_juridico e score_ocupacao já refletem esses riscos nas dimensões
+    // let fator = 1
+    // if ((analise.score_juridico || 0) < 4) fator *= 0.75
+    // if (ocupLower === 'ocupado') fator *= 0.85
+    analise.score_total = Math.min(10, Math.round(scoreBase * 10) / 10)
     if (analise.score_total >= 7.5) analise.recomendacao = 'COMPRAR'
     else if (analise.score_total >= 6.0) analise.recomendacao = 'AGUARDAR'
     else analise.recomendacao = 'EVITAR'
@@ -730,20 +782,55 @@ export function validarECorrigirAnalise(analise) {
 
 // -- FASE 4: Extrair fotos do site do imovel via Claude --
 
+function extrairImgsDoHTML(html, baseUrl) {
+  if (!html) return []
+  const matches = [...html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)]
+  return matches
+    .map(m => {
+      const src = m[1]
+      if (src.startsWith('http')) return src
+      if (src.startsWith('//')) return 'https:' + src
+      if (src.startsWith('/')) {
+        try { return new URL(baseUrl).origin + src } catch { return null }
+      }
+      return null
+    })
+    .filter(Boolean)
+    .filter(src => {
+      const lower = src.toLowerCase()
+      if (lower.includes('logo') || lower.includes('favicon') ||
+          lower.includes('sprite') || lower.includes('icon') ||
+          lower.includes('loading') || lower.includes('placeholder')) return false
+      if (lower.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)) return true
+      if (lower.includes('storage') || lower.includes('lote') ||
+          lower.includes('imovel') || lower.includes('foto') ||
+          lower.includes('imagem') || lower.includes('galeria')) return true
+      return false
+    })
+    .slice(0, 8)
+}
+
 export async function extrairFotosImovel(url, claudeKey) {
   if (!url || !claudeKey) return { fotos: [], foto_principal: null }
 
   // Tentar og:image como fallback rapido antes da IA
   let ogFallback = null
+  let htmlText = null
   try {
     const htmlRes = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) })
     if (htmlRes.ok) {
-      const html = await htmlRes.text()
-      const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
+      htmlText = await htmlRes.text()
+      const ogMatch = htmlText.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+        || htmlText.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
       if (ogMatch) ogFallback = ogMatch[1]
     }
-  } catch { /* ignorar - sites SPA podem nao retornar */ }
+  } catch(e) { console.warn('[AXIS dualAI] Fetch HTML fotos:', e.message) }
+
+  // Extrair <img src> do HTML como fallback antes de chamar Haiku
+  const imgsDoHTML = extrairImgsDoHTML(htmlText, url)
+  if (imgsDoHTML.length >= 2) {
+    return { fotos: imgsDoHTML, foto_principal: imgsDoHTML[0] }
+  }
 
   // Extrair dominio e ID do lote da URL para ajudar a IA
   let dominio = '', loteId = ''
@@ -751,7 +838,7 @@ export async function extrairFotosImovel(url, claudeKey) {
     dominio = new URL(url).hostname
     const loteMatch = url.match(/\/lote\/(\d+)/)
     if (loteMatch) loteId = loteMatch[1]
-  } catch {}
+  } catch(e) { console.warn('[AXIS dualAI] Parse URL fotos:', e.message) }
 
   try {
     const promptFotos = `Preciso das fotos deste imovel de leilao: ${url}
@@ -773,6 +860,45 @@ Retorne SOMENTE este JSON (sem texto adicional):
   "fonte_fotos": "como foram encontradas"
 }`
 
+    // Se chave Gemini disponível, usar Gemini Flash-Lite (mais barato que Haiku)
+    const geminiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-gemini-key') : null
+    if (geminiKey) {
+      try {
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(20000),
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptFotos }] }],
+              generationConfig: { temperature: 0.1, maxOutputTokens: 500 }
+            })
+          }
+        )
+        if (geminiRes.ok) {
+          const gData = await geminiRes.json()
+          const gText = gData.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+          const gMatch = gText.match(/\{[\s\S]*\}/)
+          if (gMatch) {
+            const gResult = JSON.parse(gMatch[0])
+            const fotos = (gResult.fotos || []).filter(f => f && f.startsWith('http')).slice(0, 12)
+            const fotoPrincipal = gResult.foto_principal || fotos[0] || ogFallback || null
+            if (fotos.length > 0 || fotoPrincipal) {
+              try {
+                const { logUsoChamadaAPI } = await import('./supabase')
+                logUsoChamadaAPI({ tipo: 'fotos', modelo: 'gemini-2.0-flash-lite', tokensInput: 0, tokensOutput: 0, modoTeste: localStorage.getItem('axis-modo-teste') === 'true' })
+              } catch(e) { console.warn('[AXIS dualAI] Log uso Gemini:', e.message) }
+              return { fotos, foto_principal: fotoPrincipal }
+            }
+          }
+        }
+      } catch(e) {
+        console.warn('[AXIS] Gemini fotos fallback Haiku:', e.message)
+      }
+    }
+
+    // Fallback: Claude Haiku com web_search
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -786,7 +912,8 @@ Retorne SOMENTE este JSON (sem texto adicional):
         max_tokens: 500,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: promptFotos }]
-      })
+      }),
+      signal: AbortSignal.timeout(20000)
     })
     if (!res.ok) {
       // Se a chamada IA falhou mas temos og:image, usar como fallback
@@ -812,7 +939,7 @@ Retorne SOMENTE este JSON (sem texto adicional):
         tokensOutput: data.usage?.output_tokens || 0,
         modoTeste: localStorage.getItem('axis-modo-teste') === 'true',
       })
-    } catch {}
+    } catch(e) { console.warn('[AXIS dualAI] Log uso Haiku:', e.message) }
 
     const parsed = JSON.parse(jsonMatch[0])
     const fotos = (parsed.fotos || []).filter(f => f && f.startsWith('http')).slice(0, 12)
@@ -825,7 +952,8 @@ Retorne SOMENTE este JSON (sem texto adicional):
     }
 
     return { fotos, foto_principal: fotoPrincipal }
-  } catch {
+  } catch(e) {
+    console.warn('[AXIS dualAI] Fotos IA fallback:', e.message)
     // Fallback final: og:image
     if (ogFallback) return { fotos: [ogFallback], foto_principal: ogFallback }
     return { fotos: [], foto_principal: null }
@@ -967,7 +1095,7 @@ DADOS DE BAIRRO (parcial):
   }
 
   // Extrair fotos do site
-  progress('\xf0\x9f\x93\xb8 Extraindo fotos do imovel...')
+  progress('[FOTOS] Extraindo fotos do imovel...')
   let fotosResult = { fotos: [], foto_principal: null }
   try {
     fotosResult = await extrairFotosImovel(url, claudeKey) || { fotos: [], foto_principal: null }
@@ -998,7 +1126,7 @@ DADOS DE BAIRRO (parcial):
             analiseValidada.alerta_sobrecap = sobrecap.status
             if (sobrecap.status !== 'verde') {
               analiseValidada.alertas = [...(analiseValidada.alertas || []),
-                `${sobrecap.status === 'vermelho' ? 'ð´' : 'ð¡'} ${sobrecap.mensagem}`
+                `${sobrecap.status === 'vermelho' ? '[CRITICO]' : '[ATENCAO]'} ${sobrecap.mensagem}`
               ]
             }
           }
@@ -1024,6 +1152,27 @@ DADOS DE BAIRRO (parcial):
     if (cidadeLower.includes('belo horizonte') || cidadeLower.includes('bh'))
       analiseValidada.itbi_pct = 3
   } catch(e) { console.warn('[AXIS] Cálculo jurídico:', e.message) }
+
+    // Jurimetria: calibrar prazo com dados reais da vara
+    try {
+      const varaJudicial = analiseValidada.vara_judicial || ''
+      const tipoJustica = analiseValidada.tipo_justica || ''
+      if (varaJudicial || tipoJustica) {
+        const { supabase } = await import('./supabase')
+        const { data: juri } = await supabase
+          .from('jurimetria_varas')
+          .select('tempo_total_ciclo_dias, taxa_embargo_pct, vara_nome')
+          .or(`vara_nome.ilike.%${varaJudicial.split(' ').slice(0,3).join(' ')}%,tipo_justica.eq.${tipoJustica}`)
+          .order('vara_nome', { ascending: false })
+          .limit(1)
+          .single()
+        if (juri?.tempo_total_ciclo_dias) {
+          analiseValidada.prazo_liberacao_estimado_meses = Math.round(juri.tempo_total_ciclo_dias / 30)
+          analiseValidada.jurimetria_vara = juri.vara_nome
+          analiseValidada.jurimetria_taxa_embargo = juri.taxa_embargo_pct
+        }
+      }
+    } catch(e) { console.warn('[AXIS] Jurimetria vara:', e.message) }
 
   // Recalcular score se a validação corrigiu algo
   const scoreFinal = (analiseValidada._erros_validacao?.length || analiseValidada._avisos_validacao?.length)

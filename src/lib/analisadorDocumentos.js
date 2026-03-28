@@ -85,15 +85,19 @@ Formato: {"data_leilao":"","data_2o_leilao":"","valor_avaliacao":0,"lance_minimo
 export async function analisarRGI(url, apiKey) {
   const pdfBase64 = await fetchPdfBase64(url)
   if (!pdfBase64) throw new Error('Não foi possível baixar o PDF da matrícula/RGI')
-  return chamarClaude(apiKey, pdfBase64, `Extraia da matrícula/RGI APENAS:
-- Nome do proprietário atual
-- Ônus existentes (hipoteca, penhora, alienação fiduciária, usufruto, servidão)
-- Área total do imóvel (m²)
-- Número de matrícula
-- Cartório de registro
-- Se há averbação de indisponibilidade
-Responda SOMENTE em JSON, sem markdown.
-Formato: {"proprietario":"","onus":[],"area_m2":0,"matricula":"","cartorio":"","indisponibilidade":false}`, 1000)
+  const prompt = `<instrucao>
+Você é um analista jurídico imobiliário especializado em matrículas brasileiras de cartório.
+Extraia os campos abaixo da matrícula/RGI anexada e retorne APENAS o JSON válido, sem markdown.
+Se um campo não existir no documento, use null ou array vazio [].
+Atenção especial:
+- Procure penhoras em matrículas predecessoras mencionadas (ex: "destacado da matrícula nº X")
+- Identifique averbações camufladas que não usam termos óbvios como "ação" ou "processo"
+- Detecte frações ideais (ex: "1/4 do imóvel", "25%", "parte ideal")
+</instrucao>
+<formato_saida>
+{"proprietario":"","matricula":"","cartorio":"","area_m2":0,"indisponibilidade":false,"penhoras":[{"grau":1,"valor":0,"processo":"","credor":""}],"hipotecas":[],"usufruto":null,"fracao_ideal":null,"matriculas_predecessoras":[],"averbacoes_camufladas":[],"vara_judicial":null,"onus":[]}
+</formato_saida>`
+  return chamarClaude(apiKey, pdfBase64, prompt, 1200)
 }
 
 export async function analisarDebitos(url, apiKey) {
