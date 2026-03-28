@@ -626,6 +626,11 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
             animation:'pulse 1s infinite' }} />
           Ao Vivo
         </button>
+        <button onClick={() => { import('../lib/supabase.js').then(({ exportarRelatorioHTML }) => { exportarRelatorioHTML(p) }) }}
+          title="Baixar relatório HTML"
+          style={{ padding:'6px 12px', borderRadius:7, border:`1px solid ${K.bd}`, background:K.s2, color:K.t2, fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
+          ↓ Exportar
+        </button>
         {isAdmin&&onArchive&&<button style={{...btn("s"),background:`${C.mustardL}`,color:C.mustard,border:`1px solid ${C.mustard}40`}} onClick={()=>onArchive(p.id)}>📦 Arquivar</button>}
         {isAdmin&&<button style={{...btn("d"),padding:"5px 12px",fontSize:"12px"}} onClick={()=>{if(confirm("Excluir?"))onDelete(p.id)}}>🗑</button>}
       </>}/>
