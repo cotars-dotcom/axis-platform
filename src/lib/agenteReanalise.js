@@ -104,7 +104,7 @@ Retorne APENAS JSON com os campos atualizados:
 }`
 
   // Cascata de modelos: 2.0-flash → 1.5-flash → 1.5-pro
-  const MODELOS_GEMINI = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro']
+  const MODELOS_GEMINI = ['gemini-1.5-flash', 'gemini-1.5-pro']  // 2.0-flash: 404 em contas novas
   let data = null
   let ultimoErro = null
   let modeloUsado = 'gemini-1.5-flash'

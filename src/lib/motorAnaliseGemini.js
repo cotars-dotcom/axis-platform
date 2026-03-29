@@ -162,7 +162,7 @@ async function chamarGeminiModelo(prompt, geminiKey, modelo) {
 
 // Cascata de modelos Gemini: 2.0-flash → 1.5-flash → 1.5-pro
 async function chamarGemini(prompt, geminiKey) {
-  const MODELOS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro']
+  const MODELOS = ['gemini-1.5-flash', 'gemini-1.5-pro']  // 2.0-flash: 404 em contas novas
   let ultimoErro = null
   for (const modelo of MODELOS) {
     try {

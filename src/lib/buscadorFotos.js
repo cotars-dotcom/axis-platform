@@ -7,8 +7,14 @@
 
 // ─── DOMÍNIOS/PADRÕES QUE NUNCA SÃO FOTOS DE IMÓVEL ────────────────────────
 const URLS_BANIDAS = [
-  // Redes sociais e apps
+  // Redes sociais e apps  
   /whatsapp/i, /facebook/i, /instagram/i, /twitter/i, /youtube/i, /tiktok/i,
+  // Logos de comitentes/leiloeiros (suporteleiloes.com.br)
+  /\/comitentes\//i, /\/logos\//i, /\/empresa\//i, /\/parceiros\//i,
+  // URLs que são páginas HTML (não imagens)
+  /eventos\/leilao/i, /\/lote\//i, /eventos\/leilao/i,
+  // Ícones do WhatsApp nos portais  
+  /whats\.\w+\.png/i, /whatsapp\.\w+\.png/i,
   // Logos e ícones de sistemas
   /logo/i, /favicon/i, /icon/i, /avatar/i, /sprite/i, /badge/i,
   // UI elements

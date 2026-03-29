@@ -1085,7 +1085,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
 
       {abaDetalhe==='juridico'&&<AbaJuridicaAgente imovel={p} isAdmin={isAdmin} onReclassificado={(novaAnalise)=>{
           if(onUpdateProp) onUpdateProp(p.id, novaAnalise)
-        }}/>}}
+        }}/>}
 
       {abaDetalhe==='fotos'&&<GaleriaFotos 
           fotos={p.fotos||[]} 
@@ -1118,6 +1118,13 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
       </div>}
 
       {abaDetalhe==='resumo'&&<>
+      {p.foto_principal&&(
+        <div style={{width:'100%',height:220,borderRadius:12,overflow:'hidden',marginBottom:16,background:'#f0f0f0'}}>
+          <img src={p.foto_principal} alt={p.titulo||'Foto'} 
+            style={{width:'100%',height:'100%',objectFit:'cover'}}
+            onError={e=>{e.target.parentElement.style.display='none'}}/>
+        </div>
+      )}
       <div style={{background:`${rc}10`,border:`1px solid ${rc}30`,borderRadius:"10px",padding:"20px",marginBottom:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"20px"}}>
           <ScoreRing score={sc} size={90}/>

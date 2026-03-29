@@ -20,7 +20,7 @@ const PADROES_LEILOEIRO = {
       // Padrão 1: /storage/eventos/*/edital*
       const editais = html.match(/\/storage\/eventos\/[^"'\s]+(?:edital|edital_leilao)[^"'\s]*\.pdf/gi) || []
       editais.forEach(l => links.push({ url: `https://www.marcoantonioleiloeiro.com.br${l}`, tipo: 'edital', nome: 'Edital de Leilão' }))
-      // Padrão 2: qualquer PDF na página
+      // Padrão 2: PDFs em href (HTML padrão)
       const pdfs = html.match(/href=["']([^"']+\.pdf[^"']*)['"]/gi) || []
       pdfs.forEach(m => {
         const href = m.replace(/href=["']/i, '').replace(/["']$/, '')
@@ -31,6 +31,29 @@ const PADROES_LEILOEIRO = {
             : nome.includes('matri') || nome.includes('rgi') ? 'matricula'
             : nome.includes('process') ? 'processo' : 'documento'
           links.push({ url: fullUrl, tipo, nome: tipo.charAt(0).toUpperCase() + tipo.slice(1) })
+        }
+      })
+      // Padrão 3: PDFs em formato Markdown (retorno do Jina) — [texto](url.pdf)
+      const mdPdfs = html.match(/\[[^\]]+\]\(([^)]+\.pdf[^)]*)\)/gi) || []
+      mdPdfs.forEach(m => {
+        const urlMatch = m.match(/\(([^)]+\.pdf[^)]*)\)/)
+        if (urlMatch) {
+          const fullUrl = urlMatch[1].startsWith('http') ? urlMatch[1] : `https://www.marcoantonioleiloeiro.com.br${urlMatch[1]}`
+          if (!links.find(l => l.url === fullUrl)) {
+            const nome = fullUrl.toLowerCase()
+            const tipo = nome.includes('edital') ? 'edital'
+              : nome.includes('matri') || nome.includes('rgi') ? 'matricula'
+              : nome.includes('process') ? 'processo' : 'documento'
+            links.push({ url: fullUrl, tipo, nome: tipo.charAt(0).toUpperCase() + tipo.slice(1) })
+          }
+        }
+      })
+      // Padrão 4: links do suporteleiloes.com.br (storage de documentos)
+      const storageLinks = html.match(/https?:\/\/static\.suporteleiloes\.com\.br\/[^\s"'\)]+\.pdf/gi) || []
+      storageLinks.forEach(u => {
+        if (!links.find(l => l.url === u)) {
+          const tipo = u.toLowerCase().includes('edital') ? 'edital' : u.toLowerCase().includes('matri') ? 'matricula' : 'documento'
+          links.push({ url: u, tipo, nome: tipo.charAt(0).toUpperCase() + tipo.slice(1) })
         }
       })
       return links
