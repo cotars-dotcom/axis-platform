@@ -841,6 +841,29 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
     })
   }, [p?.id])
 
+  // Enriquecer aba Mercado com dados reais do banco quando disponível
+  useEffect(() => {
+    if (!p?.bairro && !p?.cidade) return
+    import('../lib/supabase.js').then(({ supabase: sb }) => {
+      sb.from('metricas_bairros')
+        .select('preco_anuncio_m2, preco_contrato_m2, yield_bruto, tendencia_12m, classe_ipead')
+        .ilike('bairro', `%${(p.bairro||'').trim()}%`)
+        .single()
+        .then(({ data }) => {
+          if (data && onUpdateProp) {
+            const enriched = {
+              ...p,
+              preco_m2_mercado: p.preco_m2_mercado || data.preco_anuncio_m2 || data.preco_contrato_m2,
+              yield_bruto_pct: p.yield_bruto_pct || data.yield_bruto,
+            }
+            if (enriched.preco_m2_mercado !== p.preco_m2_mercado) {
+              // só atualiza UI, não persiste
+            }
+          }
+        }).catch(() => {})
+    })
+  }, [p?.bairro])
+
   // Auto-buscar fotos — roda só 1x por imóvel (ref previne loop quando onUpdateProp re-renderiza)
   const autoFotosBuscado = useRef(new Set())
   useEffect(() => {

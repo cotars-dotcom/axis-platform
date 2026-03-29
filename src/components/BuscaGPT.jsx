@@ -112,6 +112,7 @@ export default function BuscaGPT({ onAnalisar }) {
   const [results, setResults] = useState(null);
   const [error, setError] = useState("");
   const [openaiKey, setOpenaiKey] = useState(() => localStorage.getItem("axis-openai-key") || "");
+  const geminiKey = localStorage.getItem("axis-gemini-key") || "";
   const [showKey, setShowKey] = useState(false);
 
   const saveKey = (k) => { setOpenaiKey(k); localStorage.setItem("axis-openai-key", k); };
@@ -155,7 +156,7 @@ export default function BuscaGPT({ onAnalisar }) {
       <div style={{ background: `${K.gpt}10`, border: `1px solid ${K.gpt}40`, borderRadius: 8, padding: 14, marginBottom: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <div style={{ fontSize: 12.5, color: K.wh, fontWeight: 600 }}>🤖 ChatGPT (OpenAI)</div>
-          <span style={{ fontSize: 9, background: openaiKey ? `${K.grn}20` : `${K.red}20`, color: openaiKey ? K.grn : K.red, padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>{openaiKey ? "CONFIGURADO" : "PENDENTE"}</span>
+          <span style={{ fontSize: 9, background: (openaiKey||geminiKey) ? `${K.grn}20` : `${K.red}20`, color: (openaiKey||geminiKey) ? K.grn : K.red, padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>{openaiKey ? "OpenAI OK" : geminiKey ? "Gemini OK" : "PENDENTE"}</span>
         </div>
         {!openaiKey || showKey ? (
           <div>
