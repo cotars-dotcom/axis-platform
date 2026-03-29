@@ -7,6 +7,7 @@ import CalculadoraROI from "./CalculadoraROI.jsx"
 import { CLASSES_MERCADO_REFORMA, calcularCustoReforma, detectarClasseMercado } from "../data/custos_reforma.js"
 import PainelLeilao from './PainelLeilao.jsx'
 import AbaJuridicaAgente from './AbaJuridicaAgente.jsx'
+import { buscarArrematesSimilares } from '../lib/buscaArrematesGPT.js'
 import CenariosReforma from './CenariosReforma.jsx'
 
 const ESCOPOS_INFO = {
@@ -740,6 +741,85 @@ function ModoAoVivo({ imovel, onClose }) {
   )
 }
 
+function AbaArremates({ imovel }) {
+  const [dados, setDados] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const buscar = async () => {
+    const openaiKey = localStorage.getItem('axis-openai-key') || ''
+    const geminiKey = localStorage.getItem('axis-gemini-key') || ''
+    if (!openaiKey && !geminiKey) { setMsg('Configure OpenAI ou Gemini em Admin → API Keys'); return }
+    setLoading(true); setMsg('Pesquisando arremates similares...')
+    try {
+      const res = await buscarArrematesSimilares(imovel, openaiKey, geminiKey)
+      if (res) { setDados(res); setMsg(`✅ ${res.n_amostras || res.arremates?.length || 0} arremates encontrados via ${res._modelo}`) }
+      else setMsg('Nenhum arrematado similar encontrado.')
+    } catch(e) { setMsg('Erro: ' + e.message) }
+    setLoading(false)
+  }
+
+  const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
+
+  return (
+    <div style={{padding:'12px 0'}}>
+      <div style={{...card(), padding:14, marginBottom:12}}>
+        <div style={{fontSize:13, fontWeight:600, color:C.navy, marginBottom:6}}>Arremates Similares</div>
+        <div style={{fontSize:11, color:C.muted, marginBottom:10}}>
+          Pesquisa histórico de arremates de imóveis similares para calibrar o lance.
+        </div>
+        <button onClick={buscar} disabled={loading} style={{
+          ...btn('s'), background:C.navy, color:'#fff', border:'none', opacity:loading?0.6:1
+        }}>
+          {loading ? '🔍 Pesquisando...' : '🔨 Buscar arremates similares'}
+        </button>
+        {msg && <div style={{fontSize:11, marginTop:8, color: msg.includes('✅') ? C.emerald : C.muted}}>{msg}</div>}
+      </div>
+
+      {dados && (
+        <>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:12}}>
+            {[
+              ['Média', `${dados.media_pct_avaliacao?.toFixed(1)}% da avaliação`],
+              ['Faixa', dados.faixa_pct || '—'],
+              ['Amostras', dados.n_amostras || dados.arremates?.length || 0],
+            ].map(([l,v]) => (
+              <div key={l} style={{...card(), padding:'10px 12px', textAlign:'center'}}>
+                <div style={{fontSize:10, color:C.hint}}>{l}</div>
+                <div style={{fontSize:13, fontWeight:700, color:C.navy}}>{v}</div>
+              </div>
+            ))}
+          </div>
+
+          {dados.mao_sugerido > 0 && (
+            <div style={{...card(), padding:12, marginBottom:12, background:`${C.emerald}08`, border:`1px solid ${C.emerald}20`}}>
+              <div style={{fontSize:11, fontWeight:600, color:C.emerald}}>MAO sugerido baseado em arremates reais</div>
+              <div style={{fontSize:18, fontWeight:800, color:C.emerald}}>{fmt(dados.mao_sugerido)}</div>
+              <div style={{fontSize:10, color:C.muted}}>{dados.mao_base}</div>
+            </div>
+          )}
+
+          {dados.arremates?.map((a, i) => (
+            <div key={i} style={{...card(), padding:12, marginBottom:8}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4}}>
+                <span style={{fontSize:12, fontWeight:600, color:C.navy}}>{a.descricao}</span>
+                <span style={{fontSize:11, fontWeight:700, color:C.emerald}}>{fmt(a.valor_arrematado)}</span>
+              </div>
+              <div style={{fontSize:10, color:C.muted}}>
+                {a.pct_avaliacao?.toFixed(1)}% da avaliação ({fmt(a.valor_avaliacao)}) · {a.data} · {a.fonte}
+              </div>
+            </div>
+          ))}
+
+          {dados.observacoes && (
+            <div style={{...card(), padding:12, fontSize:11, color:C.muted}}>{dados.observacoes}</div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze,isAdmin,onArchive,isMobile,isPhone}) {
   const [sending,setSending]=useState(false)
   const [modoAoVivo, setModoAoVivo]=useState(false)
@@ -760,6 +840,27 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
       getAvaliacoes(p.id).then(setAvaliacoes).catch(() => {})
     })
   }, [p?.id])
+
+  // Auto-buscar fotos se o imóvel não tiver fotos e tiver URL
+  useEffect(() => {
+    if (!p?.fonte_url || (p?.fotos?.length > 0)) return
+    // Aguardar 2s para não travar o carregamento inicial
+    const timer = setTimeout(async () => {
+      try {
+        const { buscarFotosImovel } = await import('../lib/buscadorFotos.js')
+        const geminiKey = localStorage.getItem('axis-gemini-key') || ''
+        const resultado = await buscarFotosImovel({ fonte_url: p.fonte_url, id: p.id }, geminiKey)
+        if (resultado.fotos?.length > 0 || resultado.foto_principal) {
+          if (onUpdateProp) onUpdateProp(p.id, { ...p, fotos: resultado.fotos, foto_principal: resultado.foto_principal })
+          // Salvar no banco silenciosamente
+          const { saveImovelCompleto } = await import('../lib/supabase.js')
+          const { data: { session } } = await supabase.auth.getSession()
+          saveImovelCompleto({ ...p, fotos: resultado.fotos, foto_principal: resultado.foto_principal }, session?.user?.id).catch(() => {})
+        }
+      } catch(e) { /* silencioso — fotos são melhorias opcionais */ }
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [p?.id, p?.fonte_url])
 
   const salvarObs = async () => {
     if (!novaObs.trim()) return
@@ -941,7 +1042,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
       </>}/>
     {/* Tabs */}
     <div style={{display:"flex",gap:isPhone?4:0,borderBottom:`1px solid ${K.bd}`,padding:isPhone?"0 16px":"0 28px",background:K.s1,overflowX:isPhone?'auto':'visible',scrollbarWidth:'none',WebkitOverflowScrolling:'touch',msOverflowStyle:'none'}}>
-      {[{id:'resumo',label:'📊 Resumo'},{id:'juridico',label:'⚖️ Jurídico'},{id:'fotos',label:'📸 Fotos'},{id:'mercado',label:'🏙️ Mercado'}].map(tab=>(
+      {[{id:'resumo',label:'📊 Resumo'},{id:'juridico',label:'⚖️ Jurídico'},{id:'fotos',label:'📸 Fotos'},{id:'mercado',label:'🏙️ Mercado'},...(isAdmin?[{id:'arremates',label:'🔨 Arremates'}]:[])].map(tab=>(
         <button key={tab.id} onClick={()=>setAbaDetalhe(tab.id)} style={{
           background:"none",border:"none",padding:isPhone?"10px 12px":"10px 18px",fontSize:"12.5px",fontWeight:abaDetalhe===tab.id?700:500,whiteSpace:'nowrap',flexShrink:0,
           color:abaDetalhe===tab.id?K.teal:K.t3,cursor:"pointer",
@@ -979,6 +1080,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
           }}
         />}
 
+      {abaDetalhe==='arremates'&&isAdmin&&<AbaArremates imovel={p}/>}
       {abaDetalhe==='mercado'&&<div>
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>🏙️ Mercado Regional</div>
