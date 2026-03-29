@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, recColor, mapDisplay, normalizarTextoAlerta, ESTRATEGIA_CONFIG, LIQUIDEZ_MAP } from "../appConstants.js"
 import { supabase } from "../lib/supabase.js"
 import { analisarImovelCompleto } from "../lib/dualAI.js"
+import { reAnalisarComGemini } from "../lib/agenteReanalise.js"
 import { criarCardImovel } from "../lib/trelloService.js"
 import CalculadoraROI from "./CalculadoraROI.jsx"
 import { CLASSES_MERCADO_REFORMA, calcularCustoReforma, detectarClasseMercado } from "../data/custos_reforma.js"
@@ -705,8 +706,9 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
 
   const handleReanalyze=async()=>{
     if(!p?.fonte_url){setMsg("⚠️ Imóvel sem URL de origem para reanalisar");return}
+    const geminiKey=localStorage.getItem("axis-gemini-key")||""
     const claudeKey=localStorage.getItem("axis-api-key")||""
-    if(!claudeKey){setMsg("⚠️ Configure a API Key do Claude em Admin → API Keys");return}
+    if(!geminiKey && !claudeKey){setMsg("⚠️ Configure ao menos a Gemini API Key em Admin → API Keys");return}
     // Verificar permissão de uso da API
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -720,8 +722,24 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
     setReanalyzing(true);setMsg("")
     try {
       const openaiKey=localStorage.getItem("axis-openai-key")||""
-      // parametros_score e criterios_avaliacao podem não existir no banco — usar arrays vazios
-      const novaAnalise=await analisarImovelCompleto(p.fonte_url,claudeKey,openaiKey,[],[],setReStep,[])
+      let novaAnalise
+      // Cascata: Gemini (~$0.002) → Claude Sonnet (fallback)
+      if (geminiKey) {
+        try {
+          setReStep("Reanalisando com Gemini Flash-Lite (custo ~R$ 0,01)...")
+          const { reAnalisarComGemini } = await import("../lib/agenteReanalise.js")
+          novaAnalise = await reAnalisarComGemini(p, geminiKey, [], setReStep)
+          setReStep("✅ Reanálise Gemini concluída")
+        } catch(geminiErr) {
+          console.warn("[AXIS] Gemini reanálise falhou, usando Claude:", geminiErr.message)
+          setReStep("Gemini falhou, usando Claude Sonnet...")
+          if (!claudeKey) throw new Error("Gemini e Claude indisponíveis. Configure as chaves em API Keys.")
+          novaAnalise = await analisarImovelCompleto(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [])
+        }
+      } else {
+        // Sem Gemini — usar Claude
+        novaAnalise = await analisarImovelCompleto(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [])
+      }
       const merged={...p,...novaAnalise,id:p.id,createdAt:p.createdAt,criado_por:p.criado_por}
       if(onUpdateProp) onUpdateProp(p.id,merged)
       // Salvar no Supabase — buscar session corretamente

@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { detectarRegiao, getMercado } from '../data/mercado_regional.js'
+import { analisarComGemini, logUsoGemini } from './motorAnaliseGemini.js'
 import {
   BAIRROS_BH,
   getBairroDados,
@@ -996,6 +997,32 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
       modo_teste: true,
     }
   }
+
+  // ─── CASCATA DE CUSTO ZERO ─────────────────────────────────────────────────
+  // Tier 1: Gemini Flash-Lite (~$0.002) — 99% mais barato que Claude Sonnet
+  const geminiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-gemini-key') : null
+  if (geminiKey && !clauseKey_forceClassic) {
+    try {
+      progress('Iniciando análise econômica (Gemini Flash-Lite)...')
+      const analiseGemini = await analisarComGemini(url, geminiKey, parametros, progress)
+      // Log de uso
+      logUsoGemini(null, analiseGemini.titulo).catch(() => {})
+      // Log de atividade
+      import('./supabase.js').then(async ({ logAtividade, supabase: sb }) => {
+        const { data: { user } } = await sb.auth.getUser()
+        if (user) logAtividade(user.id, 'analise_criada', 'imovel', null, { url, titulo: analiseGemini.titulo, modelo: 'gemini' })
+      }).catch(() => {})
+      progress('✅ Análise concluída com Gemini (custo ~R$ 0,01)')
+      return analiseGemini
+    } catch(geminiErr) {
+      console.warn('[AXIS] Gemini falhou, usando Claude Sonnet:', geminiErr.message)
+      progress('⚠️ Gemini indisponível, usando análise completa (Claude)...')
+      // Continua para o fluxo Claude abaixo
+    }
+  }
+  // ─── FIM CASCATA ────────────────────────────────────────────────────────────
+  // Tier 2: Claude Sonnet (fallback — só se Gemini não disponível ou falhou)
+  const clauseKey_forceClassic = false  // flag interna
 
   const cidade = 'Brasil'
   const tipo = 'Imóvel'
