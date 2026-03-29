@@ -194,22 +194,46 @@ export async function analisarComGemini(url, geminiKey, parametros, onProgress, 
   onProgress?.('Gemini analisando imóvel (~$0.002)...')
   let analiseGemini = null
   try {
-    const prompt = buildPromptGemini(camposBasicos, textoScrapeado, contextoMercado)
+    const prompt = buildPromptGemini(camposBasicos, textoScrapeado, contextoMercado, imovelContexto)
     analiseGemini = await chamarGemini(prompt, geminiKey)
   } catch(e) {
     erros.push(`Gemini falhou: ${e.message}`)
-    // Fallback: usar só campos extraídos por regex + scores genéricos
-    analiseGemini = {
-      ...camposBasicos,
-      score_localizacao: 6.0, score_desconto: camposBasicos.desconto_percentual >= 30 ? 6.5 : 4.0,
-      score_juridico: 6.0, score_ocupacao: camposBasicos.ocupacao === 'desocupado' ? 8.0 : 5.0,
-      score_liquidez: 6.0, score_mercado: 6.0,
-      justificativa: 'Análise automática baseada nos dados do edital. Verifique os scores manualmente.',
-      sintese_executiva: 'Imóvel analisado automaticamente. Revise os dados antes de fazer uma oferta.',
-      recomendacao: 'AGUARDAR',
-      positivos: ['Desconto sobre avaliação judicial'],
-      negativos: ['Análise incompleta — Gemini indisponível'],
-      alertas: ['[ATENCAO] Análise automática sem IA — verifique os dados manualmente'],
+    // Fallback inteligente: se temos contexto do imóvel, preservar dados existentes
+    if (imovelContexto && imovelContexto.score_total > 0) {
+      // Usar dados do imóvel já analisado — não degradar scores existentes
+      analiseGemini = {
+        ...imovelContexto,
+        ...camposBasicos,  // regex pode ter dados novos
+        // Preservar scores do banco (não sobrescrever com genéricos)
+        score_localizacao: imovelContexto.score_localizacao,
+        score_desconto: imovelContexto.score_desconto,
+        score_juridico: imovelContexto.score_juridico,
+        score_ocupacao: imovelContexto.score_ocupacao,
+        score_liquidez: imovelContexto.score_liquidez,
+        score_mercado: imovelContexto.score_mercado,
+        justificativa: imovelContexto.justificativa,
+        sintese_executiva: imovelContexto.sintese_executiva,
+        recomendacao: imovelContexto.recomendacao,
+        positivos: imovelContexto.positivos,
+        negativos: imovelContexto.negativos,
+        comparaveis: imovelContexto.comparaveis || [],
+        fotos: imovelContexto.fotos || [],
+        alertas: [...(imovelContexto.alertas || []), '[ATENCAO] Gemini indisponível — dados da análise anterior preservados'],
+      }
+    } else {
+      // Sem contexto: usar scores genéricos (nova análise sem Gemini)
+      analiseGemini = {
+        ...camposBasicos,
+        score_localizacao: 6.0, score_desconto: camposBasicos.desconto_percentual >= 30 ? 6.5 : 4.0,
+        score_juridico: 6.0, score_ocupacao: camposBasicos.ocupacao === 'desocupado' ? 8.0 : 5.0,
+        score_liquidez: 6.0, score_mercado: 6.0,
+        justificativa: 'Análise automática baseada nos dados do edital. Verifique os scores manualmente.',
+        sintese_executiva: 'Imóvel analisado automaticamente. Revise os dados antes de fazer uma oferta.',
+        recomendacao: 'AGUARDAR',
+        positivos: ['Desconto sobre avaliação judicial'],
+        negativos: ['Análise incompleta — Gemini indisponível'],
+        alertas: ['[ATENCAO] Análise automática sem IA — verifique os dados manualmente'],
+      }
     }
   }
 

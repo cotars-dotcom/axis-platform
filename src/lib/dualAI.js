@@ -1000,8 +1000,9 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
 
   // ─── CASCATA DE CUSTO ZERO ─────────────────────────────────────────────────
   // Tier 1: Gemini Flash-Lite (~$0.002) — 99% mais barato que Claude Sonnet
+  const forceClassic = false  // flag interna — mover aqui para evitar TDZ
   const geminiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-gemini-key') : null
-  if (geminiKey && !clauseKey_forceClassic) {
+  if (geminiKey && !forceClassic) {
     try {
       progress('Iniciando análise econômica (Gemini Flash-Lite)...')
       const analiseGemini = await analisarComGemini(url, geminiKey, parametros, progress)
@@ -1022,8 +1023,6 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
   }
   // ─── FIM CASCATA ────────────────────────────────────────────────────────────
   // Tier 2: Claude Sonnet (fallback — só se Gemini não disponível ou falhou)
-  const clauseKey_forceClassic = false  // flag interna
-
   const cidade = 'Brasil'
   const tipo = 'Imóvel'
 
