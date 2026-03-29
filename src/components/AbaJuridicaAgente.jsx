@@ -23,18 +23,25 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
   const claudeKey = () => localStorage.getItem('axis-api-key') || ''
 
   // Busca automática de documentos da URL do imóvel
+  const [linksEncontrados, setLinksEncontrados] = useState([])
+
   const buscarAuto = async () => {
     if (!imovel.fonte_url) { setErro('Imóvel sem URL de origem'); return }
     const gKey = geminiKey()
     if (!gKey) { setErro('Configure a chave Gemini em Admin → API Keys'); return }
 
-    setBuscandoAuto(true); setErro(''); setProgresso('')
+    setBuscandoAuto(true); setErro(''); setProgresso(''); setLinksEncontrados([])
     try {
       const { buscarDocumentosAuto } = await import('../lib/agenteJuridico.js')
-      const { documentos } = await buscarDocumentosAuto(imovel, gKey, setProgresso)
+      const { documentos, links } = await buscarDocumentosAuto(imovel, gKey, setProgresso)
+
+      // Mostrar links encontrados mesmo se download falhou
+      if (links?.length > 0) setLinksEncontrados(links)
 
       if (documentos.length === 0) {
-        setProgresso('Nenhum documento encontrado automaticamente. Faça upload manual.')
+        setProgresso(links?.length > 0
+          ? `${links.length} link(s) encontrado(s) mas não foi possível ler o conteúdo. Tente upload manual.`
+          : 'Nenhum documento encontrado automaticamente. Tente upload manual.')
         setBuscandoAuto(false); return
       }
 
@@ -271,7 +278,29 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
         </div>
       )}
 
-      {docs.length === 0 && !analisando && !buscandoAuto && (
+      {/* Links encontrados mas não baixados */}
+      {linksEncontrados.length > 0 && docs.length === 0 && (
+        <div style={{...card(), padding:12, marginBottom:10}}>
+          <div style={{fontSize:11, fontWeight:600, color:C.muted, marginBottom:6}}>
+            Links identificados na página ({linksEncontrados.length})
+          </div>
+          {linksEncontrados.slice(0,6).map((l, i) => (
+            <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'4px 0', borderBottom:`1px solid ${C.borderW}`, fontSize:11}}>
+              <span style={{color:C.navy, fontWeight:500}}>{l.nome || l.tipo}</span>
+              <a href={l.url} target="_blank" rel="noreferrer"
+                style={{color:C.teal||'#0066CC', fontSize:10, textDecoration:'none'}}>
+                Abrir PDF →
+              </a>
+            </div>
+          ))}
+          <div style={{fontSize:10, color:C.hint, marginTop:6}}>
+            Se o download automático falhou, baixe manualmente e use "Upload manual".
+          </div>
+        </div>
+      )}
+
+      {docs.length === 0 && !analisando && !buscandoAuto && linksEncontrados.length === 0 && (
         <div style={{textAlign:'center', padding:'24px', color:C.hint, fontSize:12}}>
           <div style={{fontSize:32, marginBottom:8}}>⚖️</div>
           <div style={{fontWeight:600, color:C.muted, marginBottom:4}}>Nenhum documento jurídico analisado</div>

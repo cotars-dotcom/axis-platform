@@ -1,60 +1,221 @@
 /**
- * AXIS — Agente Jurídico Autônomo
+ * AXIS — Agente Jurídico Autônomo v2
  * 
- * Faz download automático de edital e matrícula (RGI) via Jina.ai,
- * analisa com Gemini Flash-Lite, identifica riscos, e re-pontua score_juridico.
- * Custo: ~R$ 0,01 por análise completa (zero se só regex)
+ * Download automático de documentos (edital, matrícula, processos)
+ * via Jina.ai (evita CORS + lê PDFs nativamente).
+ * Análise jurídica completa com Gemini Flash.
+ * Custo: ~R$ 0,02 por análise completa.
  */
 
 import { RISCOS_JURIDICOS } from '../data/riscos_juridicos.js'
 
-// ─── DOWNLOAD DE DOCUMENTOS VIA JINA ────────────────────────────────────────
+// ─── PADRÕES ESPECÍFICOS POR LEILOEIRO ──────────────────────────────────────
 
-export async function baixarDocumentoJina(url) {
-  if (!url) return null
+const PADROES_LEILOEIRO = {
+  'marcoantonioleiloeiro.com.br': {
+    // Marco Antônio: edital fica em /storage/eventos/{eventoId}/edital.pdf
+    // Matrícula: link com texto "matrícula" ou "RGI"
+    extrairLinks: (html, url) => {
+      const links = []
+      // Padrão 1: /storage/eventos/*/edital*
+      const editais = html.match(/\/storage\/eventos\/[^"'\s]+(?:edital|edital_leilao)[^"'\s]*\.pdf/gi) || []
+      editais.forEach(l => links.push({ url: `https://www.marcoantonioleiloeiro.com.br${l}`, tipo: 'edital', nome: 'Edital de Leilão' }))
+      // Padrão 2: qualquer PDF na página
+      const pdfs = html.match(/href=["']([^"']+\.pdf[^"']*)['"]/gi) || []
+      pdfs.forEach(m => {
+        const href = m.replace(/href=["']/i, '').replace(/["']$/, '')
+        const fullUrl = href.startsWith('http') ? href : `https://www.marcoantonioleiloeiro.com.br${href}`
+        if (!links.find(l => l.url === fullUrl)) {
+          const nome = href.toLowerCase()
+          const tipo = nome.includes('edital') ? 'edital'
+            : nome.includes('matri') || nome.includes('rgi') ? 'matricula'
+            : nome.includes('process') ? 'processo' : 'documento'
+          links.push({ url: fullUrl, tipo, nome: tipo.charAt(0).toUpperCase() + tipo.slice(1) })
+        }
+      })
+      return links
+    }
+  },
+  'superbid.net': {
+    extrairLinks: (html, url) => {
+      const links = []
+      const pdfs = html.match(/https?:\/\/[^"'\s]+\.pdf[^"'\s]*/gi) || []
+      pdfs.forEach(u => links.push({ url: u, tipo: 'documento', nome: 'Documento Superbid' }))
+      return links
+    }
+  },
+  'sold.com.br': {
+    extrairLinks: (html, url) => {
+      const links = []
+      const pdfs = html.match(/href=["']([^"']+\.pdf)['"]/gi) || []
+      pdfs.forEach(m => {
+        const href = m.replace(/href=["']/i, '').replace(/["']$/, '')
+        const fullUrl = href.startsWith('http') ? href : `https://www.sold.com.br${href}`
+        links.push({ url: fullUrl, tipo: 'documento', nome: 'Documento SOLD' })
+      })
+      return links
+    }
+  }
+}
+
+// ─── EXTRAÇÃO GENÉRICA DE LINKS ──────────────────────────────────────────────
+
+function extrairTodosOsLinks(html, urlBase) {
+  const links = []
+  if (!html) return links
+
+  // Capturar TODOS os hrefs de PDF — sem filtrar por nome
+  const hrefPdfs = html.match(/href=["']([^"']+\.pdf[^"']*)['"]/gi) || []
+  for (const m of hrefPdfs) {
+    const href = m.match(/href=["']([^"']+)['"]/i)?.[1]
+    if (!href) continue
+    const fullUrl = href.startsWith('http') ? href
+      : href.startsWith('/') ? `${urlBase}${href}`
+      : `${urlBase}/${href}`
+    const nomeLower = fullUrl.toLowerCase()
+    const tipo = nomeLower.includes('edital') ? 'edital'
+      : nomeLower.includes('matri') || nomeLower.includes('rgi') || nomeLower.includes('registro') ? 'matricula'
+      : nomeLower.includes('process') || nomeLower.includes('certid') ? 'processo'
+      : 'documento'
+    if (!links.find(l => l.url === fullUrl)) {
+      links.push({ url: fullUrl, tipo, nome: tipo.charAt(0).toUpperCase() + tipo.slice(1) })
+    }
+  }
+
+  // Capturar URLs de PDF em texto puro (data-*, onclick, etc.)
+  const urlPdfs = html.match(/https?:\/\/[^\s"'<>]+\.pdf[^\s"'<>]*/gi) || []
+  for (const u of urlPdfs) {
+    if (!links.find(l => l.url === u)) {
+      const nomeLower = u.toLowerCase()
+      const tipo = nomeLower.includes('edital') ? 'edital'
+        : nomeLower.includes('matri') || nomeLower.includes('rgi') ? 'matricula'
+        : 'documento'
+      links.push({ url: u, tipo, nome: tipo.charAt(0).toUpperCase() + tipo.slice(1) })
+    }
+  }
+
+  return links
+}
+
+// ─── DOWNLOAD VIA JINA.AI (evita CORS, lê PDFs) ─────────────────────────────
+
+export async function baixarViaJina(url, onProgress) {
   try {
-    // Para PDFs: Jina extrai texto diretamente
+    onProgress?.(`Jina lendo: ${url.split('/').pop().substring(0, 40)}`)
     const jinaUrl = `https://r.jina.ai/${url}`
     const r = await fetch(jinaUrl, {
-      headers: { 'Accept': 'text/plain', 'X-Return-Format': 'text' },
+      headers: {
+        'Accept': 'text/plain',
+        'X-Return-Format': 'text',
+        'X-Timeout': '25'
+      },
       signal: AbortSignal.timeout(30000)
     })
     if (!r.ok) return null
     const texto = await r.text()
-    return texto.length > 100 ? texto : null
+    return texto.length > 50 ? texto : null
   } catch(e) {
-    console.warn('[AXIS jurídico] Jina download:', e.message)
+    console.warn('[AXIS Jina]', e.message)
     return null
   }
 }
 
-// ─── EXTRAÇÃO DE LINKS DO EDITAL ────────────────────────────────────────────
+// ─── BUSCA AUTOMÁTICA COMPLETA ───────────────────────────────────────────────
 
-export function extrairLinksDocumentos(textoHtml, urlBase) {
-  const links = { edital: null, matricula: null, outros: [] }
-  if (!textoHtml) return links
+export async function buscarDocumentosAuto(imovel, geminiKey, onProgress) {
+  const progress = onProgress || (() => {})
+  const url = imovel.fonte_url || imovel.url
+  if (!url) return { documentos: [], links: [] }
 
-  const padroes = [
-    { campo: 'edital', regex: /href=["']([^"']+(?:edital|edital-de-leilao|licitacao)[^"']*\.pdf[^"']*)['"]/gi },
-    { campo: 'matricula', regex: /href=["']([^"']+(?:matricula|registro|rgi|certidao)[^"']*\.pdf[^"']*)['"]/gi },
-    { campo: 'outros', regex: /href=["']([^"']+(?:documento|certidao|processo)[^"']*\.pdf[^"']*)['"]/gi },
-  ]
+  let dominio = ''
+  try { dominio = new URL(url).hostname.replace('www.', '') } catch {}
 
-  for (const { campo, regex } of padroes) {
-    let match
-    while ((match = regex.exec(textoHtml)) !== null) {
-      const url = match[1].startsWith('http') ? match[1] : `${urlBase}${match[1]}`
-      if (campo === 'outros') links.outros.push(url)
-      else if (!links[campo]) links[campo] = url
-    }
+  // PASSO 1: Ler a página via Jina (evita CORS, funciona em todos os leiloeiros)
+  progress('Lendo página do edital via Jina...')
+  const htmlTexto = await baixarViaJina(url, progress)
+
+  // PASSO 2: Extrair links — usar padrão específico do leiloeiro ou genérico
+  progress('Identificando documentos disponíveis...')
+  let linksEncontrados = []
+
+  const padrao = PADROES_LEILOEIRO[dominio]
+  if (padrao?.extrairLinks && htmlTexto) {
+    linksEncontrados = padrao.extrairLinks(htmlTexto, `https://${dominio}`)
   }
-  return links
+
+  if (linksEncontrados.length === 0 && htmlTexto) {
+    const urlBase = `https://${dominio}`
+    linksEncontrados = extrairTodosOsLinks(htmlTexto, urlBase)
+  }
+
+  // PASSO 3: Se ainda nada, usar Gemini para identificar links na página
+  if (linksEncontrados.length === 0 && geminiKey && htmlTexto) {
+    progress('Usando Gemini para identificar documentos...')
+    try {
+      const prompt = `Analise este HTML de uma página de leilão judicial e extraia APENAS URLs de PDF de documentos jurídicos (edital, matrícula, certidões, processos).
+
+URL da página: ${url}
+
+HTML (primeiros 8000 chars):
+${htmlTexto.substring(0, 8000)}
+
+Retorne APENAS JSON:
+{
+  "documentos": [
+    {"url": "URL completa do PDF", "tipo": "edital|matricula|processo|certidao|outro", "nome": "nome descritivo"}
+  ]
+}`
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.1, maxOutputTokens:1024} }),
+          signal: AbortSignal.timeout(30000) }
+      )
+      if (r.ok) {
+        const data = await r.json()
+        const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+        const match = txt.replace(/```json|```/g,'').trim().match(/\{[\s\S]*\}/)
+        if (match) {
+          const result = JSON.parse(match[0])
+          linksEncontrados = result.documentos || []
+        }
+      }
+    } catch(e) { console.warn('[AXIS Gemini links]', e.message) }
+  }
+
+  progress(`${linksEncontrados.length} documento(s) identificado(s)`)
+
+  // PASSO 4: Priorizar edital e matrícula, limitar a 4 docs
+  const prioridade = ['edital', 'matricula', 'processo', 'certidao', 'documento', 'outro']
+  linksEncontrados.sort((a, b) => prioridade.indexOf(a.tipo) - prioridade.indexOf(b.tipo))
+  const docsParaBaixar = linksEncontrados.slice(0, 4)
+
+  if (docsParaBaixar.length === 0) {
+    progress('⚠️ Nenhum documento encontrado. Tente upload manual.')
+    return { documentos: [], links: linksEncontrados }
+  }
+
+  // PASSO 5: Baixar e analisar cada documento
+  const resultados = []
+  for (const doc of docsParaBaixar) {
+    progress(`Baixando ${doc.nome || doc.tipo}...`)
+    const texto = await baixarViaJina(doc.url, progress)
+    if (!texto) {
+      progress(`⚠️ Não foi possível ler ${doc.nome}`)
+      continue
+    }
+    progress(`Analisando ${doc.nome} com Gemini...`)
+    const analise = await analisarTextoJuridicoGemini(texto, doc.nome || doc.tipo, imovel, geminiKey)
+    resultados.push({ ...doc, texto: texto.substring(0, 5000), analise })
+  }
+
+  return { documentos: resultados, links: linksEncontrados }
 }
 
-// ─── ANÁLISE COM GEMINI ──────────────────────────────────────────────────────
+// ─── ANÁLISE JURÍDICA COM GEMINI ──────────────────────────────────────────────
 
 const RISCOS_REFERENCIA = RISCOS_JURIDICOS.map(r =>
-  `- ${r.risco_id} (${r.categoria}): penalização ${r.score_penalizacao}pts, prazo ${r.prazo_pratico_meses_min}-${r.prazo_pratico_meses_max}m`
+  `- ${r.risco_id} (${r.categoria}): penalização ${r.score_penalizacao || -10}pts, prazo ${r.prazo_pratico_meses_min || 0}-${r.prazo_pratico_meses_max || 24}m`
 ).join('\n')
 
 export async function analisarTextoJuridicoGemini(texto, nomeArq, imovel, geminiKey) {
@@ -73,28 +234,28 @@ ${texto.substring(0, 6000)}
 BASE DE RISCOS DO SISTEMA AXIS:
 ${RISCOS_REFERENCIA}
 
-Analise juridicamente este documento e retorne APENAS JSON válido:
+Analise juridicamente este documento e retorne APENAS JSON válido (sem markdown):
 {
   "tipo_documento": "edital|matricula|processo|certidao|outro",
-  "resumo": "string — 2-3 linhas do que o documento diz",
+  "resumo": "2-3 linhas do que o documento diz",
   "riscos_identificados": [
     {
-      "risco_id": "string — usar IDs da base acima quando aplicável",
-      "descricao": "string — o que foi encontrado",
+      "risco_id": "ID da base de riscos ou descritivo",
+      "descricao": "o que foi encontrado",
       "gravidade": "critico|alto|medio|baixo",
-      "trecho_relevante": "string — trecho do documento que evidencia o risco",
-      "impacto_score": -15
+      "trecho_relevante": "trecho do documento",
+      "impacto_score": -10
     }
   ],
   "pontos_positivos": ["string"],
-  "alertas_criticos": ["string — ações necessárias antes do lance"],
+  "alertas_criticos": ["ação necessária antes do lance"],
   "score_juridico_sugerido": 7.0,
-  "score_juridico_delta": -1.5,
+  "score_juridico_delta": -1.0,
   "responsabilidade_debitos": "sub_rogado|arrematante|exonerado",
-  "ocupacao_confirmada": "desocupado|ocupado|incerto|null",
+  "ocupacao_confirmada": "desocupado|ocupado|incerto",
   "prazo_liberacao_meses": 0,
   "recomendacao_juridica": "favoravel|neutro|desfavoravel",
-  "parecer": "string — parecer jurídico completo em 3-5 linhas"
+  "parecer": "parecer jurídico completo em 3-5 linhas"
 }`
 
   try {
@@ -131,7 +292,7 @@ export async function analisarPDFBase64Gemini(base64, nomeArq, imovel, geminiKey
 Analise este documento jurídico (${nomeArq}) do imóvel: ${imovel.titulo || imovel.endereco || ''}
 
 Identifique riscos, processos, dívidas e situação jurídica.
-Retorne APENAS JSON com os campos: tipo_documento, resumo, riscos_identificados (array com risco_id/descricao/gravidade/impacto_score), pontos_positivos, alertas_criticos, score_juridico_sugerido, score_juridico_delta, recomendacao_juridica, parecer.`
+Retorne APENAS JSON com: tipo_documento, resumo, riscos_identificados (array com risco_id/descricao/gravidade/impacto_score), pontos_positivos, alertas_criticos, score_juridico_sugerido, score_juridico_delta, recomendacao_juridica, parecer.`
 
   try {
     const r = await fetch(
@@ -140,12 +301,10 @@ Retorne APENAS JSON com os campos: tipo_documento, resumo, riscos_identificados 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{
-            parts: [
-              { inline_data: { mime_type: 'application/pdf', data: base64 } },
-              { text: prompt }
-            ]
-          }],
+          contents: [{ parts: [
+            { inline_data: { mime_type: 'application/pdf', data: base64 } },
+            { text: prompt }
+          ]}],
           generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
         }),
         signal: AbortSignal.timeout(60000)
@@ -161,71 +320,6 @@ Retorne APENAS JSON com os campos: tipo_documento, resumo, riscos_identificados 
     console.warn('[AXIS jurídico] Gemini PDF:', e.message)
     return null
   }
-}
-
-// ─── BUSCA AUTOMÁTICA DE DOCUMENTOS DA URL DO IMÓVEL ────────────────────────
-
-export async function buscarDocumentosAuto(imovel, geminiKey, onProgress) {
-  const progress = onProgress || (() => {})
-  const url = imovel.fonte_url || imovel.url
-  if (!url) return { documentos: [], links: {} }
-
-  progress('Buscando documentos na página do edital...')
-
-  // Buscar HTML da página
-  let htmlTexto = ''
-  let links = {}
-  try {
-    const r = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(12000)
-    })
-    if (r.ok) {
-      htmlTexto = await r.text()
-      const urlBase = new URL(url).origin
-      links = extrairLinksDocumentos(htmlTexto, urlBase)
-    }
-  } catch(e) { console.warn('[AXIS jurídico] HTML:', e.message) }
-
-  // Se não achou links por HTML, tentar Jina para extrair links
-  if (!links.edital && !links.matricula) {
-    try {
-      const jinaTexto = await baixarDocumentoJina(url)
-      if (jinaTexto) {
-        // Procurar padrões de PDF no texto
-        const pdfMatches = jinaTexto.match(/https?:[^\s"']+\.pdf[^\s"')>]*/gi) || []
-        for (const pdfUrl of pdfMatches) {
-          const lower = pdfUrl.toLowerCase()
-          if (lower.includes('edital') && !links.edital) links.edital = pdfUrl
-          else if ((lower.includes('matricula') || lower.includes('rgi')) && !links.matricula) links.matricula = pdfUrl
-          else links.outros = [...(links.outros || []), pdfUrl]
-        }
-      }
-    } catch(e) {}
-  }
-
-  progress(`Links encontrados: edital=${!!links.edital} matrícula=${!!links.matricula}`)
-
-  // Baixar e analisar cada documento
-  const resultados = []
-
-  const docsParaBaixar = [
-    links.edital && { url: links.edital, nome: 'Edital', tipo: 'edital' },
-    links.matricula && { url: links.matricula, nome: 'Matrícula RGI', tipo: 'matricula' },
-    ...(links.outros || []).slice(0, 2).map((u, i) => ({ url: u, nome: `Documento ${i+1}`, tipo: 'outro' }))
-  ].filter(Boolean)
-
-  for (const doc of docsParaBaixar) {
-    progress(`Baixando ${doc.nome}...`)
-    const texto = await baixarDocumentoJina(doc.url)
-    if (texto) {
-      progress(`Analisando ${doc.nome} com IA...`)
-      const analise = await analisarTextoJuridicoGemini(texto, doc.nome, imovel, geminiKey)
-      resultados.push({ ...doc, texto: texto.substring(0, 5000), analise })
-    }
-  }
-
-  return { documentos: resultados, links }
 }
 
 // ─── CALCULAR NOVO SCORE JURÍDICO ────────────────────────────────────────────
