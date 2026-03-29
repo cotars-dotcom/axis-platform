@@ -162,7 +162,7 @@ const tPost = async (path,key,token,body) => { const p=new URLSearchParams({key,
 
 function buildTrelloCard(p) {
   const rc = p.recomendacao||"—"
-  const score = (p.score_total||0).toFixed(1)
+  const score = (p.score_total||0).toFixed(2)
   const emoji = rc==="COMPRAR"?"🟢":rc==="AGUARDAR"?"🟡":"🔴"
   const desc = `## ${emoji} ${rc} — Score ${score}/10
 
@@ -710,7 +710,7 @@ function ModoAoVivo({ imovel, onClose }) {
       <div style={{ textAlign:'center', padding:'20px 0' }}>
         <p style={{ margin:0, fontSize:72, fontWeight:900, color:recClr,
           lineHeight:1 }}>
-          {s.score_total?.toFixed(1) || '—'}
+          {s.score_total?.toFixed(2) || '—'}
         </p>
         <p style={{ margin:'4px 0 0', fontSize:18, fontWeight:700, color:recClr }}>
           {rec || 'AGUARDAR'}

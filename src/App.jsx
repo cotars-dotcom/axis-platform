@@ -90,7 +90,7 @@ function ScoreRing({score,size=80}) {
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"/>
     </svg>
     <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
-      <div style={{fontSize:size>70?"18px":"13px",fontWeight:"800",color:c,lineHeight:1}}>{(score||0).toFixed(1)}</div>
+      <div style={{fontSize:size>70?"18px":"13px",fontWeight:"800",color:c,lineHeight:1}}>{(score||0).toFixed(2)}</div>
       <div style={{fontSize:"8px",color:C.hint,textTransform:"uppercase",letterSpacing:".5px"}}>{scoreLabel(score||0)}</div>
     </div>
   </div>
@@ -755,7 +755,7 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
 
       {duplicado&&<div style={{background:C.mustardL,border:`1px solid ${C.mustard}40`,borderLeft:`3px solid ${C.mustard}`,borderRadius:10,padding:"12px 16px",marginBottom:16}}>
         <div style={{fontSize:13,fontWeight:700,color:C.mustard,marginBottom:6}}>⚠️ Imóvel já analisado</div>
-        <div style={{fontSize:12.5,color:C.text,marginBottom:10}}><b>{duplicado.codigo_axis}</b> — {duplicado.titulo} · Score {(duplicado.score_total||0).toFixed(1)} · {duplicado.recomendacao}</div>
+        <div style={{fontSize:12.5,color:C.text,marginBottom:10}}><b>{duplicado.codigo_axis}</b> — {duplicado.titulo} · Score {(duplicado.score_total||0).toFixed(2)} · {duplicado.recomendacao}</div>
         <div style={{display:"flex",gap:8}}>
           <button style={{padding:"7px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",background:C.navy,color:"#fff",border:"none"}} onClick={()=>{if(duplicado.id&&onNav)onNav("detail",{id:duplicado.id});setDuplicado(null)}}>Ver análise existente {duplicado.codigo_axis?`#${duplicado.codigo_axis}`:""}</button>
           <button style={{padding:"7px 14px",borderRadius:7,fontSize:12,cursor:"pointer",background:"transparent",border:`1px solid ${C.borderW}`,color:C.muted}} onClick={()=>{setDuplicado(null);analyze()}}>Reanalisar mesmo assim</button>
@@ -815,8 +815,8 @@ function PropCard({p,onNav}) {
       </div>
     )}
     
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"10px",flexWrap:"wrap"}}>
-      <div style={{flex:1,minWidth:0,minWidth:'calc(100% - 90px)'}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"10px"}}>
+      <div style={{flex:1,minWidth:0,overflow:"hidden"}}>
         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:"4px"}}>
           <div style={{fontWeight:"600",fontSize:"13px",color:K.wh,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",flex:1}}>{p.titulo||"Imóvel sem título"}</div>
           {p.codigo_axis&&<span style={{fontSize:"9px",fontWeight:700,padding:"1px 6px",borderRadius:3,background:"#002B8010",color:"#002B80",fontFamily:"monospace",flexShrink:0}}>{p.codigo_axis}</span>}
@@ -838,7 +838,7 @@ function PropCard({p,onNav}) {
           </div>
         </div>
       </div>
-      <ScoreRing score={sc} size={70}/>
+      <div style={{flexShrink:0}}><ScoreRing score={sc} size={70}/></div>
     </div>
     <div style={{fontSize:"10px",color:K.t3,marginTop:"10px",borderTop:`1px solid ${K.bd}`,paddingTop:"8px"}}>{fmtD(p.createdAt)} · {p.modalidade||"—"}</div>
   </div>
@@ -881,7 +881,7 @@ function PainelPortfolio({ props: imoveis, isMobile, isPhone, onNav }) {
         {[
           ['Total rastreado', imoveis.length, 'imóveis', C.navy],
           ['Aprovados (COMPRAR)', aprovados, 'imóveis', C.emerald],
-          ['Score médio', scoreMedio.toFixed(1), '/10', C.emerald],
+          ['Score médio', scoreMedio.toFixed(2), '/10', C.emerald],
           ['Arrematados', arrematados, 'imóveis', C.navy],
         ].map(([label, val, unit, color]) => (
           <div key={label} style={{ background:C.white, borderRadius:12,
@@ -930,7 +930,7 @@ function PainelPortfolio({ props: imoveis, isMobile, isPhone, onNav }) {
                     color: !item.score_total ? C.hint
                       : item.score_total >= 7.5 ? C.emerald
                       : item.score_total >= 6 ? C.mustard : RED }}>
-                    {item.score_total?.toFixed(1) || '—'}
+                    {item.score_total?.toFixed(2) || '—'}
                   </span>
                 </div>
               </div>
