@@ -385,7 +385,7 @@ export async function loadApiKeys(userId) {
   return { claudeKey: '', openaiKey: '', geminiKey: '' }
 }
 
-export async function persistApiKeys(userId, { claudeKey, openaiKey, geminiKey }) {
+export async function persistApiKeys(userId, { claudeKey, openaiKey, geminiKey, deepseekKey = '' }) {
   try {
     await supabase.from('app_settings').upsert({
       chave: `api_keys_${userId}`,

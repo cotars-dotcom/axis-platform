@@ -105,7 +105,7 @@ Retorne APENAS JSON com os campos atualizados:
 
   progress('Gemini revalidando análise...')
   const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -147,7 +147,7 @@ Retorne APENAS JSON com os campos atualizados:
     comparaveis: delta.comparaveis || imovelAtual.comparaveis || [],
     criado_em: imovelAtual.criado_em,
     criado_por: imovelAtual.criado_por,
-    _modelo_usado: 'gemini-2.0-flash-lite',
+    _modelo_usado: 'gemini-2.0-flash',
   }
 
   // Recalcular score total com os pesos corretos

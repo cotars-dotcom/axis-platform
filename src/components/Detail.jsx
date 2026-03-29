@@ -779,24 +779,18 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
     // Buscar chaves — localStorage primeiro, banco como fallback
     let geminiKey = localStorage.getItem("axis-gemini-key") || ""
     let claudeKey = localStorage.getItem("axis-api-key") || ""
-    // Se não estão no localStorage, buscar do banco (sincronização automática)
-    if (!geminiKey || !claudeKey) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { loadApiKeys } = await import('../lib/supabase.js')
-          const keys = await loadApiKeys(user.id)
-          if (keys.geminiKey && !geminiKey) {
-            geminiKey = keys.geminiKey
-            localStorage.setItem('axis-gemini-key', geminiKey)
-          }
-          if (keys.claudeKey && !claudeKey) {
-            claudeKey = keys.claudeKey
-            localStorage.setItem('axis-api-key', claudeKey)
-          }
-        }
-      } catch(e) { console.warn('[AXIS] Sync chaves do banco:', e.message) }
-    }
+    // Sempre sincronizar chaves do banco — garante funcionamento em qualquer dispositivo
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { loadApiKeys } = await import('../lib/supabase.js')
+        const keys = await loadApiKeys(user.id)
+        // Sobrescrever localStorage com banco (banco é fonte da verdade)
+        if (keys.geminiKey) { geminiKey = keys.geminiKey; localStorage.setItem('axis-gemini-key', geminiKey) }
+        if (keys.claudeKey) { claudeKey = keys.claudeKey; localStorage.setItem('axis-api-key', claudeKey) }
+        if (keys.openaiKey) localStorage.setItem('axis-openai-key', keys.openaiKey)
+      }
+    } catch(e) { console.warn('[AXIS] Sync chaves do banco:', e.message) }
     if(!geminiKey && !claudeKey){setMsg("⚠️ Configure ao menos a Gemini API Key em Admin → API Keys");return}
     // Verificar permissão de uso da API
     try {

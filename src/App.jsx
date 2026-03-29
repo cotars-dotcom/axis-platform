@@ -494,7 +494,7 @@ function ApiKeyModal({onClose, session}) {
    if(ok)localStorage.setItem("axis-openai-key",ok)
    if(session?.user?.id&&k){
      setSaving(true)
-     try{const{persistApiKeys}=await import('./lib/supabase.js');await persistApiKeys(session.user.id,{claudeKey:k,openaiKey:ok,geminiKey:localStorage.getItem('axis-gemini-key')||''})}catch(e){console.warn('[AXIS] save keys:',e)}finally{setSaving(false)}
+     try{const{persistApiKeys}=await import('./lib/supabase.js');await persistApiKeys(session.user.id,{claudeKey:k,openaiKey:ok,geminiKey:localStorage.getItem('axis-gemini-key')||'',deepseekKey:localStorage.getItem('axis-deepseek-key')||''})}catch(e){console.warn('[AXIS] save keys:',e)}finally{setSaving(false)}
    }
    onClose()
  }
@@ -506,6 +506,7 @@ function ApiKeyModal({onClose, session}) {
           ['Claude', key, 'claude'],
           ['OpenAI', oaiKey, 'openai'],
           ['Gemini', localStorage.getItem('axis-gemini-key')||'', 'gemini'],
+          ['DeepSeek', localStorage.getItem('axis-deepseek-key')||'', 'deepseek'],
           ['Trello', localStorage.getItem('axis-trello-key')||'', 'trello'],
         ].map(([label, val]) => (
           <div key={label} style={{
@@ -541,11 +542,18 @@ function ApiKeyModal({onClose, session}) {
   Obtenha em: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>platform.openai.com</a> · Usada na Busca GPT
  </div>
  <div style={{marginTop:"16px",marginBottom:"8px"}}>
-  <div style={{fontSize:"10px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}}>Gemini API Key — opcional (fotos mais baratas)</div>
+  <div style={{fontSize:"10px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}}>Gemini API Key — motor principal (~R$0,03)</div>
   <input style={inp()} type="password" placeholder="AIza..." value={localStorage.getItem('axis-gemini-key')||''} onChange={e=>localStorage.setItem('axis-gemini-key',e.target.value||'')}/>
  </div>
  <div style={{fontSize:"11px",color:K.t3,marginBottom:"18px"}}>
-  Obtenha grátis em: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>aistudio.google.com</a> · Substitui Haiku nas fotos (10x mais barato)
+  Obtenha grátis em: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>aistudio.google.com</a> · Motor principal — analisa + fotos
+ </div>
+ <div style={{marginTop:"16px",marginBottom:"8px"}}>
+  <div style={{fontSize:"10px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}}>DeepSeek API Key — fallback (~R$0,08)</div>
+  <input style={inp()} type="password" placeholder="sk-..." value={localStorage.getItem('axis-deepseek-key')||''} onChange={e=>localStorage.setItem('axis-deepseek-key',e.target.value||'')}/>
+ </div>
+ <div style={{fontSize:"11px",color:K.t3,marginBottom:"18px"}}>
+  Opcional: <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>platform.deepseek.com</a> · Usado se Gemini falhar
  </div>
       <div style={{background:`${K.amb}10`,border:`1px solid ${K.amb}30`,borderRadius:"6px",padding:"12px",marginBottom:"16px",fontSize:"11.5px",color:K.amb}}>
  ⚠️ As chaves são salvas no Supabase (por usuário) e sincronizadas entre dispositivos. Nunca enviadas para servidores externos além da Anthropic/OpenAI.

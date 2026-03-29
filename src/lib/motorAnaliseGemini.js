@@ -136,7 +136,7 @@ CALIBRAÇÃO DE SCORES (escala 0-10):
 // ─── CHAMADA GEMINI FLASH-LITE ───────────────────────────────────────────────
 async function chamarGemini(prompt, geminiKey) {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -256,7 +256,7 @@ export async function analisarComGemini(url, geminiKey, parametros, onProgress, 
     fonte_url: url,
     analise_dupla_ia: false,
     _erros_extracao: erros,
-    _modelo_usado: erros.length > 0 ? 'regex_fallback' : 'gemini-2.0-flash-lite',
+    _modelo_usado: erros.length > 0 ? 'regex_fallback' : 'gemini-2.0-flash',
   }
 
   // PASSO 6: Calcular reforma com SINAPI
@@ -294,9 +294,61 @@ export async function logUsoGemini(imovelId, titulo, sucesso = true) {
   try {
     const { logUsoChamadaAPI } = await import('./supabase.js')
     await logUsoChamadaAPI({
-      tipo: 'analise_principal', modelo: 'gemini-2.0-flash-lite',
+      tipo: 'analise_principal', modelo: 'gemini-2.0-flash',
       tokensInput: 4000, tokensOutput: 1500,
       imovelId, imovelTitulo: titulo, sucesso
     })
   } catch(e) {}
+}
+
+// ─── DEEPSEEK V3 — ALTERNATIVA ULTRA-BARATA ($0.27/M tokens) ────────────────
+// Usar quando: Gemini indisponível E Claude muito caro
+// API compatível com OpenAI — mesma interface
+
+export async function analisarComDeepSeek(url, deepseekKey, parametros, onProgress, imovelContexto = null) {
+  const progress = onProgress || (() => {})
+  
+  // Reusar o mesmo motor do Gemini mas com endpoint DeepSeek
+  const { scrapeUrlJina, extrairCamposTexto } = await import('./scraperImovel.js')
+  
+  progress('Buscando dados do imóvel (Jina)...')
+  let textoScrapeado = ''
+  let camposBasicos = imovelContexto ? { ...imovelContexto } : {}
+  
+  try {
+    textoScrapeado = await scrapeUrlJina(url)
+    const extraidos = extrairCamposTexto(textoScrapeado, url)
+    camposBasicos = { ...camposBasicos, ...extraidos }
+  } catch(e) { console.warn('[AXIS DeepSeek] scrape:', e.message) }
+
+  progress('DeepSeek V3 analisando (~$0.04)...')
+  
+  const prompt = buildPromptGemini(camposBasicos, textoScrapeado, null, imovelContexto)
+  
+  try {
+    const r = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekKey}` },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 4096,
+        temperature: 0.1
+      }),
+      signal: AbortSignal.timeout(60000)
+    })
+    if (!r.ok) throw new Error(`DeepSeek ${r.status}`)
+    const data = await r.json()
+    const txt = data.choices?.[0]?.message?.content || ''
+    const clean = txt.replace(/```json|```/g, '').trim()
+    const match = clean.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('DeepSeek JSON inválido')
+    
+    const analise = JSON.parse(match[0])
+    analise._modelo_usado = 'deepseek-v3'
+    progress('✅ Análise DeepSeek concluída (~R$ 0,08)')
+    return analise
+  } catch(e) {
+    throw new Error(`DeepSeek falhou: ${e.message}`)
+  }
 }

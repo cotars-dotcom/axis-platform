@@ -881,7 +881,7 @@ Retorne SOMENTE este JSON (sem texto adicional):
     if (geminiKey) {
       try {
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -903,7 +903,7 @@ Retorne SOMENTE este JSON (sem texto adicional):
             if (fotos.length > 0 || fotoPrincipal) {
               try {
                 const { logUsoChamadaAPI } = await import('./supabase')
-                logUsoChamadaAPI({ tipo: 'fotos', modelo: 'gemini-2.0-flash-lite', tokensInput: 0, tokensOutput: 0, modoTeste: localStorage.getItem('axis-modo-teste') === 'true' })
+                logUsoChamadaAPI({ tipo: 'fotos', modelo: 'gemini-2.0-flash', tokensInput: 0, tokensOutput: 0, modoTeste: localStorage.getItem('axis-modo-teste') === 'true' })
               } catch(e) { console.warn('[AXIS dualAI] Log uso Gemini:', e.message) }
               return { fotos, foto_principal: fotoPrincipal }
             }
@@ -1002,24 +1002,43 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
   // Tier 1: Gemini Flash-Lite (~$0.002) — 99% mais barato que Claude Sonnet
   const forceClassic = false  // flag interna — mover aqui para evitar TDZ
   const geminiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-gemini-key') : null
+  // ─── CASCATA IA: Gemini Flash → DeepSeek V3 → Claude Sonnet ─────────────────
+  const deepseekKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-deepseek-key') : null
+
   if (geminiKey && !forceClassic) {
     try {
-      progress('Iniciando análise econômica (Gemini Flash-Lite)...')
+      progress('Iniciando análise (Gemini Flash ~R$0,03)...')
       const analiseGemini = await analisarComGemini(url, geminiKey, parametros, progress)
-      // Log de uso
       logUsoGemini(null, analiseGemini.titulo).catch(() => {})
-      // Log de atividade
       import('./supabase.js').then(async ({ logAtividade, supabase: sb }) => {
         const { data: { user } } = await sb.auth.getUser()
-        if (user) logAtividade(user.id, 'analise_criada', 'imovel', null, { url, titulo: analiseGemini.titulo, modelo: 'gemini' })
+        if (user) logAtividade(user.id, 'analise_criada', 'imovel', null, { url, titulo: analiseGemini.titulo, modelo: 'gemini-flash' })
       }).catch(() => {})
-      progress('✅ Análise concluída com Gemini (custo ~R$ 0,01)')
+      progress('✅ Análise Gemini Flash concluída (~R$ 0,03)')
       return analiseGemini
     } catch(geminiErr) {
-      console.warn('[AXIS] Gemini falhou, usando Claude Sonnet:', geminiErr.message)
-      progress('⚠️ Gemini indisponível, usando análise completa (Claude)...')
-      // Continua para o fluxo Claude abaixo
+      console.warn('[AXIS] Gemini falhou:', geminiErr.message)
+      progress('⚠️ Gemini falhou, tentando DeepSeek V3...')
     }
+  }
+
+  // Tier 2: DeepSeek V3 (~R$ 0,08) — se Gemini indisponível
+  if (deepseekKey && !forceClassic) {
+    try {
+      progress('Analisando com DeepSeek V3 (~R$0,08)...')
+      const { analisarComDeepSeek } = await import('./motorAnaliseGemini.js')
+      const analiseDeepSeek = await analisarComDeepSeek(url, deepseekKey, parametros, progress)
+      logUsoGemini(null, analiseDeepSeek.titulo).catch(() => {})
+      progress('✅ Análise DeepSeek V3 concluída (~R$ 0,08)')
+      return analiseDeepSeek
+    } catch(dsErr) {
+      console.warn('[AXIS] DeepSeek falhou:', dsErr.message)
+      progress('⚠️ DeepSeek falhou, usando Claude Sonnet...')
+    }
+  }
+
+  if (!geminiKey && !deepseekKey) {
+    progress('Usando Claude Sonnet (sem Gemini/DeepSeek configurados)...')
   }
   // ─── FIM CASCATA ────────────────────────────────────────────────────────────
   // Tier 2: Claude Sonnet (fallback — só se Gemini não disponível ou falhou)
