@@ -9,7 +9,8 @@ export const C = {
   navy:"#002B80", navyAlfa:"#002B8010", text:"#1A1A2E", muted:"#666680",
   hint:"#8E8EA0", white:"#FFFFFF", offwhite:"#F8F7F4", surface:"#F4F3EF",
   bg:"#F8F7F4", border:"#D4D4D8", borderW:"#E8E6DF",
-  emerald:"#05A86D", emeraldL:"#E6F7F0", mustard:"#D4A017", mustardL:"#FFF8E1",
+  emerald:"#05A86D", emeraldL:"#E6F7F0", mustard:"#D4A017", mustardL:"#FFF8E1", navy2:"#001F66", silver:"#C0C0C0",
+
 }
 
 
