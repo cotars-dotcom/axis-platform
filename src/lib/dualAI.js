@@ -1015,7 +1015,15 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
     dadosGPT?.cidade || cidade || '',
     dadosGPT?.bairro || ''
   )
-  const dadosMercado = regiaoDetectada ? getMercado(regiaoDetectada) : null
+  let dadosMercado = regiaoDetectada ? getMercado(regiaoDetectada) : null
+  // Tentar banco primeiro, fallback para JS
+  if (regiaoDetectada) {
+    try {
+      const { getMercadoComFallback } = await import('./supabase.js')
+      const dbDados = await getMercadoComFallback(regiaoDetectada)
+      if (dbDados) dadosMercado = { ...dadosMercado, ...dbDados, label: dbDados.nome || dadosMercado?.label }
+    } catch(e) { /* fallback JS já carregado */ }
+  }
   const contextoMercadoRegional = dadosMercado ? `
 DADOS DE MERCADO DA REGIÃO (use para calibrar os scores):
 - Região: ${dadosMercado.label}
