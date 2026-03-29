@@ -25,45 +25,51 @@ function ScoreRing({score,size=80}) {
 
 const Bdg = ({c,ch}) => <span style={{display:"inline-block",fontSize:"10px",fontWeight:"700",padding:"2px 8px",borderRadius:"5px",textTransform:"uppercase",letterSpacing:".5px",background:`${c}12`,color:c}}>{ch}</span>
 
-function PropCard({p,onNav}) {
+function PropCard({p,onNav,isPhone=false}) {
   const sc=p.score_total||0, rc=recColor(p.recomendacao)
+  const tipFmt = (p.tipologia||p.tipo||'—').replace('_padrao','').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())
   return <div onClick={()=>onNav("detail",{id:p.id})}
     style={{...card(),cursor:"pointer",transition:"all .15s"}}
     onMouseEnter={e=>{e.currentTarget.style.borderColor=K.teal;e.currentTarget.style.transform="translateY(-2px)"}}
     onMouseLeave={e=>{e.currentTarget.style.borderColor=K.bd;e.currentTarget.style.transform="none"}}>
     {p.foto_principal && (
-      <div style={{marginBottom:10,borderRadius:8,overflow:"hidden",height:100,background:C.offwhite}}>
+      <div style={{marginBottom:10,borderRadius:8,overflow:"hidden",height:isPhone?110:130,background:C.offwhite,position:"relative"}}>
         <img src={p.foto_principal} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.parentElement.style.display="none"}} />
+        {(p.score_total||0)>=7.5&&<div style={{position:"absolute",top:8,right:8,background:"#10B981",color:"#fff",fontSize:9,fontWeight:700,padding:"2px 6px",borderRadius:4}}>OPORTUNIDADE</div>}
       </div>
     )}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"10px"}}>
+    {/* Mobile: coluna vertical — ScoreRing embaixo. Desktop: linha */}
+    <div style={{display:"flex",flexDirection:isPhone?"column":"row",justifyContent:"space-between",alignItems:isPhone?"stretch":"flex-start",gap:10}}>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:"4px"}}>
-          <div style={{fontWeight:"600",fontSize:"13px",color:K.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{p.titulo||"Imóvel sem título"}</div>
-          {p.codigo_axis?<span style={{fontSize:"9.5px",fontWeight:700,padding:"1px 6px",borderRadius:3,background:"#002B8010",color:"#002B80",fontFamily:"monospace",flexShrink:0}}>{p.codigo_axis}</span>:<span style={{fontSize:10,color:C.hint}}>
-            # pendente
-          </span>}
+        <div style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:4,flexWrap:"wrap"}}>
+          <div style={{fontWeight:"600",fontSize:"13px",color:K.wh,flex:1,minWidth:0,wordBreak:"break-word"}}>{p.titulo||"Imóvel sem título"}</div>
+          {p.codigo_axis&&<span style={{fontSize:"9px",fontWeight:700,padding:"1px 6px",borderRadius:3,background:"#002B8010",color:"#002B80",fontFamily:"monospace",flexShrink:0,whiteSpace:"nowrap"}}>{p.codigo_axis}</span>}
         </div>
-        <div style={{fontSize:"10.5px",color:K.t3,marginBottom:"8px"}}>📍 {p.cidade}/{p.estado} · {p.tipo} · {p.area_m2?`${p.area_m2}m²`:"—"}</div>
-        <div style={{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"10px"}}>
+        <div style={{fontSize:"10.5px",color:K.t3,marginBottom:8}}>📍 {p.cidade}/{p.estado} · {tipFmt} · {(p.area_privativa_m2||p.area_m2)?`${p.area_privativa_m2||p.area_m2}m²`:"—"}</div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
           <Bdg c={rc} ch={p.recomendacao||"—"}/>
           <Bdg c={p.ocupacao==="Desocupado"?K.grn:p.ocupacao==="Ocupado"?K.red:K.t3} ch={p.ocupacao||"—"}/>
-          {p.financiavel&&<Bdg c={K.blue} ch="Financiável"/>}{p.analise_dupla_ia&&<span style={{fontSize:"9px",fontWeight:"700",background:"linear-gradient(135deg,rgba(0,229,187,0.2),rgba(16,163,127,0.2))",border:"1px solid rgba(0,229,187,0.35)",color:"#00E5BB",padding:"2px 8px",borderRadius:"4px",letterSpacing:".5px"}}>🤖 CLAUDE + GPT</span>}
+          {p.financiavel&&<Bdg c={K.blue} ch="Financiável"/>}
+          {p.analise_dupla_ia&&<span style={{fontSize:"9px",fontWeight:"700",background:"linear-gradient(135deg,rgba(0,229,187,0.2),rgba(16,163,127,0.2))",border:"1px solid rgba(0,229,187,0.35)",color:"#00E5BB",padding:"2px 8px",borderRadius:"4px",letterSpacing:".5px"}}>🤖 CLAUDE + GPT</span>}
+          {(p.num_documentos>0)&&<Bdg c="#7C3AED" ch={`📄 ${p.num_documentos}doc`}/>}
+          {p.score_viabilidade_docs!=null&&<Bdg c={p.score_viabilidade_docs>=7?K.grn:p.score_viabilidade_docs>=5?K.amb:K.red} ch={`⚖️ ${Number(p.score_viabilidade_docs).toFixed(1)}`}/>}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px"}}>
-          <div style={{background:K.s2,borderRadius:"5px",padding:"7px 10px"}}>
-            <div style={{fontSize:"9px",color:K.t3,marginBottom:"2px"}}>MÍNIMO</div>
-            <div style={{fontSize:"13px",fontWeight:"700",color:K.amb}}>{fmtC(p.valor_minimo)}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          <div style={{background:K.s2,borderRadius:5,padding:"7px 10px"}}>
+            <div style={{fontSize:9,color:K.t3,marginBottom:2}}>MÍNIMO</div>
+            <div style={{fontSize:13,fontWeight:700,color:K.amb}}>{fmtC(p.valor_minimo)}</div>
           </div>
-          <div style={{background:K.s2,borderRadius:"5px",padding:"7px 10px"}}>
-            <div style={{fontSize:"9px",color:K.t3,marginBottom:"2px"}}>DESCONTO</div>
-            <div style={{fontSize:"13px",fontWeight:"700",color:K.grn}}>{p.desconto_percentual?`${p.desconto_percentual}%`:"—"}</div>
+          <div style={{background:K.s2,borderRadius:5,padding:"7px 10px"}}>
+            <div style={{fontSize:9,color:K.t3,marginBottom:2}}>DESCONTO</div>
+            <div style={{fontSize:13,fontWeight:700,color:K.grn}}>{p.desconto_percentual?`${p.desconto_percentual}%`:"—"}</div>
           </div>
         </div>
       </div>
-      <ScoreRing score={sc} size={70}/>
+      <div style={{flexShrink:0,display:"flex",justifyContent:isPhone?"flex-end":"flex-start",alignItems:"flex-start",marginTop:isPhone?8:0}}>
+        <ScoreRing score={sc} size={isPhone?58:68}/>
+      </div>
     </div>
-    <div style={{fontSize:"10px",color:K.t3,marginTop:"10px",borderTop:`1px solid ${K.bd}`,paddingTop:"8px"}}>{fmtD(p.createdAt)} · {p.modalidade||"—"}</div>
+    <div style={{fontSize:10,color:K.t3,marginTop:10,borderTop:`1px solid ${K.bd}`,paddingTop:8}}>{fmtD(p.createdAt)} · {p.modalidade||"—"}</div>
   </div>
 }
 
@@ -386,7 +392,7 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
         :<div>
           <div style={{fontWeight:"600",color:C.text,marginBottom:"14px",fontSize:"14px"}}>Análises Recentes</div>
           <div style={{display:"grid",gridTemplateColumns:isPhone?"1fr":"repeat(auto-fill,minmax(300px,1fr))",gap:"16px"}}>
-            {recentes.map(p=><PropCard key={p.id} p={p} onNav={onNav}/>)}
+            {recentes.map(p=><PropCard key={p.id} p={p} onNav={onNav} isPhone={isPhone}/>)}
           </div>
         </div>}
     </div>
