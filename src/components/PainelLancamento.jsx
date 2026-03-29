@@ -173,10 +173,13 @@ export default function PainelLancamento({ imovel }) {
   const cMax = useMemo(() => calcularCenario(Math.round(lanceMaxViavel), vmercado, reforma, juridico), [lanceMaxViavel, vmercado, reforma, juridico])
   const cAlvo = useMemo(() => calcularCenario(Math.round(lanceMaxROIAlvo), vmercado, reforma, juridico), [lanceMaxROIAlvo, vmercado, reforma, juridico])
 
-  // Projeções 2º leilão
-  const lance2p = avaliacao ? Math.round(avaliacao * 0.50) : 0
-  const lance2e = avaliacao ? Math.round(avaliacao * 0.57) : 0
-  const lance2c = avaliacao ? Math.round(avaliacao * 0.65) : 0
+  // Projeções de lance — adapta para o leilão atual
+  const isSegundoLeilao = (num_leilao || 1) >= 2
+  // 2º leilão: piso legal 35%, esperado ~50%, competitivo ~60%
+  // 1º leilão (projeção 2º): piso 50%, esperado 57%, competitivo 65%
+  const lance2p = avaliacao ? Math.round(avaliacao * (isSegundoLeilao ? 0.35 : 0.50)) : 0
+  const lance2e = avaliacao ? Math.round(avaliacao * (isSegundoLeilao ? 0.50 : 0.57)) : 0
+  const lance2c = avaliacao ? Math.round(avaliacao * (isSegundoLeilao ? 0.60 : 0.65)) : 0
   const c2p = useMemo(() => calcularCenario(lance2p, vmercado, reforma, juridico), [lance2p, vmercado, reforma, juridico])
   const c2e = useMemo(() => calcularCenario(lance2e, vmercado, reforma, juridico), [lance2e, vmercado, reforma, juridico])
   const c2c = useMemo(() => calcularCenario(lance2c, vmercado, reforma, juridico), [lance2c, vmercado, reforma, juridico])
@@ -274,11 +277,11 @@ export default function PainelLancamento({ imovel }) {
       {/* Cenários 1º leilão */}
       <div style={{ fontSize: 10.5, fontWeight: 700, color: C.navy,
         textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
-        {num_leilao || 1}º Leilão
+        {isSegundoLeilao ? 'Lance mínimo atual (2º Leilão)' : `${num_leilao || 1}º Leilão`}
       </div>
 
       <CardCenario
-        label={`Lance atual — ${num_leilao || 1}º Leilão`}
+        label={isSegundoLeilao ? `Lance mínimo — ${num_leilao}º Leilão (35%)` : `Lance atual — ${num_leilao || 1}º Leilão`}
         sublabel={avaliacao > 0 ? `${((lancePrin/avaliacao)*100).toFixed(0)}% da avaliação` : ''}
         lance={lancePrin} cenario={c1} avaliacao={avaliacao}
         isDestaque={c1.viavel && c1.roi >= 20}
@@ -295,18 +298,27 @@ export default function PainelLancamento({ imovel }) {
         <>
           <div style={{ fontSize: 10.5, fontWeight: 700, color: C.navy,
             textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginTop: 14 }}>
-            Projeção 2º Leilão
+            {isSegundoLeilao ? '2º Leilão — Cenários de lance' : 'Projeção 2º Leilão'}
             <span style={{ fontSize: 9, fontWeight: 400, color: C.hint, marginLeft: 6 }}>
-              (se 1º leilão não fechar)
+              {isSegundoLeilao
+                ? `Mín. legal: R$ ${Math.round(avaliacao*0.35).toLocaleString('pt-BR')}`
+                : '(se 1º leilão não fechar)'}
             </span>
           </div>
 
-          <CardCenario label="Piso legal (50%)" sublabel="Lance mínimo obrigatório"
-            lance={lance2p} cenario={c2p} avaliacao={avaliacao} />
-          <CardCenario label="Esperado (57%)" sublabel="Média histórica TRT-MG"
+          <CardCenario
+            label={isSegundoLeilao ? "Piso legal (35%)" : "Piso legal (50%)"}
+            sublabel={isSegundoLeilao ? "Mínimo art. 891 CPC — sem concorrência" : "Lance mínimo 2º leilão"}
+            lance={lance2p} cenario={c2p} avaliacao={avaliacao}
+            isDestaque={isSegundoLeilao && c2p.roi >= 50} />
+          <CardCenario
+            label={isSegundoLeilao ? "Esperado (50%)" : "Esperado (57%)"}
+            sublabel={isSegundoLeilao ? "Faixa histórica de arremate TRT" : "Média histórica TRT-MG"}
             lance={lance2e} cenario={c2e} avaliacao={avaliacao}
-            isDestaque={c2e.roi >= 30 && !c1.viavel} />
-          <CardCenario label="Competitivo (65%)" sublabel="Cenário com concorrência"
+            isDestaque={!isSegundoLeilao && c2e.roi >= 30 && !c1.viavel} />
+          <CardCenario
+            label={isSegundoLeilao ? "Competitivo (60%)" : "Competitivo (65%)"}
+            sublabel={isSegundoLeilao ? "Cenário com concorrência" : "Cenário com concorrência"}
             lance={lance2c} cenario={c2c} avaliacao={avaliacao} />
 
           {/* Comparativo 1º vs 2º */}
