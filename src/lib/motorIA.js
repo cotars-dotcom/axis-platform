@@ -458,6 +458,9 @@ INSTRUÇÕES:
 1. Acesse a URL e extraia todos os dados disponíveis do imóvel
 2. Use os dados do ChatGPT para calibrar scores de localização e mercado
 3. Calcule o score_total como média ponderada usando os pesos acima
+4. Calcule mao_flip = (valor_mercado_estimado × 0.80) - (custo_reforma_estimado + valor_minimo × 0.10)
+   Calcule mao_locacao = aluguel_mensal_estimado × 120 × 0.90
+   Se valor_minimo > mao_flip → adicione [CRITICO] Lance acima do MAO nos alertas
 4. Aplique penalizações: juridico<4 → ×0.75; ocupado → ×0.85
 5. Seja conservador nas estimativas de retorno
 6. Indique estrutura de aquisição ideal (CPF, Condomínio, PJ, Procuração)
@@ -527,6 +530,8 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
   "preco_m2_closing_bairro": null,
   "classe_ipead": "string (Popular|Medio|Alto|Luxo)",
   "aluguel_mensal_estimado": 0,
+  "mao_flip": 0,
+  "mao_locacao": 0,
   "liquidez": "Alta|Média|Baixa",
   "prazo_revenda_meses": 0,
   "score_localizacao": 0.0,  // ESCALA 0.0 a 10.0 (ex: 7.5, 8.2, 6.0) — NUNCA use 0-100
