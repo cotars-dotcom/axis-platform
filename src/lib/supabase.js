@@ -131,6 +131,7 @@ const IMOVEIS_COLS = new Set([
   'mercado_tempo_venda_meses','mercado_obs','yield_bruto_pct',
   'score_localizacao','score_desconto','score_juridico',
   'score_ocupacao','score_liquidez','score_mercado','score_total',
+  'num_documentos','score_viabilidade_docs','resumo_documentos','recomendacao_juridica_docs',
   'modalidade','riscos_presentes','prazo_liberacao_estimado_meses',
   'reclassificado_por_doc','historico_juridico','score_juridico_manual',
   'recomendacao','justificativa','positivos','negativos','alertas',

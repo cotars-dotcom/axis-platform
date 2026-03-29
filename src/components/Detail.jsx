@@ -677,8 +677,16 @@ function CardComparavel({item:c, K, isPhone}) {
             const bairro = c.descricao?.match(/\w+$/)?.[0] || ''
             const area = c.area_m2 || ''
             const q = c.quartos || ''
-            const zapUrl = `https://www.zapimoveis.com.br/venda/apartamentos/mg+belo-horizonte/?quartos=${q}&areaMin=${Math.round(area*0.9)}&areaMax=${Math.round(area*1.1)}`
-            return <a href={zapUrl} target="_blank" rel="noreferrer" style={{gridColumn:"1/-1",fontSize:11,color:K.t3,textDecoration:"none"}}>🔍 Buscar similares no ZAP →</a>
+            const cidSlug = (c.cidade||'belo-horizonte').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-')
+            const aMin = area>0?`&areaMin=${Math.round(area*0.85)}&areaMax=${Math.round(area*1.15)}`:''
+            const zapUrl = `https://www.zapimoveis.com.br/venda/apartamentos/mg+${cidSlug}/?quartos=${q}${aMin}`
+            const vivaUrl = `https://www.vivareal.com.br/venda/minas-gerais/${cidSlug}/apartamento_residencial/?quartos=${q}${aMin}`
+            const olxUrl = `https://mg.olx.com.br/belo-horizonte-e-regiao/imoveis?q=apartamento+${q}+quartos`
+            return <div style={{gridColumn:'1/-1',display:'flex',gap:6,flexWrap:'wrap',marginTop:4}}>
+              <a href={zapUrl} target="_blank" rel="noreferrer" style={{fontSize:10,color:'#F97316',textDecoration:'none',padding:'3px 8px',background:'#FFF7ED',borderRadius:4,border:'1px solid #FED7AA'}}>🔍 ZAP</a>
+              <a href={vivaUrl} target="_blank" rel="noreferrer" style={{fontSize:10,color:'#7C3AED',textDecoration:'none',padding:'3px 8px',background:'#F5F3FF',borderRadius:4,border:'1px solid #DDD6FE'}}>🔍 Viva Real</a>
+              <a href={olxUrl} target="_blank" rel="noreferrer" style={{fontSize:10,color:'#059669',textDecoration:'none',padding:'3px 8px',background:'#ECFDF5',borderRadius:4,border:'1px solid #A7F3D0'}}>🔍 OLX</a>
+            </div>
           })()
       }
     </div>}
@@ -1047,7 +1055,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
   return <div>
     <Hdr title={<>{p.titulo||"Imóvel"}{p.codigo_axis&&<span style={{fontSize:"10.5px",fontWeight:700,padding:"2px 8px",borderRadius:4,background:"#002B8010",color:"#002B80",border:"1px solid #002B8020",fontFamily:"monospace",letterSpacing:"0.5px",marginLeft:10,verticalAlign:"middle"}}>{p.codigo_axis}</span>}{p.num_leilao&&<span style={{display:"inline-block",background:p.num_leilao>=2?"#FEF3C7":"#ECFDF5",color:p.num_leilao>=2?"#D97706":"#065F46",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,marginLeft:6,verticalAlign:"middle"}}>{p.num_leilao}º LEILÃO{p.num_leilao>=2?" · mín. 50%":""}</span>}{p.trello_card_url&&<a href={p.trello_card_url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#0052CC",marginLeft:8,verticalAlign:"middle",textDecoration:"none"}}>Trello</a>}</>} sub={`${p.cidade}/${p.estado} · ${fmtD(p.createdAt)}`}
       actions={<>
-        {p.fonte_url&&<a href={p.fonte_url} target="_blank" rel="noopener noreferrer" style={{...btn("s"),textDecoration:"none",display:"inline-block"}}>🔗 Anúncio</a>}
+        {p.fonte_url&&<a href={p.fonte_url} target="_blank" rel="noopener noreferrer" title="Abrir edital original no portal do leiloeiro" style={{...btn("s"),textDecoration:"none",display:"inline-block",background:`${C.blue}08`,color:C.blue,border:`1px solid ${C.blue}30`}}>🔗 Edital</a>}
         {isAdmin&&<>
               <button style={{...btn("s"),background:`${K.amb}15`,color:K.amb,border:`1px solid ${K.amb}30`}} onClick={handleReanalyze} disabled={reanalyzing}>
                 {reanalyzing?`⏳ ${reStep||'Reanalisando...'}`:
