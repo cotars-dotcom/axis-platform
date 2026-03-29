@@ -689,6 +689,15 @@ export function validarECorrigirAnalise(analise) {
   const erros = []
   const avisos = []
 
+  // Fallback MAO: garantir sempre preenchido mesmo se IA não calculou
+  if (!analise.mao_flip && analise.valor_mercado_estimado) {
+    const custos = (analise.custo_reforma_estimado || 0) + (analise.valor_minimo || 0) * 0.10
+    analise.mao_flip = Math.round((analise.valor_mercado_estimado * 0.80) - custos)
+  }
+  if (!analise.mao_locacao && analise.aluguel_mensal_estimado) {
+    analise.mao_locacao = Math.round(analise.aluguel_mensal_estimado * 120 * 0.90)
+  }
+
   // 0. Normalizar scores que vieram em escala 0-100 para 0-10
   const camposScore = ['score_localizacao','score_desconto','score_juridico',
                        'score_ocupacao','score_liquidez','score_mercado']

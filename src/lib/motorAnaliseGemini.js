@@ -388,8 +388,17 @@ export async function analisarComDeepSeek(url, deepseekKey, parametros, onProgre
   } catch(e) { console.warn('[AXIS DeepSeek] scrape:', e.message) }
 
   progress('DeepSeek V3 analisando (~$0.04)...')
-  
-  const prompt = buildPromptGemini(camposBasicos, textoScrapeado, null, imovelContexto)
+
+  // Buscar jurimetria + métricas de bairro (mesmo padrão do Gemini)
+  let _dsJurimetria = [], _dsMetricasBairro = null
+  try {
+    ;[_dsJurimetria, _dsMetricasBairro] = await Promise.all([
+      getJurimetriaVara(),
+      camposBasicos.bairro ? getMetricasBairro(camposBasicos.bairro) : Promise.resolve(null)
+    ])
+  } catch(e) { /* banco opcional */ }
+
+  const prompt = buildPromptGemini(camposBasicos, textoScrapeado, null, imovelContexto, _dsJurimetria, _dsMetricasBairro)
   
   try {
     const r = await fetch('https://api.deepseek.com/chat/completions', {
