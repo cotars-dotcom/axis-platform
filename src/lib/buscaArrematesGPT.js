@@ -78,7 +78,7 @@ export async function buscarArrematesSimilares(imovel, openaiKey, geminiKey = nu
   if (geminiKey) {
     try {
       const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -95,7 +95,7 @@ export async function buscarArrematesSimilares(imovel, openaiKey, geminiKey = nu
       const match = txt.replace(/```json|```/g, '').trim().match(/\{[\s\S]*\}/)
       if (!match) throw new Error('JSON inválido')
       const resultado = JSON.parse(match[0])
-      resultado._modelo = 'gemini-2.0-flash'
+      resultado._modelo = 'gemini-1.5-flash'
       resultado._custo_estimado_brl = 0.03
       return resultado
     } catch(e) {

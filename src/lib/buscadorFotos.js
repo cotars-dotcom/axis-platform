@@ -284,7 +284,7 @@ APENAS fotos que mostram o interior ou exterior do imóvel em questão.
   "fotos": ["url1", "url2"]
 }`
       const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
         { method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.1, maxOutputTokens:300} }),
           signal: AbortSignal.timeout(20000) }

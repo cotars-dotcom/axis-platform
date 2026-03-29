@@ -103,26 +103,43 @@ Retorne APENAS JSON com os campos atualizados:
   "mercado_demanda": "alta|media_alta|media|media_baixa|baixa"
 }`
 
-  progress('Gemini revalidando análise...')
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
-      }),
-      signal: AbortSignal.timeout(45000)
-    }
-  )
+  // Cascata de modelos: 2.0-flash → 1.5-flash → 1.5-pro
+  const MODELOS_GEMINI = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+  let data = null
+  let ultimoErro = null
 
-  if (!r.ok) {
-    const errTxt = await r.text().catch(() => '')
-    throw new Error(`Gemini ${r.status}: ${errTxt.substring(0, 100)}`)
+  for (const modelo of MODELOS_GEMINI) {
+    progress(`Gemini revalidando análise (${modelo})...`)
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
+          }),
+          signal: AbortSignal.timeout(45000)
+        }
+      )
+      if (!r.ok) {
+        const errTxt = await r.text().catch(() => '')
+        console.error('[AXIS agenteReanalise]', modelo, 'HTTP', r.status, errTxt.substring(0, 200))
+        ultimoErro = new Error(`Gemini ${r.status}: ${errTxt.substring(0, 150)}`)
+        if (r.status === 400 && errTxt.includes('API_KEY_INVALID')) break
+        continue
+      }
+      data = await r.json()
+      console.log('[AXIS agenteReanalise] Sucesso com modelo:', modelo)
+      break
+    } catch(e) {
+      console.warn('[AXIS agenteReanalise] Erro com', modelo, ':', e.message)
+      ultimoErro = e
+    }
   }
 
-  const data = await r.json()
+  if (!data) throw ultimoErro || new Error('Todos os modelos Gemini falharam')
   const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
   const clean = txt.replace(/```json|```/g, '').trim()
   const match = clean.match(/\{[\s\S]*\}/)

@@ -883,7 +883,7 @@ Retorne SOMENTE este JSON (sem texto adicional):
     if (geminiKey) {
       try {
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -905,7 +905,7 @@ Retorne SOMENTE este JSON (sem texto adicional):
             if (fotos.length > 0 || fotoPrincipal) {
               try {
                 const { logUsoChamadaAPI } = await import('./supabase')
-                logUsoChamadaAPI({ tipo: 'fotos', modelo: 'gemini-2.0-flash', tokensInput: 0, tokensOutput: 0, modoTeste: localStorage.getItem('axis-modo-teste') === 'true' })
+                logUsoChamadaAPI({ tipo: 'fotos', modelo: 'gemini-1.5-flash', tokensInput: 0, tokensOutput: 0, modoTeste: localStorage.getItem('axis-modo-teste') === 'true' })
               } catch(e) { console.warn('[AXIS dualAI] Log uso Gemini:', e.message) }
               return { fotos, foto_principal: fotoPrincipal }
             }
