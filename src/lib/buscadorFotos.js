@@ -1,191 +1,292 @@
 /**
- * AXIS — Buscador de Fotos de Imóveis (Custo Zero)
+ * AXIS — Buscador de Fotos de Imóveis (Custo Zero) v2
  * 
- * Estratégia em cascata:
- * 1. Extração direta do HTML via fetch (zero custo)
- * 2. Padrões conhecidos por leiloeiro (zero custo)  
- * 3. Jina.ai reader para parsear página (zero custo)
- * 4. Gemini Flash-Lite como último recurso (~$0.001)
+ * Filtros muito mais rigorosos para evitar logos, ícones e imagens de UI.
+ * Estratégia: só aceitar imagens que claramente são fotos de imóvel.
  */
 
-// Padrões de URL de imagens por leiloeiro
+// ─── DOMÍNIOS/PADRÕES QUE NUNCA SÃO FOTOS DE IMÓVEL ────────────────────────
+const URLS_BANIDAS = [
+  // Redes sociais e apps
+  /whatsapp/i, /facebook/i, /instagram/i, /twitter/i, /youtube/i, /tiktok/i,
+  // Logos e ícones de sistemas
+  /logo/i, /favicon/i, /icon/i, /avatar/i, /sprite/i, /badge/i,
+  // UI elements
+  /placeholder/i, /loading/i, /blank/i, /thumb-xs/i, /thumbnail-xs/i,
+  // Tribunais e órgãos (logos institucionais)
+  /trt\.jus\.br/i, /tjmg\.jus\.br/i, /trf.*\.jus\.br/i, /caixa\.gov/i,
+  /cnj\.jus\.br/i, /jus\.br\/.*logo/i,
+  // Formatos não-foto
+  /\.(gif|svg|ico|webp|bmp)(\?|$)/i,
+  // Padrões de UI em URLs
+  /\/img\/icon/i, /\/img\/logo/i, /\/assets\/img\/[a-z-]+\.(png|jpg)/i,
+  /\/static\/media\/logo/i, /\/public\/logo/i,
+  // Imagens de botão e banner genérico
+  /banner-header/i, /header-bg/i, /background/i, /bg\./i,
+  // Google maps, street view
+  /maps\.googleapis/i, /streetviewpixels/i,
+]
+
+// ─── PADRÕES QUE INDICAM FOTO DE IMÓVEL ─────────────────────────────────────
+const PADROES_FOTO_IMOVEL = [
+  // Padrões de leiloeiros conhecidos
+  /\/storage\/lotes\//i,
+  /\/storage\/imoveis\//i,
+  /\/assets\/lotes\//i,
+  /\/assets\/imoveis\//i,
+  /\/uploads\/lotes\//i,
+  /\/uploads\/imoveis\//i,
+  /\/images\/lotes\//i,
+  /\/foto[s]?\//i,
+  /\/fotos?\//i,
+  /\/gallery\//i,
+  /\/galeria\//i,
+  /\/imovel\/foto/i,
+  /\/lote\/foto/i,
+  /\/property\/photo/i,
+  // Nomes de arquivo que sugerem foto de imóvel
+  /foto[-_]?\d+\.(jpg|jpeg|png)/i,
+  /img[-_]?\d+\.(jpg|jpeg|png)/i,
+  /photo[-_]?\d+\.(jpg|jpeg|png)/i,
+  /imagem[-_]?\d+\.(jpg|jpeg|png)/i,
+  /imovel[-_]?\d+\.(jpg|jpeg|png)/i,
+  /apartamento.*\.(jpg|jpeg|png)/i,
+  /casa.*\.(jpg|jpeg|png)/i,
+  /lote[-_]?\d+\.(jpg|jpeg|png)/i,
+]
+
+function isUrlBanida(url) {
+  return URLS_BANIDAS.some(p => p.test(url))
+}
+
+function isFotoImovel(url) {
+  return PADROES_FOTO_IMOVEL.some(p => p.test(url))
+}
+
+// Filtrar e ordenar fotos — prioriza imagens claramente de imóvel
+function filtrarFotos(urls) {
+  const vistas = new Set()
+  const prioritarias = []
+  const secundarias = []
+
+  for (const url of urls) {
+    if (!url || !url.startsWith('http')) continue
+    if (vistas.has(url)) continue
+    if (isUrlBanida(url)) continue
+    vistas.add(url)
+
+    if (isFotoImovel(url)) {
+      prioritarias.push(url)
+    } else if (url.match(/\.(jpg|jpeg|png)(\?|$)/i)) {
+      // Só aceitar jpg/png genérico se tiver dimensão razoável no nome ou contexto
+      secundarias.push(url)
+    }
+  }
+
+  // Priorizar fotos claramente de imóvel, depois jpg/png genéricos
+  return [...prioritarias, ...secundarias].slice(0, 15)
+}
+
+// ─── PADRÕES POR LEILOEIRO ───────────────────────────────────────────────────
 const PADROES_LEILOEIRO = {
-  'marcoantonioleiloeiro.com.br': (loteId) => [
-    `https://marcoantonioleiloeiro.com.br/storage/lotes/${loteId}/foto1.jpg`,
-    `https://marcoantonioleiloeiro.com.br/storage/lotes/${loteId}/foto2.jpg`,
-    `https://marcoantonioleiloeiro.com.br/storage/lotes/${loteId}/foto3.jpg`,
-    `https://marcoantonioleiloeiro.com.br/storage/lotes/${loteId}/foto4.jpg`,
-  ],
-  'zuk.com.br': (loteId) => [
-    `https://zuk.com.br/storage/imoveis/${loteId}/foto_1.jpg`,
-    `https://zuk.com.br/storage/imoveis/${loteId}/foto_2.jpg`,
-  ],
-  'sold.com.br': (loteId) => [
-    `https://sold.com.br/assets/lotes/${loteId}/1.jpg`,
-    `https://sold.com.br/assets/lotes/${loteId}/2.jpg`,
-  ],
-  'superbid.net': (loteId) => [
-    `https://superbid.net/image/lot/${loteId}/0`,
-    `https://superbid.net/image/lot/${loteId}/1`,
-    `https://superbid.net/image/lot/${loteId}/2`,
-  ],
+  'marcoantonioleiloeiro.com.br': {
+    extrairFotos: (html, loteId) => {
+      const fotos = []
+      // Padrão 1: storage/lotes/{id}/
+      const storageMatches = html.match(/https?:\/\/[^\s"']+\/storage\/lotes\/\d+\/[^\s"'<>]+\.(?:jpg|jpeg|png)/gi) || []
+      storageMatches.forEach(u => fotos.push(u))
+      
+      // Padrão 2: data-src com foto do lote
+      const dataSrcs = html.match(/data-(?:src|lazy|original)=["']([^"']+\/storage\/lotes\/[^"']+\.(?:jpg|jpeg|png))[^"']*/gi) || []
+      dataSrcs.forEach(m => {
+        const u = m.match(/["']([^"']+)['"]/)?.[1]
+        if (u && !fotos.includes(u)) fotos.push(u)
+      })
+
+      // Padrão 3: URLs com loteId explícito
+      if (loteId) {
+        const loteReg = new RegExp(`https?://[^"'\\s]+${loteId}[^"'\\s<>]+\\.(?:jpg|jpeg|png)`, 'gi')
+        const loteMatches = html.match(loteReg) || []
+        loteMatches.forEach(u => { if (!fotos.includes(u)) fotos.push(u) })
+      }
+
+      return fotos.filter(u => !isUrlBanida(u))
+    }
+  },
+  'superbid.net': {
+    extrairFotos: (html, loteId) => {
+      const matches = html.match(/https?:\/\/[^\s"']+\/image\/lot\/[^\s"'<>]+/gi) || []
+      return matches.filter(u => !isUrlBanida(u))
+    }
+  },
+  'sold.com.br': {
+    extrairFotos: (html, loteId) => {
+      const matches = html.match(/https?:\/\/[^\s"']+\/assets\/lotes\/[^\s"'<>]+\.(?:jpg|jpeg|png)/gi) || []
+      return matches.filter(u => !isUrlBanida(u))
+    }
+  },
+  'leilaovip.com.br': {
+    extrairFotos: (html, loteId) => {
+      const matches = html.match(/https?:\/\/[^\s"']+\/assets\/products\/[^\s"'<>]+\.(?:jpg|jpeg|png)/gi) || []
+      return matches.filter(u => !isUrlBanida(u))
+    }
+  },
+  'zuk.com.br': {
+    extrairFotos: (html, loteId) => {
+      const matches = html.match(/https?:\/\/[^\s"']+\/storage\/imoveis\/[^\s"'<>]+\.(?:jpg|jpeg|png)/gi) || []
+      return matches.filter(u => !isUrlBanida(u))
+    }
+  },
 }
 
-// Extrair IDs e domínio da URL
-function parsearURL(url) {
-  try {
-    const u = new URL(url)
-    const dominio = u.hostname.replace('www.', '')
-    const loteMatch = url.match(/\/lote\/(\d+)/) || url.match(/\/lot\/(\d+)/) || url.match(/\/imovel\/(\d+)/)
-    const loteId = loteMatch?.[1] || null
-    return { dominio, loteId, pathname: u.pathname }
-  } catch { return { dominio: '', loteId: null, pathname: '' } }
-}
-
-// Verificar se URL de imagem é válida (HEAD request)
-async function verificarImagem(url) {
-  try {
-    const r = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(3000) })
-    return r.ok && (r.headers.get('content-type') || '').startsWith('image/')
-  } catch { return false }
-}
-
-// Extrair imagens do HTML
-function extrairImgsHTML(html, baseUrl) {
+// ─── EXTRAÇÃO GENÉRICA ───────────────────────────────────────────────────────
+function extrairImgsHTML(html, dominio) {
   if (!html) return []
-  const imgs = []
-  
-  // og:image (melhor qualidade)
-  const ogMatches = html.match(/<meta[^>]+(?:og:image|twitter:image)[^>]+content=['"](https?[^'"]+)['"]/gi) || []
+  const candidatos = []
+
+  // og:image — geralmente é a melhor foto
+  const ogMatches = html.match(/<meta[^>]+(?:og:image|twitter:image)[^>]+content=["'](https?[^"']+)["']/gi) || []
   for (const m of ogMatches) {
-    const src = m.match(/content=['"](https?[^'"]+)['"]/i)?.[1]
-    if (src && !imgs.includes(src)) imgs.push(src)
+    const src = m.match(/content=["'](https?[^"']+)["']/i)?.[1]
+    if (src && !isUrlBanida(src)) candidatos.push(src)
   }
 
-  // img src — filtrar miniaturas e ícones
-  const imgMatches = html.match(/<img[^>]+src=['"](https?[^'"]+)['"]/gi) || []
+  // Só aceitar <img src> se claramente for foto de imóvel
+  const imgMatches = html.match(/<img[^>]+src=["'](https?[^"']+)["'][^>]*>/gi) || []
   for (const m of imgMatches) {
-    const src = m.match(/src=['"](https?[^'"]+)['"]/i)?.[1]
+    const src = m.match(/src=["'](https?[^"']+)["']/i)?.[1]
     if (!src) continue
-    // Ignorar ícones, logos e miniaturas pequenas
-    if (src.match(/icon|logo|thumb-xs|avatar|sprite|placeholder|loading|blank/i)) continue
-    if (src.match(/\.(gif|svg|ico)(\?|$)/i)) continue
-    // Priorizar imagens que parecem de imóveis
-    const ehFotoImovel = src.match(/foto|lote|imovel|property|image|photo|img\d/i)
-    if (ehFotoImovel && !imgs.includes(src)) imgs.push(src)
+    if (isUrlBanida(src)) continue
+    if (isFotoImovel(src)) candidatos.push(src)
+    // Para img genérica: só aceitar se não for de outro domínio (CDN do leiloeiro)
+    else if (src.includes(dominio) && src.match(/\.(jpg|jpeg|png)(\?|$)/i)) {
+      candidatos.push(src)
+    }
   }
 
-  // data-src (lazy load)
-  const lazySrcs = html.match(/data-(?:src|lazy|original)=['"](https?[^'"\.][^'"]*\.(?:jpg|jpeg|png|webp)[^'"]*)['"]/gi) || []
+  // data-src (lazy loading) — muito comum nos leiloeiros
+  const lazySrcs = html.match(/data-(?:src|lazy|original|full)=["'](https?[^"']+\.(?:jpg|jpeg|png)[^"']*)["']/gi) || []
   for (const m of lazySrcs) {
-    const src = m.match(/['"](https?[^'"]+)['"]/)?.[1]
-    if (src && !imgs.includes(src)) imgs.push(src)
+    const src = m.match(/["'](https?[^"']+)["']/)?.[1]
+    if (src && !isUrlBanida(src)) {
+      if (isFotoImovel(src) || src.includes(dominio)) candidatos.push(src)
+    }
   }
 
-  return imgs.filter(img => img.startsWith('http')).slice(0, 20)
+  return [...new Set(candidatos)]
 }
 
-// Extração via Jina.ai (free) — retorna markdown com URLs de imagens
-async function extrairViaJina(url) {
+// ─── DOWNLOAD VIA JINA ───────────────────────────────────────────────────────
+async function lerViaJina(url, onProgress) {
   try {
-    const jinaUrl = `https://r.jina.ai/${url}`
-    const r = await fetch(jinaUrl, {
+    onProgress?.(`Lendo página via Jina...`)
+    const r = await fetch(`https://r.jina.ai/${url}`, {
       headers: { 'Accept': 'text/plain', 'X-Return-Format': 'markdown' },
       signal: AbortSignal.timeout(20000)
     })
-    if (!r.ok) return []
-    const texto = await r.text()
-    // Extrair URLs de imagem do markdown
-    const matches = texto.match(/!\[.*?\]\((https?[^\)]+)\)/g) || []
-    return matches
-      .map(m => m.match(/\((https?[^\)]+)\)/)?.[1])
-      .filter(Boolean)
-      .filter(u => !u.match(/icon|logo|avatar|sprite/i))
-      .slice(0, 20)
-  } catch { return [] }
+    if (!r.ok) return null
+    return await r.text()
+  } catch(e) {
+    console.warn('[AXIS fotos Jina]', e.message)
+    return null
+  }
 }
 
-// FUNÇÃO PRINCIPAL
+// Extrair URLs de imagem do markdown do Jina
+function extrairImgsMd(md, dominio) {
+  if (!md) return []
+  const matches = md.match(/!\[.*?\]\((https?[^\)]+)\)/g) || []
+  return matches
+    .map(m => m.match(/\((https?[^\)]+)\)/)?.[1])
+    .filter(Boolean)
+    .filter(u => !isUrlBanida(u))
+    .filter(u => isFotoImovel(u) || u.includes(dominio))
+}
+
+// ─── FUNÇÃO PRINCIPAL ────────────────────────────────────────────────────────
 export async function buscarFotosImovel(imovel, geminiKey = null, onProgress = null) {
   const url = imovel.fonte_url || imovel.url
   if (!url) return { fotos: [], foto_principal: null, fonte: 'sem-url' }
 
   const progress = onProgress || (() => {})
-  const { dominio, loteId } = parsearURL(url)
+  let dominio = ''
+  let loteId = null
+  try {
+    dominio = new URL(url).hostname.replace('www.', '')
+    const loteMatch = url.match(/\/lote\/(\d+)/) || url.match(/\/lot\/(\d+)/)
+    loteId = loteMatch?.[1] || null
+  } catch {}
 
-  // PASSO 1: Fetch direto do HTML (zero custo)
-  progress('Buscando fotos na página do edital...')
-  let htmlFotos = []
-  let ogImage = null
+  // PASSO 1: Fetch direto + padrão específico do leiloeiro
+  progress('Buscando fotos do imóvel...')
+  let htmlText = ''
   try {
     const r = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AXIS/2.0)' },
       signal: AbortSignal.timeout(12000)
     })
-    if (r.ok) {
-      const html = await r.text()
-      htmlFotos = extrairImgsHTML(html, url)
-      const ogMatch = html.match(/<meta[^>]+og:image[^>]+content=['"](https?[^'"]+)['"]/i)
-        || html.match(/<meta[^>]+content=['"](https?[^'"]+)['"'][^>]+og:image/i)
-      ogImage = ogMatch?.[1] || null
-    }
-  } catch(e) { console.warn('[AXIS fotos] HTML fetch:', e.message) }
+    if (r.ok) htmlText = await r.text()
+  } catch(e) { console.warn('[AXIS fotos fetch]', e.message) }
 
-  if (htmlFotos.length >= 3) {
-    progress(`✅ ${htmlFotos.length} fotos encontradas na página`)
-    const todasFotos = ogImage ? [ogImage, ...htmlFotos.filter(f => f !== ogImage)] : htmlFotos
-    return { fotos: todasFotos.slice(0, 15), foto_principal: ogImage || todasFotos[0], fonte: 'html-direto' }
-  }
-
-  // PASSO 2: Padrões do leiloeiro (zero custo)
-  progress('Tentando padrões conhecidos do leiloeiro...')
-  const padraoFn = PADROES_LEILOEIRO[dominio]
-  if (padraoFn && loteId) {
-    const urlsPadrao = padraoFn(loteId)
-    const validas = []
-    for (const u of urlsPadrao) {
-      if (await verificarImagem(u)) validas.push(u)
-    }
-    if (validas.length > 0) {
-      progress(`✅ ${validas.length} fotos por padrão do leiloeiro`)
-      return { fotos: validas, foto_principal: validas[0], fonte: 'padrao-leiloeiro' }
+  // Tentar extrator específico do leiloeiro
+  const padrao = PADROES_LEILOEIRO[dominio]
+  if (padrao?.extrairFotos && htmlText) {
+    const fotosEspecificas = padrao.extrairFotos(htmlText, loteId)
+    if (fotosEspecificas.length > 0) {
+      progress(`✅ ${fotosEspecificas.length} fotos do leiloeiro encontradas`)
+      return { fotos: fotosEspecificas, foto_principal: fotosEspecificas[0], fonte: `padrao-${dominio}` }
     }
   }
 
-  // PASSO 3: Jina.ai reader (zero custo)
+  // Extração genérica do HTML
+  if (htmlText) {
+    const fotosHTML = filtrarFotos(extrairImgsHTML(htmlText, dominio))
+    if (fotosHTML.length >= 2) {
+      progress(`✅ ${fotosHTML.length} fotos encontradas no HTML`)
+      return { fotos: fotosHTML, foto_principal: fotosHTML[0], fonte: 'html-filtrado' }
+    }
+  }
+
+  // PASSO 2: Jina.ai markdown
   progress('Usando Jina.ai para ler a página...')
-  const jinaFotos = await extrairViaJina(url)
-  if (jinaFotos.length >= 2) {
-    progress(`✅ ${jinaFotos.length} fotos via Jina.ai`)
-    const principal = ogImage || jinaFotos[0]
-    return { fotos: jinaFotos.slice(0, 15), foto_principal: principal, fonte: 'jina-ai' }
+  const jinaTexto = await lerViaJina(url, progress)
+  if (jinaTexto) {
+    const fotosJina = filtrarFotos(extrairImgsMd(jinaTexto, dominio))
+    if (fotosJina.length > 0) {
+      progress(`✅ ${fotosJina.length} fotos via Jina`)
+      return { fotos: fotosJina, foto_principal: fotosJina[0], fonte: 'jina-filtrado' }
+    }
   }
 
-  // PASSO 4: og:image como foto única (zero custo)
-  if (ogImage || htmlFotos.length > 0) {
-    const fotos = ogImage ? [ogImage, ...htmlFotos.filter(f => f !== ogImage)] : htmlFotos
-    progress(`✅ ${fotos.length} foto(s) encontrada(s) via og:image`)
-    return { fotos, foto_principal: fotos[0], fonte: 'og-image' }
+  // PASSO 3: og:image como fallback
+  if (htmlText) {
+    const ogMatch = htmlText.match(/<meta[^>]+og:image[^>]+content=["'](https?[^"']+)["']/i)
+    const ogUrl = ogMatch?.[1]
+    if (ogUrl && !isUrlBanida(ogUrl)) {
+      progress('✅ Foto principal via og:image')
+      return { fotos: [ogUrl], foto_principal: ogUrl, fonte: 'og-image' }
+    }
   }
 
-  // PASSO 5: Gemini Flash-Lite — último recurso (~$0.001)
-  if (geminiKey) {
+  // PASSO 4: Gemini — último recurso
+  if (geminiKey && loteId) {
     progress('Usando Gemini para localizar fotos...')
     try {
       const prompt = `Você está analisando o leilão: ${url}
-Domínio: ${dominio} | Lote ID: ${loteId || 'não identificado'}
+Leiloeiro: ${dominio} | Lote ID: ${loteId}
 
-Retorne APENAS JSON com URLs diretas de imagens do imóvel:
+Retorne APENAS JSON com URLs diretas de fotos REAIS do imóvel (apartamento/casa).
+NÃO incluir: logos, ícones, imagens do WhatsApp, fotos do tribunal, banners genéricos.
+APENAS fotos que mostram o interior ou exterior do imóvel em questão.
+
 {
-  "foto_principal": "URL da foto principal ou null",
-  "fotos": ["url1", "url2", "url3"],
-  "fonte": "como foram encontradas"
+  "foto_principal": "URL ou null",
+  "fotos": ["url1", "url2"]
 }`
       const r = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 400 } }),
+        { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.1, maxOutputTokens:300} }),
           signal: AbortSignal.timeout(20000) }
       )
       if (r.ok) {
@@ -194,17 +295,20 @@ Retorne APENAS JSON com URLs diretas de imagens do imóvel:
         const match = txt.match(/\{[\s\S]*\}/)
         if (match) {
           const result = JSON.parse(match[0])
-          const fotos = (result.fotos || []).filter(f => f?.startsWith('http')).slice(0, 15)
-          const principal = result.foto_principal || fotos[0] || null
+          const fotos = (result.fotos || [])
+            .filter(f => f?.startsWith('http') && !isUrlBanida(f))
+            .slice(0, 15)
+          const principal = result.foto_principal && !isUrlBanida(result.foto_principal)
+            ? result.foto_principal : fotos[0] || null
           if (fotos.length > 0 || principal) {
             progress(`✅ ${fotos.length} fotos via Gemini`)
             return { fotos, foto_principal: principal, fonte: 'gemini' }
           }
         }
       }
-    } catch(e) { console.warn('[AXIS fotos] Gemini:', e.message) }
+    } catch(e) { console.warn('[AXIS fotos Gemini]', e.message) }
   }
 
-  progress('⚠️ Nenhuma foto encontrada automaticamente')
+  progress('⚠️ Nenhuma foto do imóvel encontrada automaticamente')
   return { fotos: [], foto_principal: null, fonte: 'sem-fotos' }
 }

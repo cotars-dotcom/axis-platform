@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { C } from "../appConstants.js"
 import { supabase } from "../lib/supabase.js"
+import AbaGastosAPI from "./AbaGastosAPI.jsx"
 
 export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isPhone }) {
   const [aba, setAba] = useState('convites')
