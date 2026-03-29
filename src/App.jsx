@@ -482,10 +482,10 @@ function ApiKeyModal({onClose, session}) {
    if(!session?.user?.id) return
    import('./lib/supabase.js').then(({loadApiKeys})=>{
      loadApiKeys(session.user.id).then(({claudeKey,openaiKey,geminiKey,deepseekKey})=>{
-       if(claudeKey){setKey(claudeKey);localStorage.setItem("axis-api-key",claudeKey)}
-       if(openaiKey&&!localStorage.getItem("axis-openai-key")){setOaiKey(openaiKey);localStorage.setItem("axis-openai-key",openaiKey)}
-       // Sempre sincronizar do banco (sobrescreve localStorage para garantir consistência)
-      if(geminiKey){localStorage.setItem('axis-gemini-key',geminiKey)}
+       if(claudeKey){setKey(claudeKey);localStorage.setItem('axis-api-key',claudeKey)}
+       if(openaiKey){setOaiKey(openaiKey);localStorage.setItem('axis-openai-key',openaiKey)}
+       if(geminiKey){setGeminiKey(geminiKey);localStorage.setItem('axis-gemini-key',geminiKey)}
+       if(deepseekKey){setDeepseekKey(deepseekKey);localStorage.setItem('axis-deepseek-key',deepseekKey)}
      })
    })
  },[session])
