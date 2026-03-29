@@ -632,7 +632,7 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
     try {
       setStep("🧠 IA analisando: score, risco jurídico, mercado...")
       const openaiKey = localStorage.getItem("axis-openai-key") || ""
-        const data = await analisarImovelCompleto(url.trim(), hasKey, openaiKey, parametrosBanco, criteriosBanco, (msg) => setStep(msg), anexos)
+        const data = await analisarImovelCompleto(url.trim(), hasKey, openaiKey, parametrosBanco, criteriosBanco, (msg) => setStep(msg), anexos, null, null)
       data.fonte_url = url.trim()
       // Analisar documentos (edital, RGI, débitos) se fornecidos
       const docUrls = urlsDocumentos.split('\n').map(u=>u.trim()).filter(Boolean)

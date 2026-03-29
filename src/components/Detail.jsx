@@ -918,11 +918,11 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
           console.warn("[AXIS] Gemini reanálise falhou, usando Claude:", geminiErr.message)
           setReStep("Gemini falhou, usando Claude Sonnet...")
           if (!claudeKey) throw new Error("Gemini e Claude indisponíveis. Configure as chaves em API Keys.")
-          novaAnalise = await analisarImovelCompleto(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [])
+          novaAnalise = await analisarImovelCompleto(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [], p.id, p.titulo)
         }
       } else {
         // Sem Gemini — usar Claude
-        novaAnalise = await analisarImovelCompleto(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [])
+        novaAnalise = await analisarImovelCompleto(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [], p.id, p.titulo)
       }
       // Proteger campos críticos: nunca sobrescrever com null/0 se já tinhamos valor
       const protegerCampos = (original, novo) => {

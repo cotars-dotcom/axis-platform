@@ -375,6 +375,7 @@ Retorne APENAS JSON válido (sem markdown):
         tipo: 'mercado_chatgpt', modelo: modeloUsado,
         tokensInput: data.usage?.input_tokens || data.usage?.prompt_tokens || 0,
         tokensOutput: data.usage?.output_tokens || data.usage?.completion_tokens || 0,
+        imovelId, imovelTitulo,
         modoTeste: localStorage.getItem('axis-modo-teste') === 'true',
       })
     } catch(e) { console.warn('[AXIS dualAI] Log uso GPT:', e.message) }
@@ -633,6 +634,7 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
       tipo: 'analise_principal', modelo: CLAUDE_MODEL,
       tokensInput: data.usage?.input_tokens || 0,
       tokensOutput: data.usage?.output_tokens || 0,
+      imovelId, imovelTitulo,
       modoTeste: localStorage.getItem('axis-modo-teste') === 'true',
     })
   } catch(e) { console.warn('[AXIS dualAI] Log uso Sonnet:', e.message) }
@@ -976,7 +978,7 @@ Retorne SOMENTE este JSON (sem texto adicional):
   }
 }
 
-export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametros, criterios, onProgress, anexos) {
+export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametros, criterios, onProgress, anexos, imovelId = null, imovelTitulo = null) {
   const progress = onProgress || (() => {})
 
   // Modo teste: retorna dados simulados sem chamar API
@@ -1009,7 +1011,7 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
     try {
       progress('Iniciando análise (Gemini Flash ~R$0,03)...')
       const analiseGemini = await analisarComGemini(url, geminiKey, parametros, progress)
-      logUsoGemini(null, analiseGemini.titulo).catch(() => {})
+      logUsoGemini(imovelId, analiseGemini.titulo || imovelTitulo).catch(() => {})
       import('./supabase.js').then(async ({ logAtividade, supabase: sb }) => {
         const { data: { user } } = await sb.auth.getUser()
         if (user) logAtividade(user.id, 'analise_criada', 'imovel', null, { url, titulo: analiseGemini.titulo, modelo: 'gemini-flash' })
@@ -1028,7 +1030,7 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
       progress('Analisando com DeepSeek V3 (~R$0,08)...')
       const { analisarComDeepSeek } = await import('./motorAnaliseGemini.js')
       const analiseDeepSeek = await analisarComDeepSeek(url, deepseekKey, parametros, progress)
-      logUsoGemini(null, analiseDeepSeek.titulo).catch(() => {})
+      logUsoGemini(imovelId, analiseDeepSeek.titulo || imovelTitulo).catch(() => {})
       progress('✅ Análise DeepSeek V3 concluída (~R$ 0,08)')
       return analiseDeepSeek
     } catch(dsErr) {
