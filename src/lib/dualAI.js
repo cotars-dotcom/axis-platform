@@ -787,11 +787,10 @@ export function validarECorrigirAnalise(analise) {
   analise._avisos_validacao = avisos
 
   // Log de atividade
-  try {
-    const { logAtividade, supabase: sb } = await import('./supabase.js')
+  import('./supabase.js').then(async ({ logAtividade, supabase: sb }) => {
     const { data: { user } } = await sb.auth.getUser()
-    if (user) logAtividade(user.id, 'analise_criada', 'imovel', null, { url, titulo: analise.titulo })
-  } catch(e) {}
+    if (user) logAtividade(user.id, 'analise_criada', 'imovel', null, { url: analise.url, titulo: analise.titulo })
+  }).catch(() => {})
 
   return analise
 }
