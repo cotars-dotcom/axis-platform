@@ -235,14 +235,26 @@ Retorne APENAS JSON:
   // PASSO 5: Baixar e analisar cada documento
   const resultados = []
   for (const doc of docsParaBaixar) {
-    progress(`Baixando ${doc.nome || doc.tipo}...`)
+    progress(`📥 Baixando ${doc.nome || doc.tipo}...`)
     const texto = await baixarViaJina(doc.url, progress)
-    if (!texto) {
-      progress(`⚠️ Não foi possível ler ${doc.nome}`)
+    if (!texto || texto.length < 50) {
+      progress(`⚠️ Não foi possível ler ${doc.nome} — tente upload manual`)
+      // Salvar referência mesmo sem conteúdo (registro do link)
+      resultados.push({ ...doc, texto: '', analise: null, erro: 'conteudo_indisponivel' })
       continue
     }
-    progress(`Analisando ${doc.nome} com Gemini...`)
-    const analise = await analisarTextoJuridicoGemini(texto, doc.nome || doc.tipo, imovel, geminiKey)
+    progress(`🤖 Analisando ${doc.nome} com Gemini (~30s)...`)
+    let analise = null
+    try {
+      analise = await analisarTextoJuridicoGemini(texto, doc.nome || doc.tipo, imovel, geminiKey)
+    } catch(e) {
+      progress(`⚠️ Erro ao analisar ${doc.nome}: ${e.message.substring(0,60)}`)
+    }
+    if (!analise) {
+      progress(`⚠️ IA não retornou análise para ${doc.nome} — documento salvo sem análise`)
+    } else {
+      progress(`✅ ${doc.nome} analisado`)
+    }
     resultados.push({ ...doc, texto: texto.substring(0, 5000), analise })
   }
 
@@ -323,6 +335,27 @@ Analise juridicamente este documento e retorne APENAS JSON válido (sem markdown
     return JSON.parse(match[0])
   } catch(e) {
     console.warn('[AXIS jurídico] Gemini análise:', e.message)
+    // Fallback: tentar com Claude se disponível
+    const claudeKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-api-key') : null
+    if (claudeKey && !geminiKey?.startsWith('sk-ant')) {
+      try {
+        const r2 = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01' },
+          body: JSON.stringify({
+            model:'claude-haiku-4-5-20251001', max_tokens:2048,
+            messages:[{role:'user',content:`${prompt}\n\nTexto: ${texto.substring(0,4000)}`}]
+          }),
+          signal: AbortSignal.timeout(45000)
+        })
+        if (r2.ok) {
+          const d2 = await r2.json()
+          const txt2 = d2.content?.[0]?.text || ''
+          const m2 = txt2.replace(/\`\`\`json|\`\`\`/g,'').trim().match(/\{[\s\S]*\}/)
+          if (m2) return JSON.parse(m2[0])
+        }
+      } catch(e2) { console.warn('[AXIS jurídico] Claude fallback:', e2.message) }
+    }
     return null
   }
 }
