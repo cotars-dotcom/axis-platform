@@ -19,7 +19,9 @@ export default function CalculadoraROI({ imovel }) {
   const vmercado = imovel.valor_mercado_estimado || imovel.valor_pos_reforma_estimado
     || (imovel.preco_m2_mercado * (imovel.area_privativa_m2 || imovel.area_m2 || 0))
     || lance * 1.4
-  const irpfGanho     = Math.max(0, (vmercado - custoTotal) * 0.15)
+  // IRPF: isento até R$440k (imóvel único PF - Lei 11.196/2005); 15% acima
+  const ganhoCapital = Math.max(0, vmercado - custoTotal)
+  const irpfGanho = vmercado <= 440000 ? 0 : ganhoCapital * 0.15
   const corretagemVenda = vmercado * 0.06
   const lucroFlip    = vmercado - custoTotal - irpfGanho - corretagemVenda
   const roiFlip      = custoTotal > 0 ? (lucroFlip / custoTotal) * 100 : 0

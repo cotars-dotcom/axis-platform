@@ -10,6 +10,42 @@ const K = {
 
 const inp = { background:K.s1, border:`1px solid ${K.bd}`, borderRadius:"6px", padding:"10px 14px", color:K.tx, fontSize:"13px", width:"100%", outline:"none" };
 
+async function buscarComGemini(query, geminiKey) {
+  const prompt = `Você é um especialista em imóveis em leilão no Brasil com conhecimento de mercado.
+Busque imóveis disponíveis em leilão na região: ${query}
+Para cada imóvel retorne SOMENTE JSON válido (sem markdown):
+{
+  "imoveis": [
+    {
+      "titulo": "Nome do imóvel",
+      "link": "URL do leilão",
+      "lance_inicial": 0,
+      "avaliacao": 0,
+      "desconto_pct": 0,
+      "area_m2": 0,
+      "quartos": 0,
+      "bairro": "string",
+      "cidade": "string",
+      "leiloeiro": "string",
+      "data_leilao": "string",
+      "modalidade": "judicial|extrajudicial"
+    }
+  ]
+}`
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+    { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.2, maxOutputTokens:2000} }),
+      signal: AbortSignal.timeout(40000) }
+  )
+  if (!r.ok) throw new Error(`Gemini ${r.status}`)
+  const data = await r.json()
+  const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+  const match = txt.replace(/\`\`\`json|\`\`\`/g,'').trim().match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('JSON inválido')
+  return JSON.parse(match[0])
+}
+
 async function buscarComGPT(query, openaiKey) {
   const system = `Você é um especialista em imóveis em leilão no Brasil com acesso à internet.
 Busque imóveis disponíveis em leilão na região solicitada pelo usuário.
@@ -82,7 +118,8 @@ export default function BuscaGPT({ onAnalisar }) {
 
   const buscar = async () => {
     if (!cidade.trim()) { setError("Informe a cidade"); return; }
-    if (!openaiKey.trim()) { setError("Configure a API Key do ChatGPT (OpenAI) abaixo"); setShowKey(true); return; }
+    const geminiKey = localStorage.getItem("axis-gemini-key") || ""
+    if (!openaiKey.trim() && !geminiKey) { setError("Configure a API Key do ChatGPT ou Gemini"); setShowKey(true); return; }
     // Verificar permissão de uso da API
     try {
       const { supabase } = await import('../lib/supabase.js')
@@ -96,7 +133,13 @@ export default function BuscaGPT({ onAnalisar }) {
     setLoading(true); setError(""); setResults(null);
     try {
       const query = `Busque imóveis em leilão em ${cidade}. Tipo: ${tipo}. ${maxValor ? `Valor máximo: R$ ${maxValor}` : ""} ${minDesconto ? `Desconto mínimo de ${minDesconto}%` : ""} Priorize imóveis desocupados e financiáveis pela CAIXA. Busque nos portais de leilão brasileiros e retorne os melhores resultados disponíveis hoje.`;
-      const data = await buscarComGPT(query, openaiKey.trim());
+      let data
+      if (openaiKey.trim()) {
+        data = await buscarComGPT(query, openaiKey.trim())
+      } else {
+        setError("Usando Gemini para busca...")
+        data = await buscarComGemini(query, geminiKey)
+      }
       setResults(data);
     } catch(e) { const isQuota = /quota|429|rate.limit|insufficient/i.test(e.message); setError(isQuota ? "Créditos OpenAI esgotados. Adicione saldo em platform.openai.com ou aguarde o reset mensal." : e.message); }
     setLoading(false);

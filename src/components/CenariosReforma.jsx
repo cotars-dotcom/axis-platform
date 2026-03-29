@@ -120,7 +120,10 @@ export default function CenariosReforma({ imovel, isAdmin }) {
       const valorVendaReal = Math.min(valorPosReforma, vmercado * 1.30)
 
       // ROI Flip
-      const irpf = Math.max(0, (valorVendaReal - custoTotal) * 0.15)
+      // IRPF: isento se único imóvel PF e venda ≤ R$440k (Lei 11.196/2005)
+      // Acima de R$440k: 15% sobre ganho de capital (custo sem correção monetária)
+      const ganhoCapital = Math.max(0, valorVendaReal - custoTotal)
+      const irpf = valorVendaReal <= 440000 ? 0 : Math.max(0, ganhoCapital * 0.15)
       const corretagem = valorVendaReal * 0.06
       const lucro = valorVendaReal - custoTotal - irpf - corretagem
       const roi = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0
@@ -251,7 +254,7 @@ export default function CenariosReforma({ imovel, isAdmin }) {
           {[
             ['Valor pós-reforma', fmt(sel.valorPosReforma)],
             ['Valorização', `+${sel.valororiacao}%`],
-            ['IRPF 15%', fmt(sel.irpf)],
+            [sel.valorPosReforma <= 440000 ? 'IRPF (isento)' : 'IRPF 15%', fmt(sel.irpf), sel.valorPosReforma > 440000 && sel.irpf > 0 ? 'irpf' : 'ok'],
             ['Corretagem 6%', fmt(sel.corretagem)],
             ['Lucro líquido', fmt(sel.lucro), 'lucro'],
             ['ROI', pct(sel.roi), 'roi'],
