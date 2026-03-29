@@ -262,7 +262,7 @@ export const saveCriterioAvaliacao = saveCriterio
 export async function getAvaliacoes(imovelId) {
   const { data, error } = await supabase
     .from('avaliacoes_imovel')
-    .select('*, criterio:criterios_avaliacao(*), avaliador:profiles(nome)')
+    .select('*, avaliador:profiles(nome)')
     .eq('imovel_id', imovelId)
   if (error) throw error
   return data || []
