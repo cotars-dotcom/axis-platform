@@ -665,6 +665,11 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
           if (docs.erros.length > 0) setTrelloMsg(prev => (prev ? prev + ' | ' : '') + `⚠️ Docs: ${docs.erros.join('; ')}`)
         } catch (e) { console.warn('[AXIS] Erro documentos:', e.message) }
       }
+      // NUNCA salvar dados do modo_teste no banco
+      if (data.modo_teste === true) {
+        setError('⚠️ Modo Teste ativo — desative em Admin → Config antes de analisar.')
+        setLoading(false); setStep(''); return
+      }
       const property = {...data, id:uid(), createdAt:new Date().toISOString()}
       if(trello?.listId&&trello?.boardId) {
         setStep("🔷 Enviando para o Trello...")
