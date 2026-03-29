@@ -1141,7 +1141,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
       {abaDetalhe==='mercado'&&<div>
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>🏙️ Mercado Regional</div>
-          {[["Tendência",mapDisplay(p.mercado_tendencia),p.mercado_tendencia==="Alta"?K.grn:K.amb],["Demanda",mapDisplay(p.mercado_demanda),p.mercado_demanda==="Alta"?K.grn:K.amb],["Tempo médio venda",p.mercado_tempo_venda_meses?`${p.mercado_tempo_venda_meses} meses`:"—",K.t2],["Preço/m² mercado",p.preco_m2_mercado?`R$ ${p.preco_m2_mercado}/m²`:"—",K.teal],["Aluguel estimado",fmtC(p.aluguel_mensal_estimado)+"/mês",K.pur],["Obs. mercado",p.mercado_obs||"—",K.t2]].map(([l,v,c])=>(
+          {[["Tendência",mapDisplay(p.mercado_tendencia),p.mercado_tendencia==="alta"||p.mercado_tendencia==="Alta"||p.mercado_tendencia==="crescimento"?K.grn:p.mercado_tendencia==="queda"||p.mercado_tendencia==="Queda"?"#E5484D":K.t2],["Demanda",mapDisplay(p.mercado_demanda),p.mercado_demanda==="alta"||p.mercado_demanda==="Alta"?K.grn:p.mercado_demanda==="baixa"||p.mercado_demanda==="Baixa"?"#E5484D":K.t2],["Tempo médio venda",p.mercado_tempo_venda_meses?`${p.mercado_tempo_venda_meses} meses`:"—",K.t2],["Preço/m² mercado",p.preco_m2_mercado?`R$ ${p.preco_m2_mercado}/m²`:"—",K.teal],["Aluguel estimado",fmtC(p.aluguel_mensal_estimado)+"/mês",K.pur],["Obs. mercado",p.mercado_obs||"—",K.t2]].map(([l,v,c])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
               <span style={{fontSize:"12px",color:K.t3}}>{l}</span><span style={{fontSize:"12.5px",fontWeight:"600",color:c}}>{v}</span>
             </div>

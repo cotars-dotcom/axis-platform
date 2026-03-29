@@ -141,7 +141,12 @@ export function extrairCamposTexto(texto, url = '') {
 
   // Número do leilão (1º ou 2º)
   let num_leilao = 1
-  if (tl.includes('2º leilão') || tl.includes('segundo leilão') || tl.includes('2o leilão')) num_leilao = 2
+  // Verificar se é 2º leilão pelo título/texto
+  if (tl.includes('2º leilão') || tl.includes('segundo leilão') || tl.includes('2o leilão') ||
+      tl.includes('2ª praça') || tl.includes('segunda praça') || tl.includes('2a praça')) num_leilao = 2
+  // Confirmar pela % do lance: <60% da avaliação → provavelmente 2º leilão
+  // (apenas quando ambos os valores são conhecidos e consistentes)
+  // Nota: 1º leilão pode ter mínimo de 80%, 75% ou até 60% dependendo do juiz
 
   // Tipo
   let tipo = 'Apartamento'
