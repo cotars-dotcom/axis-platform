@@ -7,6 +7,7 @@ import { criarCardImovel } from "../lib/trelloService.js"
 import CalculadoraROI from "./CalculadoraROI.jsx"
 import { CLASSES_MERCADO_REFORMA, calcularCustoReforma, detectarClasseMercado } from "../data/custos_reforma.js"
 import PainelLeilao from './PainelLeilao.jsx'
+import CenariosReforma from './CenariosReforma.jsx'
 
 const ESCOPOS_INFO = {
   refresh_giro: {
@@ -957,6 +958,8 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
       </div>
       {/* Análise de Leilão */}
       <PainelLeilao imovel={p} isAdmin={isAdmin} />
+      {/* Cenários de Reforma */}
+      <CenariosReforma imovel={p} isAdmin={isAdmin} />
       {/* Calculadora ROI */}
       <div style={{...card(),marginBottom:"14px"}}>
         <CalculadoraROI imovel={p} />

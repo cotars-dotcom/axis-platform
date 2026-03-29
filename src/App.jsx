@@ -17,6 +17,7 @@ import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, recColor
 const LazyDashboard = lazy(() => import("./components/Dashboard.jsx"))
 const LazyDetail = lazy(() => import("./components/Detail.jsx"))
 const LazyPainelAdmin = lazy(() => import("./components/PainelAdmin.jsx"))
+const LazyManualAxis = lazy(() => import("./components/ManualAxis.jsx"))
 
 // Badge pill component
 function Bdg({c, ch}) {
@@ -1403,6 +1404,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
     {icon:Scale,l:'Comparar',v:'comparar'},
     {icon:CheckSquare,l:'Tarefas',v:'tarefas'},
     {icon:FileText,l:'Arquivados',v:'arquivados'},
+    {icon:FileText,l:'Manual',v:'manual'},
     ...(isAdmin?[{icon:TrendingUp,l:'Portfólio',v:'portfolio'}]:[]),
     ...(isAdmin?[{icon:ShieldCheck,l:'Admin',v:'admin'}]:[]),
   ]
@@ -1416,6 +1418,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
     {i:'⚖️',l:'Comparar',v:'comparar'},
     {i:'✅',l:'Tarefas',v:'tarefas'},
     {i:'🏦',l:'Arquivados',v:'arquivados'},
+    {i:'📖',l:'Manual',v:'manual'},
     ...(isAdmin?[{i:'📊',l:'Portfólio',v:'portfolio'}]:[]),
     ...(isAdmin?[{i:'🛡️',l:'Admin',v:'admin'}]:[]),
   ]
@@ -1513,6 +1516,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
     {view==="tarefas"&&<Tarefas/>}
     {view==="arquivados"&&<BancoArquivados session={session} isAdmin={isAdmin} isPhone={isPhone}/>}
     {view==="portfolio"&&isAdmin&&<PainelPortfolio props={props} isMobile={isMobile} isPhone={isPhone}/>}
+    {view==="manual"&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyManualAxis isMobile={isMobile}/></Suspense>}
     {view==="admin"&&isAdmin&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyPainelAdmin session={session} imoveis={props} isPhone={isPhone}/></Suspense>}
     </div>
 
