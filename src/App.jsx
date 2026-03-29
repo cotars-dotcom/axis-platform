@@ -229,12 +229,12 @@ function TrelloModal({config,onSave,onClose}) {
 
       <div style={{marginBottom:"14px"}}>
         <div style={{fontSize:"10px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}}>API Key</div>
-        <input style={inp} placeholder="Sua API Key do Trello" value={key} onChange={e=>setKey(e.target.value)}/>
+        <input style={inp()} placeholder="Sua API Key do Trello" value={key} onChange={e=>setKey(e.target.value)}/>
         <div style={{fontSize:"10.5px",color:K.t3,marginTop:"4px"}}>Obtenha em: <a href="https://trello.com/app-key" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>trello.com/app-key</a></div>
       </div>
       <div style={{marginBottom:"16px"}}>
         <div style={{fontSize:"10px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}}>Token</div>
-        <input style={inp} placeholder="Token de acesso" value={token} onChange={e=>setToken(e.target.value)}/>
+        <input style={inp()} placeholder="Token de acesso" value={token} onChange={e=>setToken(e.target.value)}/>
         <div style={{fontSize:"10.5px",color:K.t3,marginTop:"4px"}}>Na mesma página, clique em "Token" e autorize</div>
       </div>
 
@@ -249,7 +249,7 @@ function TrelloModal({config,onSave,onClose}) {
               <option value="">— Selecione o board —</option>
               {boards.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
-            :<input style={inp} placeholder="ID do board (ex: 5f4e3d2c1b0a)" value={boardId} onChange={e=>{setBoardId(e.target.value);setLists([]);setListId("")}}/>
+            :<input style={inp()} placeholder="ID do board (ex: 5f4e3d2c1b0a)" value={boardId} onChange={e=>{setBoardId(e.target.value);setLists([]);setListId("")}}/>
           }
         </div>
         <div style={{marginBottom:"18px"}}>
@@ -258,7 +258,7 @@ function TrelloModal({config,onSave,onClose}) {
             ?<select style={{...inp,cursor:"pointer"}} value={listId} onChange={e=>setListId(e.target.value)}>
               {lists.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            :<input style={inp} placeholder="ID da lista (ex: 5f4e3d2c1b0b)" value={listId} onChange={e=>setListId(e.target.value)}/>
+            :<input style={inp()} placeholder="ID da lista (ex: 5f4e3d2c1b0b)" value={listId} onChange={e=>setListId(e.target.value)}/>
           }
         </div>
         <div style={{display:"flex",gap:"10px"}}>
@@ -506,21 +506,21 @@ function ApiKeyModal({onClose, session}) {
       </div>
       <div style={{marginBottom:"8px"}}>
         <div style={{fontSize:"10px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}}>Chave da API</div>
-        <input style={inp} type="password" placeholder="sk-ant-..." value={key} onChange={e=>setKey(e.target.value)}/>
+        <input style={inp()} type="password" placeholder="sk-ant-..." value={key} onChange={e=>setKey(e.target.value)}/>
       </div>
       <div style={{fontSize:"11px",color:K.t3,marginBottom:"18px"}}>
         Obtenha em: <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>platform.claude.com</a>
       </div>
  <div style={{marginTop:"16px",marginBottom:"8px"}}>
   <div style={{fontSize:"10px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}}>Chave OpenAI (ChatGPT) — opcional</div>
-  <input style={inp} type="password" placeholder="sk-..." value={oaiKey} onChange={e=>setOaiKey(e.target.value)}/>
+  <input style={inp()} type="password" placeholder="sk-..." value={oaiKey} onChange={e=>setOaiKey(e.target.value)}/>
  </div>
  <div style={{fontSize:"11px",color:K.t3,marginBottom:"18px"}}>
   Obtenha em: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>platform.openai.com</a> · Usada na Busca GPT
  </div>
  <div style={{marginTop:"16px",marginBottom:"8px"}}>
   <div style={{fontSize:"10px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}}>Gemini API Key — opcional (fotos mais baratas)</div>
-  <input style={inp} type="password" placeholder="AIza..." value={localStorage.getItem('axis-gemini-key')||''} onChange={e=>localStorage.setItem('axis-gemini-key',e.target.value||'')}/>
+  <input style={inp()} type="password" placeholder="AIza..." value={localStorage.getItem('axis-gemini-key')||''} onChange={e=>localStorage.setItem('axis-gemini-key',e.target.value||'')}/>
  </div>
  <div style={{fontSize:"11px",color:K.t3,marginBottom:"18px"}}>
   Obtenha grátis em: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{color:K.blue}}>aistudio.google.com</a> · Substitui Haiku nas fotos (10x mais barato)
