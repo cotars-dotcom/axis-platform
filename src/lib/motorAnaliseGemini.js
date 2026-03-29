@@ -17,7 +17,7 @@ import { detectarRegiao, getMercado } from '../data/mercado_regional.js'
 import { calcularCustoReforma, detectarClasseMercado } from '../data/custos_reforma.js'
 
 // ─── PROMPT GEMINI COMPACTO ──────────────────────────────────────────────────
-function buildPromptGemini(campos, textoScrapeado, contextoMercado) {
+function buildPromptGemini(campos, textoScrapeado, contextoMercado, imovelContexto = null) {
   return `Você é especialista em leilões judiciais imobiliários no Brasil (BH/MG).
 Analise o imóvel e retorne APENAS JSON válido (sem markdown, sem texto extra).
 
@@ -115,6 +115,15 @@ Complete e corrija os dados. Retorne JSON com EXATAMENTE estes campos:
   "padrao_acabamento": "popular|medio|alto|luxo"
 }
 
+${imovelContexto ? `
+DADOS JÁ SALVOS NO SISTEMA (use como base, corrija apenas se o texto mostrar algo diferente):
+- Título conhecido: ${imovelContexto.titulo || ''}
+- Valor lance salvo: R$ ${imovelContexto.valor_minimo?.toLocaleString('pt-BR') || 'não salvo'}
+- Score anterior: ${imovelContexto.score_total || 'não calculado'}
+- Bairro confirmado: ${imovelContexto.bairro || ''}
+IMPORTANTE: Se o scraper não conseguiu acessar a URL, use os dados salvos acima como referência principal.
+` : ''}
+
 CALIBRAÇÃO DE SCORES (escala 0-10):
 - score_localizacao: bairro nobre BH (Savassi/Lourdes/Belvedere)→9.5, bom→7-8, médio→5-6, periferia→3-4
 - score_desconto: 60%+→9.5, 50%→8.5, 40%→7.5, 30%→6.0, 20%→4.5, sem desconto→2.0
@@ -148,7 +157,7 @@ async function chamarGemini(prompt, geminiKey) {
 }
 
 // ─── MOTOR PRINCIPAL ─────────────────────────────────────────────────────────
-export async function analisarComGemini(url, geminiKey, parametros, onProgress) {
+export async function analisarComGemini(url, geminiKey, parametros, onProgress, imovelContexto = null) {
   const erros = []
 
   // PASSO 1: Scrape com Jina (grátis)

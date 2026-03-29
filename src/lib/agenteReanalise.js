@@ -22,13 +22,14 @@ export async function reAnalisarComGemini(
     return await reAnalisarJuridicoCom(imovelAtual, geminiKey, parametros, progress)
   }
 
-  // Reanálise padrão: rodar scraper + Gemini novamente
+  // Reanálise: usar dados existentes do imóvel como contexto enriquecido
   progress('Reanalisando imóvel com Gemini...')
   const analise = await analisarComGemini(
     imovelAtual.fonte_url,
     geminiKey,
     parametros,
-    progress
+    progress,
+    imovelAtual  // Passa imóvel atual como contexto — Gemini usa para enriquecer
   )
 
   // Preservar dados manuais importantes
