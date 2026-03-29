@@ -309,12 +309,12 @@ function GaleriaFotos({ fotos = [], foto_principal = null, url = null, imovelId 
           />
         </div>
       )}
-      {todasFotos.length > 1 && (
+      {todasFotosExib.length > 1 && (
         <div style={{
           display: 'flex', gap: 6,
           overflowX: 'auto', paddingBottom: 4,
         }}>
-          {todasFotos.map((foto, i) => (
+          {todasFotosExib.map((foto, i) => (
             <img
               key={i}
               src={foto}
@@ -959,7 +959,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
 
       {abaDetalhe==='juridico'&&<AbaJuridicaAgente imovel={p} isAdmin={isAdmin} onReclassificado={(novaAnalise)=>{
           if(onUpdateProp) onUpdateProp(p.id, novaAnalise)
-        }}/>}}
+        }}/>}
 
       {abaDetalhe==='fotos'&&<GaleriaFotos 
           fotos={p.fotos||[]} 

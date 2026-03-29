@@ -783,18 +783,13 @@ function PropCard({p,onNav}) {
         )}
       </div>
     )}
-    {!p.foto_principal && (p.score_total||0) >= 7.5 && (
+    {(p.score_total||0) >= 7.5 && (
       <div style={{
         background:'#10B981', color:'#fff',
         fontSize:9, fontWeight:700,
         padding:'2px 6px', borderRadius:4,
         letterSpacing:0.3, display:'inline-block', marginBottom:6
-      }}>
-        OPORTUNIDADE
-      </div>
-    )}
-    {(p.score_total||0) >= 7.5 && (
-      <div style={{display:"inline-block",background:"#10B981",color:"#fff",fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:4,letterSpacing:0.3,marginBottom:6}}>OPORTUNIDADE</div>
+      }}>OPORTUNIDADE</div>
     )}
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"10px"}}>
       <div style={{flex:1,minWidth:0}}>
