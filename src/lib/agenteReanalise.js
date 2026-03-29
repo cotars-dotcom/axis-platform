@@ -127,6 +127,12 @@ Retorne APENAS JSON com os campos atualizados:
       if (!r.ok) {
         const errTxt = await r.text().catch(() => '')
         console.error('[AXIS agenteReanalise]', modelo, 'HTTP', r.status, errTxt.substring(0, 200))
+        const errResumido = errTxt.includes('API_KEY_INVALID') ? 'chave inválida' :
+          errTxt.includes('PERMISSION_DENIED') ? 'sem permissão' :
+          errTxt.includes('QUOTA_EXCEEDED') ? 'quota excedida' :
+          errTxt.includes('MODEL_NOT_FOUND') ? 'modelo indisponível' :
+          `HTTP ${r.status}`
+        progress(`⚠️ ${modelo}: ${errResumido} — tentando próximo...`)
         ultimoErro = new Error(`Gemini ${r.status}: ${errTxt.substring(0, 150)}`)
         if (r.status === 400 && errTxt.includes('API_KEY_INVALID')) break
         continue
@@ -137,6 +143,7 @@ Retorne APENAS JSON com os campos atualizados:
       break
     } catch(e) {
       console.warn('[AXIS agenteReanalise] Erro com', modelo, ':', e.message)
+      progress(`⚠️ ${modelo}: erro de rede (${e.message.substring(0, 50)})`)
       ultimoErro = e
     }
   }
