@@ -154,7 +154,19 @@ Retorne APENAS JSON com os campos atualizados:
   const match = clean.match(/\{[\s\S]*\}/)
   if (!match) throw new Error('Gemini não retornou JSON válido')
 
-  const delta = JSON.parse(match[0])
+  const deltaRaw = JSON.parse(match[0])
+  // Garantir que scores estão no range 0-10 (proteção contra alucinação)
+  const SCORE_CAMPOS = ['score_localizacao','score_desconto','score_juridico','score_ocupacao','score_liquidez','score_mercado']
+  const delta = { ...deltaRaw }
+  for (const campo of SCORE_CAMPOS) {
+    if (delta[campo] != null) {
+      delta[campo] = Math.max(0, Math.min(10, parseFloat(delta[campo]) || 0))
+    }
+  }
+  // Validar recomendacao
+  if (!['COMPRAR','AGUARDAR','EVITAR'].includes(delta.recomendacao)) {
+    delete delta.recomendacao // deixar o recalculo automático pelo score
+  }
   progress('✅ Reanálise Gemini concluída')
 
   // Mesclar delta com dados existentes — preservar campos não retornados pelo Gemini

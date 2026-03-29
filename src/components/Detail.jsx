@@ -298,14 +298,24 @@ function GaleriaFotos({ fotos = [], foto_principal = null, url = null, imovelId 
       {msgFoto && <p style={{ fontSize:11, color:msgFoto.includes('✅') ? C.emerald : C.mustard, marginBottom:8, textAlign:'center' }}>{msgFoto}</p>}
       {fotoAtiva && (
         <div style={{
-          width: '100%', height: 240,
+          width: '100%',
           borderRadius: 12, overflow: 'hidden',
-          marginBottom: 8, background: C.offwhite,
+          marginBottom: 8, background: '#1A1A2E',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          minHeight: 200, maxHeight: 420,
+          position: 'relative',
         }}>
           <img
             src={fotoAtiva}
             alt="Foto principal"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            style={{
+              maxWidth: '100%',
+              maxHeight: 420,
+              width: 'auto',
+              height: 'auto',
+              objectFit: 'contain',
+              display: 'block',
+            }}
             onError={e => { e.target.style.display = 'none' }}
           />
         </div>
@@ -322,7 +332,7 @@ function GaleriaFotos({ fotos = [], foto_principal = null, url = null, imovelId 
               alt={`Foto ${i + 1}`}
               onClick={() => setFotoAtiva(foto)}
               style={{
-                width: 72, height: 52, flexShrink: 0,
+                width: 80, height: 58, flexShrink: 0,
                 borderRadius: 7, objectFit: 'cover',
                 cursor: 'pointer',
                 border: fotoAtiva === foto

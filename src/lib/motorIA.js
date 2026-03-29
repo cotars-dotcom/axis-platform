@@ -1003,9 +1003,27 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
   // ─── CASCATA DE CUSTO ZERO ─────────────────────────────────────────────────
   // Tier 1: Gemini Flash (~$0.002) — 99% mais barato que Claude Sonnet
   const forceClassic = false  // flag interna — mover aqui para evitar TDZ
-  const geminiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-gemini-key') : null
+  // Tentar sync de chaves do banco se localStorage vazio
+  let geminiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-gemini-key') : null
+  let deepseekKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-deepseek-key') : null
+  if (!geminiKey || !deepseekKey) {
+    try {
+      const { loadApiKeys, supabase: sb } = await import('./supabase.js')
+      const { data: { user } } = await sb.auth.getUser()
+      if (user) {
+        const keys = await loadApiKeys(user.id)
+        if (!geminiKey && keys.geminiKey) {
+          geminiKey = keys.geminiKey
+          if (typeof localStorage !== 'undefined') localStorage.setItem('axis-gemini-key', geminiKey)
+        }
+        if (!deepseekKey && keys.deepseekKey) {
+          deepseekKey = keys.deepseekKey
+          if (typeof localStorage !== 'undefined') localStorage.setItem('axis-deepseek-key', deepseekKey)
+        }
+      }
+    } catch(e) { console.warn('[AXIS motorIA] sync chaves:', e.message) }
+  }
   // ─── CASCATA IA: Gemini Flash → DeepSeek V3 → Claude Sonnet ─────────────────
-  const deepseekKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-deepseek-key') : null
 
   if (geminiKey && !forceClassic) {
     try {
