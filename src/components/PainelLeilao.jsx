@@ -33,7 +33,9 @@ export default function PainelLeilao({ imovel, isAdmin }) {
       const salva = await salvarAnalise(analiseCalc, session?.user?.id)
       setAnalise(salva)
       setMsg('✅ Análise gerada e salva!')
-    } catch(e) { setMsg(`⚠️ ${e.message}`) }
+    } catch(e) { 
+      console.error('[AXIS PainelLeilao]', e)
+      setMsg('⚠️ Erro ao salvar análise. Tente novamente.') }
     setGerando(false)
   }
 
