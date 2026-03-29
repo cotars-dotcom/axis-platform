@@ -162,7 +162,7 @@ async function chamarGeminiModelo(prompt, geminiKey, modelo) {
 
 // Cascata de modelos Gemini: 2.0-flash → 1.5-flash → 1.5-pro
 async function chamarGemini(prompt, geminiKey) {
-  const MODELOS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+  const MODELOS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro']
   let ultimoErro = null
   for (const modelo of MODELOS) {
     try {
@@ -283,7 +283,7 @@ export async function analisarComGemini(url, geminiKey, parametros, onProgress, 
     fonte_url: url,
     analise_dupla_ia: false,
     _erros_extracao: erros,
-    _modelo_usado: erros.length > 0 ? 'regex_fallback' : 'gemini-2.0-flash',
+    _modelo_usado: erros.length > 0 ? 'regex_fallback' : 'gemini-1.5-flash',
   }
 
   // PASSO 6: Calcular reforma com SINAPI
@@ -321,7 +321,7 @@ export async function logUsoGemini(imovelId, titulo, sucesso = true) {
   try {
     const { logUsoChamadaAPI } = await import('./supabase.js')
     await logUsoChamadaAPI({
-      tipo: 'analise_principal', modelo: 'gemini-2.0-flash',
+      tipo: 'analise_principal', modelo: 'gemini-1.5-flash',
       tokensInput: 4000, tokensOutput: 1500,
       imovelId, imovelTitulo: titulo, sucesso
     })

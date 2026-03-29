@@ -594,7 +594,7 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
       setError('URL inválida — deve começar com http:// ou https://')
       return
     }
-    const dominiosConhecidos = ['megaleiloes','zuk','caixa.gov','tjmg','trt','leilaoimovel','superbid','sold','99lotes']
+    const dominiosConhecidos = ['megaleiloes','zuk','caixa.gov','tjmg','trt','leilaoimovel','superbid','sold','99lotes','marcoantonioleiloeiro','lancemax','rerum','hgleiloes','leilaovip','remateweb','sandreleiloes','jlmleiloes','figueiredo','remateweb','dynamicleiloes']
     const urlLower = urlTrimmed.toLowerCase()
     const dominioReconhecido = dominiosConhecidos.some(d => urlLower.includes(d))
     if (!dominioReconhecido) {
