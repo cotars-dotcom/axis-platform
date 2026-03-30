@@ -326,7 +326,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
         if (!res.sucesso) continue
         const a = res.analise_estruturada || res.analise
         await salvarDocumentoJuridico({
-          imovel_id:imovel.id, nome:res.nome, tipo:res.tipo,
+          imovel_id:imovel.id, nome:res.nome||'Documento', tipo:res.tipo||'outro',
           url:res.url_origem, url_storage:res.url_storage, url_origem:res.url_origem,
           tamanho_bytes:res.tamanho_bytes||0,
           analise_ia:a?.parecer_final||a?.resumo_executivo||'',

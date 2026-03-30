@@ -204,7 +204,14 @@ export async function saveImovelCompleto(imovel, userId) {
         }
         // Fotos e comparáveis: só sobrescrever se novo tiver mais dados
         if ((!payload.fotos || payload.fotos.length === 0) && atual.fotos?.length > 0) payload.fotos = atual.fotos
-        if ((!payload.comparaveis || payload.comparaveis.length === 0) && atual.comparaveis?.length > 0) payload.comparaveis = atual.comparaveis
+        // Manter comparáveis existentes se: novo tem menos E atual tem mais de 2 comparáveis com links
+if (atual.comparaveis?.length > 2) {
+  const novosComLinks = (payload.comparaveis || []).filter(c => c.link && c.tipo !== 'terreno' && c.tipo !== 'lote')
+  const atuaisComLinks = atual.comparaveis.filter(c => c.link)
+  if (!payload.comparaveis?.length || novosComLinks.length < atuaisComLinks.length) {
+    payload.comparaveis = atual.comparaveis
+  }
+}
         // Justificativa: só sobrescrever se nova não for genérica
         const textoGenerico = ['verifique os scores manualmente', 'revise os dados antes', 'análise automática', 'imóvel de teste', 'análise simulada']
         if (payload.justificativa && textoGenerico.some(t => payload.justificativa.toLowerCase().includes(t)) && atual.justificativa && !textoGenerico.some(t => atual.justificativa.toLowerCase().includes(t))) {
@@ -634,33 +641,76 @@ export async function getDocumentosJuridicos(imovelId) {
   return data || []
 }
 
+// Colunas válidas de documentos_juridicos (whitelist para evitar rejeição silenciosa)
+const DOC_COLS = new Set([
+  'id','imovel_id','tipo','nome','url','url_storage','url_origem','status','processado',
+  'user_id','criado_por','criado_em','analisado_em','tamanho_bytes','conteudo_texto',
+  'analise','analise_ia','analise_estruturada','riscos_encontrados','score_juridico_sugerido',
+  'score_viabilidade','resumo_executivo','pontos_positivos','alertas_criticos',
+  'responsabilidade_debitos','ocupacao_confirmada','prazo_liberacao_meses',
+  'recomendacao_juridica','metricas_viabilidade','reclassificado','impacto_score',
+])
+
 export async function salvarDocumentoJuridico(doc) {
-  // CORRIGIDO: upsert direto com onConflict:(imovel_id,tipo)
-  // O código anterior usava maybeSingle() para deduplicação, mas quando havia
-  // registros com url=NULL, retornava PGRST116 "multiple rows" → saltava o INSERT
-  // Agora: upsert atômico — cria ou atualiza sem busca prévia que pode falhar
+  // CAUSA RAIZ FIX (v3): .single() após upsert falha quando INSERT retorna 0 rows 
+  // por campos extras não reconhecidos pelo cliente Supabase JS
+  // Solução: whitelist de colunas + .select() sem .single() + verificar array
   try {
-    const payload = { ...doc }
-    // Normalizar campos de URL
+    // 1. Filtrar payload só com colunas válidas
+    const payload = {}
+    Object.keys(doc).forEach(k => { if (DOC_COLS.has(k) && doc[k] !== undefined) payload[k] = doc[k] })
+    // 2. Normalizar campos obrigatórios
     payload.url = doc.url_origem || doc.url || null
     payload.url_origem = doc.url_origem || doc.url || null
     payload.analisado_em = doc.analisado_em || new Date().toISOString()
     payload.status = doc.status || 'analisado'
-    // Remover campos undefined que quebram o upsert
-    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k] })
 
-    const { data, error } = await supabase
+    // Garantir campos obrigatórios — tipo NOT NULL
+    payload.tipo = payload.tipo || doc.tipo || 'outro'
+    if (!payload.imovel_id) throw new Error('salvarDocumentoJuridico: imovel_id obrigatório')
+    if (!payload.tipo) throw new Error('salvarDocumentoJuridico: tipo obrigatório')
+
+    console.log('[AXIS] salvarDocumentoJuridico:', payload.imovel_id, payload.tipo, 'campos:', Object.keys(payload).length)
+
+    // 3. Verificar se já existe (para decidir entre INSERT e UPDATE)
+    const { data: exist, error: existErr } = await supabase
       .from('documentos_juridicos')
-      .upsert(payload, { onConflict: 'imovel_id,tipo' })
-      .select().single()
+      .select('id')
+      .eq('imovel_id', payload.imovel_id)
+      .eq('tipo', payload.tipo)
+      .maybeSingle()
+    if (existErr && existErr.code !== 'PGRST116') {
+      console.warn('[AXIS] Erro na busca de doc existente:', existErr.message)
+    }
+
+    let data, error
+    if (exist?.id) {
+      // UPDATE — já existe
+      ;({ data, error } = await supabase
+        .from('documentos_juridicos')
+        .update(payload)
+        .eq('id', exist.id)
+        .select()
+      )
+      console.log('[AXIS] UPDATE doc:', exist.id?.substring(0,8), '| error:', error?.message)
+    } else {
+      // INSERT — não existe
+      ;({ data, error } = await supabase
+        .from('documentos_juridicos')
+        .insert(payload)
+        .select()
+      )
+      console.log('[AXIS] INSERT doc:', data?.[0]?.id?.substring(0,8), '| error:', error?.message)
+    }
 
     if (error) {
       console.error('[AXIS salvarDocumentoJuridico] ERRO:', error.message, '| code:', error.code)
-      console.error('[AXIS] payload imovel_id:', payload.imovel_id, '| tipo:', payload.tipo)
+      console.error('[AXIS] payload completo:', JSON.stringify(payload).substring(0,200))
       throw error
     }
-    console.log('[AXIS] Doc salvo:', data?.tipo, '| id:', data?.id?.substring(0,8))
-    return data
+    const row = Array.isArray(data) ? data[0] : data
+    console.log('[AXIS] Doc salvo OK:', row?.tipo, '| id:', row?.id?.substring(0,8))
+    return row
   } catch(e) {
     console.error('[AXIS salvarDocumentoJuridico] CATCH:', e.message)
     throw e

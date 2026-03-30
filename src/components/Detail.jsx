@@ -656,15 +656,31 @@ function CardComparavel({item:c, K, isPhone}) {
   return <div style={{marginBottom:6,borderRadius:8,overflow:"hidden",border:`1px solid ${K.bd}`}}>
     <div onClick={()=>setAberto(!aberto)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",cursor:"pointer",background:K.s2}}>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:13,fontWeight:600,color:K.wh,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.descricao||'Comparável'}</div>
-        <div style={{fontSize:11,color:K.t3}}>
-          {c.preco_m2?`R$ ${c.preco_m2.toLocaleString('pt-BR')}/m²`:''}
-          {c.similaridade?` · ${c.similaridade.toFixed(1)} compatib.`:''}
+        {c.link
+          ? <a href={c.link} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()}
+              style={{fontSize:12.5,fontWeight:600,color:K.wh,textDecoration:'none',display:'flex',alignItems:'center',gap:4}}>
+              <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.descricao||'Comparável'}</span>
+              <span style={{fontSize:9,color:K.teal,flexShrink:0}}>↗</span>
+            </a>
+          : <div style={{fontSize:12.5,fontWeight:600,color:K.wh,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.descricao||'Comparável'}</div>
+        }
+        <div style={{fontSize:11,color:K.t3,marginTop:1}}>
+          {c.preco_m2?`R$ ${Number(c.preco_m2).toLocaleString('pt-BR')}/m²`:''}
+          {c.similaridade?` · ${Number(c.similaridade).toFixed(1)} compatib.`:''}
           {c.fonte?` · ${c.fonte}`:''}
         </div>
+        <div style={{fontSize:10,color:K.t3,marginTop:1,display:'flex',gap:6,flexWrap:'wrap'}}>
+          {c.quartos>0&&<span>🛏 {c.quartos}q</span>}
+          {c.vagas>0&&<span>🚗 {c.vagas}v</span>}
+          {c.area_m2>0&&<span>📐 {c.area_m2}m²</span>}
+          {c.condominio_mes>0&&<span>🏢 cond. R${Number(c.condominio_mes).toLocaleString('pt-BR')}/mês</span>}
+        </div>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0,marginLeft:8}}>
-        <span style={{fontWeight:700,fontSize:13,color:K.teal}}>{c.valor?`${(c.valor/1000).toFixed(0)}K`:''}</span>
+      <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,marginLeft:8}}>
+        <div style={{textAlign:'right'}}>
+          <div style={{fontWeight:700,fontSize:13,color:K.teal}}>{c.valor?`${(c.valor/1000).toFixed(0)}K`:''}</div>
+          {c.area_m2>0&&c.valor>0&&<div style={{fontSize:9,color:K.t3}}>R${Math.round(c.valor/c.area_m2).toLocaleString('pt-BR')}/m²</div>}
+        </div>
         <span style={{fontSize:14,color:K.t3}}>{aberto?'▲':'▼'}</span>
       </div>
     </div>
@@ -1000,7 +1016,14 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
         }
         // Fotos e comparáveis: só sobrescrever se o novo tiver mais dados
         if ((!novo.fotos || novo.fotos.length === 0) && original.fotos?.length > 0) merged.fotos = original.fotos
-        if ((!novo.comparaveis || novo.comparaveis.length === 0) && original.comparaveis?.length > 0) merged.comparaveis = original.comparaveis
+        // Manter comparáveis existentes se novo tem menos ou tipo errado (terreno em vez de apt)
+if (original.comparaveis?.length > 2) {
+  const novosOk = (novo.comparaveis || []).filter(c => c.link && c.tipo !== 'terreno' && c.tipo !== 'lote')
+  const atuaisOk = original.comparaveis.filter(c => c.link)
+  if (!novo.comparaveis?.length || novosOk.length < atuaisOk.length) {
+    merged.comparaveis = original.comparaveis
+  }
+}
         return merged
       }
       // NUNCA salvar dados de modo_teste no banco

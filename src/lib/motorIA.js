@@ -211,7 +211,7 @@ Retornar no JSON: escopo_reforma, custo_reforma_estimado, alerta_sobrecap
 
 // ── FASE 1: ChatGPT pesquisa mercado e contexto do imóvel ────────
 
-export async function pesquisarMercadoGPT(url, cidade, tipo, openaiKey) {
+export async function pesquisarMercadoGPT(url, cidade, tipo, openaiKey, quartos = null, area_m2 = null) {
   if (!openaiKey) return null
 
   // Cache de mercado 72h — evitar chamar ChatGPT para mesma URL
@@ -242,11 +242,14 @@ REGRAS DE PESQUISA:
    - Não confundir município: Contagem ≠ BH, Nova Lima ≠ BH
    - Identificar tipologia: apartamento, cobertura, duplex, casa, studio
 
-2. PESQUISAR COMPARÁVEIS:
-   Busque no ZAP, VivaReal e OLX:
+2. PESQUISAR COMPARÁVEIS — TIPOLOGIA OBRIGATÓRIA: ${tipologia || tipo}:
+   ANTES DE BUSCAR: identifique a tipologia exata: "${tipologia || tipo}" com ${quartos || '?'} quartos, ${area_m2 || '?'}m²
+   Busque no ZAP, VivaReal e OLX SOMENTE imóveis do MESMO TIPO:
    - Imóveis da mesma RUA (mais preciso)
-   - Imóveis do mesmo BAIRRO com tipologia similar
+   - Imóveis do mesmo BAIRRO com tipologia IGUAL (ex: apartamento 3q ~97m² Dona Clara BH)
    - Imóveis do mesmo BAIRRO com área similar (±30m²)
+   ⚠️ NUNCA comparar apartamento com terreno, casa, sala comercial ou tipo diferente
+   ⚠️ Se o imóvel é apartamento, buscar "apartamento [bairro] [cidade]" — NÃO "terreno"
    Para COBERTURA ou DUPLEX:
    - Buscar especificamente "cobertura [bairro] [cidade]"
    - Não comparar com apartamento padrão
@@ -258,8 +261,8 @@ REGRAS DE PESQUISA:
    - link: URL COMPLETA do anúncio (obrigatório — não deixar null se encontrou)
    - fonte: "ZAP"|"VivaReal"|"OLX"|"QuintoAndar"
    - similaridade: 0-10 (mesmo tipo +3, área ±20% +3, quartos iguais +2, vagas +1, bairro +1)
-   Retornar apenas comparáveis com similaridade >= 6.0, ordenados do mais similar.
-   Se não encontrar nenhum comparável com link real, retornar array vazio — não inventar.
+   Retornar apenas comparáveis com similaridade >= 4.0 (critério flexível), ordenados do mais similar. Prefira quantidade — é melhor ter 3+ comparáveis com sim=5 do que 1 com sim=9.
+   Buscar PELO MENOS 3 comparáveis reais. Se não encontrar com link, incluir sem link (link:null). Se não encontrar no bairro exato, expandir para bairros vizinhos — ainda do mesmo tipo. Só retornar array vazio se realmente não encontrar NADA.
 
 3. COLETAR PREÇO/m² CORRETO:
    - Usar ZAP Imóveis → seção "Quanto vale o m² em [bairro]?"
@@ -1093,7 +1096,15 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
   // ─── FIM CASCATA ────────────────────────────────────────────────────────────
   // Tier 2: Claude Sonnet (fallback — só se Gemini não disponível ou falhou)
   const cidade = 'Brasil'
-  const tipo = 'Imóvel'
+  // Inferir tipo do título para orientar a busca de comparáveis no GPT
+  const tituloLower = (imovelTitulo||url||'').toLowerCase()
+  const tipo = tituloLower.includes('apart') || tituloLower.includes('apto') ? 'Apartamento'
+    : tituloLower.includes('cobert') ? 'Cobertura'
+    : tituloLower.includes('casa') ? 'Casa'
+    : tituloLower.includes('studio') || tituloLower.includes('loft') ? 'Studio'
+    : tituloLower.includes('sala') || tituloLower.includes('comercial') ? 'Sala Comercial'
+    : tituloLower.includes('terreno') || tituloLower.includes('lote') ? 'Terreno'
+    : 'Imóvel'
 
   progress('🔍 ChatGPT pesquisando dados de mercado na internet...')
   const dadosGPT = await pesquisarMercadoGPT(url, cidade, tipo, openaiKey)
