@@ -163,7 +163,7 @@ export default function PainelRentabilidade({ imovel }) {
     aluguel_com_reforma, custo_reforma_basica, custo_reforma_media,
     custo_reforma_completa, fator_homogenizacao, valor_mercado_homogenizado,
     elevador, piscina, area_lazer, salao_festas, vagas,
-    area_m2, area_privativa_m2, preco_m2_mercado,
+    area_m2, area_privativa_m2, preco_m2_mercado, preco_pedido,
   } = imovel
 
   const eMercado = isMercadoDireto(imovel.fonte_url, imovel.tipo_transacao)
