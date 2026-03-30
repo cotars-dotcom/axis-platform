@@ -240,7 +240,7 @@ Retorne APENAS JSON válido com esta estrutura EXATA:
 }
 
 // ─── PIPELINE COMPLETO: URL → Storage → Análise → Banco ───────────────────
-export async function processarDocumentoCompleto({ url, nome, tipo, imovel, geminiKey, claudeKey, onProgress }) {
+export async function processarDocumentoCompleto({ url, nome, tipo, imovel, geminiKey, claudeKey, openaiKey, onProgress }) {
   onProgress?.(`🔍 Iniciando processamento de ${nome}...`)
   
   // 1. Baixar PDF
@@ -371,6 +371,51 @@ Retorne APENAS JSON:
         onProgress?.(`⚠️ Gemini Vision falhou (${r.status}) — ${err.substring(0,60)}`)
       }
     } catch(e) { onProgress?.(`⚠️ Gemini Vision erro: ${e.message.substring(0,60)}`) }
+  }
+
+  // Fallback: GPT-4o Vision (para PDFs escaneados quando Gemini falha)
+  if (!analise && openaiKey && download.blob) {
+    try {
+      onProgress?.(`🔍 GPT-4o Vision processando ${nome}...`)
+      // Pré-carregar arrayBuffer antes do FileReader (não pode usar await dentro do callback)
+      const arrayBufGpt = await download.blob.arrayBuffer()
+      const base64Gpt = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result.split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(new Blob([arrayBufGpt], { type: download.contentType || 'application/pdf' }))
+      })
+      const promptGpt = `Você é especialista em direito imobiliário e leilões judiciais no Brasil (MG).
+Analise este documento (${nome}) do imóvel: ${imovel.titulo || ''} | Processo: ${imovel.processos_ativos || '?'}
+Retorne APENAS JSON:
+{"tipo_documento":"edital|matricula|processo|certidao|outro","titulo_documento":"","resumo_executivo":"3-5 linhas sobre riscos e informações principais","informacoes_principais":{"processo_numero":"","vara":"","exequente":"","executado":"","matricula_numero":"","cartorio":"","proprietario_atual":"","debitos_declarados":"","gravames":""},"metricas_viabilidade":{"score_geral":7.0,"score_titulo":7.0,"score_debitos":6.0,"score_processos":7.0,"score_ocupacao":5.0,"justificativa":""},"riscos_identificados":[{"categoria":"","descricao":"","gravidade":"alto","acao_recomendada":""}],"pontos_positivos":[],"alertas_criticos":[],"responsabilidade_debitos":"sub_rogado","ocupacao_confirmada":"incerto","recomendacao_juridica":"neutro","parecer_final":"4-6 linhas","score_juridico_sugerido":7.0}`
+      const r = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          max_tokens: 3000,
+          messages: [{ role: 'user', content: [
+            { type: 'text', text: promptGpt },
+            { type: 'image_url', image_url: { url: `data:${download.contentType || 'application/pdf'};base64,${base64Gpt}`, detail: 'high' } }
+          ]}]
+        }),
+        signal: AbortSignal.timeout(120000)
+      })
+      if (r.ok) {
+        const data = await r.json()
+        const txt = data.choices?.[0]?.message?.content || ''
+        const match = txt.replace(/```json|```/g,'').trim().match(/\{[\s\S]*\}/)
+        if (match) {
+          analise = JSON.parse(match[0])
+          analise._modelo = 'gpt-4o-vision'
+          onProgress?.(`✅ ${nome} — GPT-4o Vision OK, score: ${analise.metricas_viabilidade?.score_geral || '?'}/10`)
+        }
+      } else {
+        const err = await r.json().catch(()=>({}))
+        onProgress?.(`⚠️ GPT-4o Vision falhou (${r.status}) — ${err.error?.message?.substring(0,60) || ''}`)
+      }
+    } catch(e) { onProgress?.(`⚠️ GPT-4o Vision erro: ${e.message?.substring(0,60)}`) }
   }
 
   if (analise) {

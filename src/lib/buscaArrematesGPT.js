@@ -123,7 +123,7 @@ async function salvarCacheBusca(imovel, resultado) {
     // 2. Salvar cada arremate individual na tabela arremates_historico
     const arremates = resultado.arremates || []
     for (const a of arremates) {
-      await supabase.from('arremates_historico').insert({
+      await supabase.from('arremates_historico').upsert({
         imovel_axis_id: imovel.codigo_axis,
         endereco: a.descricao || null,
         bairro: a.bairro || imovel.bairro,
@@ -137,7 +137,7 @@ async function salvarCacheBusca(imovel, resultado) {
         fonte: resultado._modelo || 'busca_gpt',
         origem_busca: 'busca_gpt',
         notas: a.data ? `Data: ${a.data}` : null,
-      }).select().maybeSingle()  // ignorar duplicatas silenciosamente
+      }, { onConflict: 'imovel_axis_id,endereco,valor_avaliacao,lance_final', ignoreDuplicates: true })
     }
     console.log('[AXIS] Cache arremates salvo:', imovel.codigo_axis, arremates.length, 'arremates')
   } catch(e) {

@@ -292,17 +292,19 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
 
   const syncChaves = async () => {
     let gKey = geminiKey(), cKey = claudeKey()
-    if (!gKey || !cKey) {
+    let oKey = localStorage.getItem('axis-openai-key') || ''
+    if (!gKey || !cKey || !oKey) {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
             const keys = await loadApiKeys(user.id)
           if (keys.geminiKey) { gKey = keys.geminiKey; localStorage.setItem('axis-gemini-key', gKey) }
           if (keys.claudeKey) { cKey = keys.claudeKey; localStorage.setItem('axis-api-key', cKey) }
+          if (keys.openaiKey) { oKey = keys.openaiKey; localStorage.setItem('axis-openai-key', oKey) }
         }
       } catch(e) {}
     }
-    return { gKey, cKey }
+    return { gKey, cKey, oKey }
   }
 
   const buscarAuto = async () => {
@@ -324,7 +326,8 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
       const { data: { session } } = await sb.auth.getSession()
       const resultsFull = []
       for (const link of linksNovos.slice(0,4)) {
-        const res = await processarDocumentoCompleto({ url:link.url, nome:link.nome||link.tipo, tipo:link.tipo||'outro', imovel, geminiKey:gKey, claudeKey:cKey, onProgress:setProgresso })
+        const { oKey: _oKey } = await syncChaves()
+        const res = await processarDocumentoCompleto({ url:link.url, nome:link.nome||link.tipo, tipo:link.tipo||'outro', imovel, geminiKey:gKey, claudeKey:cKey, openaiKey:_oKey, onProgress:setProgresso })
         resultsFull.push(res)
       }
       // PASSO 3: Salvar com todos os campos estruturados
@@ -478,6 +481,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
     setProgresso(`🤖 Analisando ${doc.nome || doc.tipo}...`)
     try {
       const { gKey, cKey } = await syncChaves()
+      const { oKey: openaiKeyDoc } = await syncChaves()
       const res = await processarDocumentoCompleto({
         url: doc.url_origem || doc.url,
         nome: doc.nome || doc.tipo,
@@ -485,6 +489,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
         imovel,
         geminiKey: gKey,
         claudeKey: cKey,
+        openaiKey: openaiKeyDoc,
         onProgress: setProgresso
       })
       if (res?.analise_ia || res?.analise_estruturada) {
