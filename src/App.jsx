@@ -1366,7 +1366,7 @@ useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("param
   },[session])
 
   const showToast=(msg,c)=>{setToast({msg,c:c||K.teal});setTimeout(()=>setToast(null),4500)}
-  const nav=(v,p={})=>{setView(v);setVp(p)}
+  const nav=(v,p={})=>{React.startTransition(()=>{setView(v);setVp(p)})}
 
   useEffect(()=>{(async()=>{
     // Migração: leilax-* → axis-* (preservar dados do rebrand)
