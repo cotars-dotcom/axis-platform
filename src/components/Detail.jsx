@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, recColor, mapDisplay, normalizarTextoAlerta, ESTRATEGIA_CONFIG, LIQUIDEZ_MAP } from "../appConstants.js"
 import { supabase } from "../lib/supabase.js"
-import { analisarImovelCompleto } from "../lib/motorIA.js"
-import { criarCardImovel } from "../lib/trelloService.js"
+// motorIA: import dinâmico em handleReanalyze
+// trelloService: import dinâmico em handleTrello
 import CalculadoraROI from "./CalculadoraROI.jsx"
 import { CLASSES_MERCADO_REFORMA, calcularCustoReforma, detectarClasseMercado } from "../data/custos_reforma.js"
 import PainelLeilao from './PainelLeilao.jsx'
-import AbaJuridicaAgente from './AbaJuridicaAgente.jsx'
+const AbaJuridicaAgente = lazy(() => import('./AbaJuridicaAgente.jsx'))
 import { buscarArrematesSimilares, carregarCacheArremates } from '../lib/buscaArrematesGPT.js'
 import PainelLancamento from './PainelLancamento.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
@@ -1004,11 +1004,13 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
           console.warn("[AXIS] Gemini reanálise falhou, usando Claude:", geminiErr.message)
           setReStep("Gemini falhou, usando Claude Sonnet...")
           if (!claudeKey) throw new Error("Gemini e Claude indisponíveis. Configure as chaves em API Keys.")
-          novaAnalise = await analisarImovelCompleto(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [], p.id, p.titulo)
+          const { analisarImovelCompleto: _motorIAFn } = await import("../lib/motorIA.js")
+          novaAnalise = await _motorIAFn(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [], p.id, p.titulo)
         }
       } else {
         // Sem Gemini — usar Claude
-        novaAnalise = await analisarImovelCompleto(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [], p.id, p.titulo)
+        const { analisarImovelCompleto: _motorIAFn } = await import("../lib/motorIA.js")
+          novaAnalise = await _motorIAFn(p.fonte_url, claudeKey, openaiKey, [], [], setReStep, [], p.id, p.titulo)
       }
       // Proteger campos críticos: nunca sobrescrever com null/0 se já tinhamos valor
       const protegerCampos = (original, novo) => {
@@ -1115,7 +1117,8 @@ for (const s of SCORES) {
     if(!trello?.listId){setMsg("Trello não configurado");return}
     setSending(true);setMsg("")
     try {
-      if(trello.boardId) { const res=await criarCardImovel(p,trello.listId,trello.boardId,trello.key,trello.token); setMsg(res?.atualizado?"✓ Card atualizado no Trello!":"✓ Card enviado ao Trello com etiquetas!") }
+      if(trello.boardId) { const { criarCardImovel: _criarCardFn } = await import("../lib/trelloService.js")
+      const res=await _criarCardFn(p,trello.listId,trello.boardId,trello.key,trello.token); setMsg(res?.atualizado?"✓ Card atualizado no Trello!":"✓ Card enviado ao Trello com etiquetas!") }
       else { const cd=buildTrelloCard(p); await tPost("/cards",trello.key,trello.token,{idList:trello.listId,name:cd.name,desc:cd.desc}); setMsg("✓ Card enviado ao Trello!") }
     } catch(e){setMsg(`Erro: ${e.message}`)}
     setSending(false)
@@ -1175,9 +1178,9 @@ for (const s of SCORES) {
         <span style={{fontSize:"13px",color:K.amb,fontWeight:600}}>{reStep}</span>
       </div>}
 
-      {abaDetalhe==='juridico'&&<AbaJuridicaAgente imovel={p} isAdmin={isAdmin} onReclassificado={(novaAnalise)=>{
+      {abaDetalhe==='juridico'&&<Suspense fallback={<div style={{padding:24,textAlign:'center',color:'#999',fontSize:13}}>Carregando aba jurídica...</div>}><AbaJuridicaAgente imovel={p} isAdmin={isAdmin} onReclassificado={(novaAnalise)=>{
           if(onUpdateProp) onUpdateProp(p.id, novaAnalise)
-        }}/>}
+        }}/></Suspense>}
 
       {abaDetalhe==='fotos'&&<GaleriaFotos 
           fotos={p.fotos||[]} 
