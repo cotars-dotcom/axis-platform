@@ -635,31 +635,34 @@ export async function getDocumentosJuridicos(imovelId) {
 }
 
 export async function salvarDocumentoJuridico(doc) {
-  // Evitar duplicata: verificar se já existe doc com mesma URL ou nome
+  // CORRIGIDO: upsert direto com onConflict:(imovel_id,tipo)
+  // O código anterior usava maybeSingle() para deduplicação, mas quando havia
+  // registros com url=NULL, retornava PGRST116 "multiple rows" → saltava o INSERT
+  // Agora: upsert atômico — cria ou atualiza sem busca prévia que pode falhar
   try {
-    if (doc.imovel_id && (doc.url || doc.url_origem || doc.nome)) {
-      const urlChave = doc.url_origem || doc.url
-      let q = supabase.from('documentos_juridicos').select('id').eq('imovel_id', doc.imovel_id)
-      if (urlChave) q = q.eq('url', urlChave)
-      else q = q.eq('nome', doc.nome)
-      const { data: ex, error: qErr } = await q.maybeSingle()
-      if (!qErr && ex) {
-        // Atualizar existente
-        const { data, error } = await supabase.from('documentos_juridicos')
-          .update({ ...doc, analisado_em: new Date().toISOString() })
-          .eq('id', ex.id).select().single()
-        if (error) { console.error('[AXIS doc update]', error.message); throw error }
-        return data
-      }
+    const payload = { ...doc }
+    // Normalizar campos de URL
+    payload.url = doc.url_origem || doc.url || null
+    payload.url_origem = doc.url_origem || doc.url || null
+    payload.analisado_em = doc.analisado_em || new Date().toISOString()
+    payload.status = doc.status || 'analisado'
+    // Remover campos undefined que quebram o upsert
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k] })
+
+    const { data, error } = await supabase
+      .from('documentos_juridicos')
+      .upsert(payload, { onConflict: 'imovel_id,tipo' })
+      .select().single()
+
+    if (error) {
+      console.error('[AXIS salvarDocumentoJuridico] ERRO:', error.message, '| code:', error.code)
+      console.error('[AXIS] payload imovel_id:', payload.imovel_id, '| tipo:', payload.tipo)
+      throw error
     }
-    // Inserir novo
-    const payload = { ...doc, url: doc.url_origem || doc.url || null }
-    const { data, error } = await supabase.from('documentos_juridicos')
-      .insert(payload).select().single()
-    if (error) { console.error('[AXIS doc insert]', error.message, JSON.stringify(payload).substring(0,200)); throw error }
+    console.log('[AXIS] Doc salvo:', data?.tipo, '| id:', data?.id?.substring(0,8))
     return data
   } catch(e) {
-    console.error('[AXIS salvarDocumentoJuridico] ERRO:', e.message)
+    console.error('[AXIS salvarDocumentoJuridico] CATCH:', e.message)
     throw e
   }
 }

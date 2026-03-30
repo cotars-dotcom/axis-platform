@@ -225,6 +225,8 @@ export default function PainelLancamento({ imovel }) {
             ? `ROI atual de ${pct(c1.roi)} no 1º leilão vs ${pct(c2e.roi)} no 2º leilão esperado — diferença de ${pct(c2e.roi - c1.roi)}`
             : estrategia === 'lance_1_cauteloso'
             ? `ROI de ${pct(c1.roi)} — margem ok mas aguardar pode melhorar retorno`
+            : isSegundoLeilao && c2p.roi >= 50
+            ? `ROI de ${pct(c2p.roi)} no piso legal — lance mínimo recomendado (melhor custo-benefício)`
             : `ROI de ${pct(c1.roi)} com lance atual — lançar até R$ ${Math.round(lanceMaxViavel).toLocaleString('pt-BR')}`}
         </div>
       </div>
@@ -267,8 +269,8 @@ export default function PainelLancamento({ imovel }) {
             <div style={{ fontSize: 9, marginTop: 3, fontWeight: 600,
               color: lancePrin <= val ? C.emerald : '#E5484D' }}>
               {lancePrin <= val
-                ? `Lance atual R$${Math.round(lanceMaxViavel - lancePrin).toLocaleString('pt-BR')} abaixo`
-                : `Lance atual R$${Math.round(lancePrin - val).toLocaleString('pt-BR')} acima`}
+                ? `Mín. ${fmt(lancePrin)} — margem ${fmt(Math.round(val - lancePrin))}`
+                : `Lance R$${Math.round(lancePrin - val).toLocaleString('pt-BR')} acima do limite`}
             </div>
           </div>
         ))}
@@ -281,7 +283,7 @@ export default function PainelLancamento({ imovel }) {
       </div>
 
       <CardCenario
-        label={isSegundoLeilao ? `Lance mínimo — ${num_leilao}º Leilão (35%)` : `Lance atual — ${num_leilao || 1}º Leilão`}
+        label={isSegundoLeilao ? `Lance mínimo — ${num_leilao}º Leilão (35% av.)` : `Lance mínimo — ${num_leilao || 1}º Leilão`}
         sublabel={avaliacao > 0 ? `${((lancePrin/avaliacao)*100).toFixed(0)}% da avaliação` : ''}
         lance={lancePrin} cenario={c1} avaliacao={avaliacao}
         isDestaque={c1.viavel && c1.roi >= 20}
