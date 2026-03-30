@@ -821,8 +821,18 @@ function AbaArremates({ imovel }) {
           {dados.arremates?.map((a, i) => (
             <div key={i} style={{...card(), padding:12, marginBottom:8}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4}}>
-                <span style={{fontSize:12, fontWeight:600, color:C.navy}}>{a.descricao}</span>
-                <span style={{fontSize:11, fontWeight:700, color:C.emerald}}>{fmt(a.valor_arrematado)}</span>
+                <div style={{flex:1, minWidth:0}}>
+                  {a.url ? (
+                    <a href={a.url} target="_blank" rel="noreferrer"
+                      style={{fontSize:12, fontWeight:600, color:C.navy, textDecoration:'none', display:'flex', alignItems:'center', gap:4}}>
+                      <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{a.descricao}</span>
+                      <span style={{fontSize:9, color:C.teal, flexShrink:0}}>↗</span>
+                    </a>
+                  ) : (
+                    <span style={{fontSize:12, fontWeight:600, color:C.navy}}>{a.descricao}</span>
+                  )}
+                </div>
+                <span style={{fontSize:11, fontWeight:700, color:C.emerald, flexShrink:0, marginLeft:8}}>{fmt(a.valor_arrematado)}</span>
               </div>
               <div style={{fontSize:10, color:C.muted}}>
                 {a.pct_avaliacao?.toFixed(1)}% da avaliação ({fmt(a.valor_avaliacao)}) · {a.data} · {a.fonte}
@@ -1035,7 +1045,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
       if (msg.includes('Créditos esgotados') || msg.includes('402')) {
         setMsg('⚠️ Créditos Claude esgotados — recarregue em console.anthropic.com')
       } else if (msg.includes('Chave inválida') || msg.includes('401')) {
-        setMsg('⚠️ Chave Claude inválida — use Gemini: configure chave em Config → API Keys')
+        setMsg('⚠️ Créditos Claude esgotados. Clique em "Reanalisar (Gemini)" para usar Gemini grátis.')
       } else if (msg.includes('Timeout') || msg.includes('AbortError')) {
         setMsg('⚠️ Timeout — o imóvel pode ser complexo. Tente novamente.')
       } else if (msg.includes('URL') || msg.includes('fetch')) {

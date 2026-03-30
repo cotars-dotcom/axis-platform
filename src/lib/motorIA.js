@@ -698,6 +698,22 @@ export function validarECorrigirAnalise(analise) {
     analise.mao_locacao = Math.round(analise.aluguel_mensal_estimado * 120 * 0.90)
   }
 
+  // Corrigir desconto_percentual: deve ser (avaliacao - lance) / avaliacao
+  // O Gemini às vezes calcula desconto_sobre_mercado (preco/m²) confundindo com desconto_percentual
+  if (analise.valor_minimo > 0 && analise.valor_avaliacao > 0) {
+    const correto = parseFloat(((analise.valor_avaliacao - analise.valor_minimo) / analise.valor_avaliacao * 100).toFixed(1))
+    // Se o valor calculado difere muito do campo, corrigir
+    if (!analise.desconto_percentual || Math.abs((analise.desconto_percentual || 0) - correto) > 10) {
+      analise.desconto_percentual = correto
+    }
+  }
+  // Calcular desconto_sobre_mercado_pct (vs valor de mercado estimado)
+  if (analise.valor_minimo > 0 && analise.valor_mercado_estimado > 0) {
+    analise.desconto_sobre_mercado_pct = parseFloat(
+      ((analise.valor_mercado_estimado - analise.valor_minimo) / analise.valor_mercado_estimado * 100).toFixed(1)
+    )
+  }
+
   // 0. Normalizar scores que vieram em escala 0-100 para 0-10
   const camposScore = ['score_localizacao','score_desconto','score_juridico',
                        'score_ocupacao','score_liquidez','score_mercado']

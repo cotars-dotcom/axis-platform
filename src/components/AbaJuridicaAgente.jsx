@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react'
 import { C, K, btn, card } from '../appConstants.js'
-import { supabase } from '../lib/supabase.js'
+import { supabase, getDocumentosJuridicos, salvarDocumentoJuridico,
+         reclassificarImovel, loadApiKeys } from '../lib/supabase.js'
+import { buscarDocumentosAuto, analisarTextoJuridicoGemini,
+         analisarPDFBase64Gemini, calcularNovoScoreJuridico } from '../lib/agenteJuridico.js'
+import { processarDocumentoCompleto } from '../lib/documentosPDF.js'
+import { analisarImagemJuridicaGPT } from '../lib/analisadorJuridico.js'
 
 const GRAVIDADE_COR = { critico:'#A32D2D', alto:C.mustard, medio:'#185FA5', baixo:C.emerald }
 const GRAVIDADE_BG  = { critico:'#FCEBEB', alto:'#FAEEDA', medio:'#E6F1FB', baixo:C.emeraldL }
@@ -268,16 +273,13 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
 
   useEffect(() => {
     if (!imovel?.id) return
-    import('../lib/supabase.js').then(({ getDocumentosJuridicos }) =>
-      getDocumentosJuridicos(imovel.id).then(setDocs).catch(() => {})
-    )
+    getDocumentosJuridicos(imovel.id).then(setDocs).catch(() => {})
   }, [imovel?.id])
 
   const geminiKey = () => localStorage.getItem('axis-gemini-key') || ''
   const claudeKey = () => localStorage.getItem('axis-api-key') || ''
 
   const carregarDocs = async () => {
-    const { getDocumentosJuridicos } = await import('../lib/supabase.js')
     const data = await getDocumentosJuridicos(imovel.id).catch(() => [])
     setDocs(data || [])
   }
@@ -288,8 +290,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
-          const { loadApiKeys } = await import('../lib/supabase.js')
-          const keys = await loadApiKeys(user.id)
+            const keys = await loadApiKeys(user.id)
           if (keys.geminiKey) { gKey = keys.geminiKey; localStorage.setItem('axis-gemini-key', gKey) }
           if (keys.claudeKey) { cKey = keys.claudeKey; localStorage.setItem('axis-api-key', cKey) }
         }
@@ -306,7 +307,6 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
     try {
       // PASSO 1: Extrair links dos PDFs da página do leilão
       const urlsExist = docs.map(d => d.url || d.url_origem).filter(Boolean)
-      const { buscarDocumentosAuto } = await import('../lib/agenteJuridico.js')
       const { links } = await buscarDocumentosAuto(imovel, gKey, setProgresso)
       if (links?.length > 0) setLinksEncontrados(links)
       if (!links?.length) { setProgresso('Nenhum documento encontrado na página. Tente upload manual.'); setBuscandoAuto(false); return }
@@ -314,11 +314,8 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
       if (!linksNovos.length) { setProgresso(`✅ Todos os ${links.length} documento(s) já estão no banco`); setBuscandoAuto(false); setSubAba('documentos'); return }
       if (linksNovos.length < links.length) setProgresso(`ℹ️ ${links.length-linksNovos.length} já existe(m) — baixando ${linksNovos.length} novo(s)...`)
       // PASSO 2: Pipeline completo — download + Gemini Vision para PDFs escaneados
-      const { processarDocumentoCompleto } = await import('../lib/documentosPDF.js')
-      const { supabase: sb } = await import('../lib/supabase.js')
+      const sb = supabase
       const { data: { session } } = await sb.auth.getSession()
-      const { salvarDocumentoJuridico, reclassificarImovel } = await import('../lib/supabase.js')
-      const { calcularNovoScoreJuridico } = await import('../lib/agenteJuridico.js')
       const resultsFull = []
       for (const link of linksNovos.slice(0,4)) {
         const res = await processarDocumentoCompleto({ url:link.url, nome:link.nome||link.tipo, tipo:link.tipo||'outro', imovel, geminiKey:gKey, claudeKey:cKey, onProgress:setProgresso })
@@ -377,21 +374,18 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
         let analise = null
         if (tipo === 'txt') {
           const texto = await file.text()
-          const { analisarTextoJuridicoGemini } = await import('../lib/agenteJuridico.js')
           analise = await analisarTextoJuridicoGemini(texto, file.name, imovel, gKey || cKey)
         } else if (tipo === 'pdf' && (gKey || cKey)) {
           let texto = null
           try { texto = await file.text(); if (texto.includes('%PDF')) texto = null } catch {}
           if (texto) {
-            const { analisarTextoJuridicoGemini } = await import('../lib/agenteJuridico.js')
-            analise = await analisarTextoJuridicoGemini(texto, file.name, imovel, gKey || cKey)
+              analise = await analisarTextoJuridicoGemini(texto, file.name, imovel, gKey || cKey)
           } else {
             setProgresso(`Enviando ${file.name} para análise IA...`)
             const base64 = await new Promise((res, rej) => {
               const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file)
             })
             if (gKey) {
-              const { analisarPDFBase64Gemini } = await import('../lib/agenteJuridico.js')
               analise = await analisarPDFBase64Gemini(base64, file.name, imovel, gKey)
             } else {
               try {
@@ -399,8 +393,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
                 const textoExtraido = bytes.replace(/[\x00-\x08\x0E-\x1F\x7F-\x9F]/g,' ')
                   .match(/\(([^)]{4,200})\)/g)?.map(m=>m.slice(1,-1)).filter(s=>s.length>5&&/[a-zA-ZÀ-ÿ]/.test(s)).join(' ').substring(0,6000)||''
                 if (textoExtraido.length > 100) {
-                  const { analisarTextoJuridicoGemini } = await import('../lib/agenteJuridico.js')
-                  analise = await analisarTextoJuridicoGemini(textoExtraido, file.name, imovel, cKey)
+                          analise = await analisarTextoJuridicoGemini(textoExtraido, file.name, imovel, cKey)
                 }
               } catch(e2) {}
             }
@@ -411,8 +404,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
             const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file)
           })
           try {
-            const { analisarImagemJuridicaGPT } = await import('../lib/analisadorJuridico.js')
-            analise = await analisarImagemJuridicaGPT(base64, file.type, file.name, imovel, oKey)
+              analise = await analisarImagemJuridicaGPT(base64, file.type, file.name, imovel, oKey)
           } catch(e) {}
         }
         if (analise) await processarResultados([{ nome: file.name, tipo, analise }])
@@ -425,8 +417,6 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
   }
 
   const processarResultados = async (resultados) => {
-    const { salvarDocumentoJuridico, reclassificarImovel } = await import('../lib/supabase.js')
-    const { calcularNovoScoreJuridico } = await import('../lib/agenteJuridico.js')
     const { data: { session } } = await supabase.auth.getSession()
     for (const res of resultados) {
       if (!res.analise) continue

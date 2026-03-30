@@ -298,37 +298,59 @@ export default function PainelLancamento({ imovel }) {
       {/* Cenários 2º leilão */}
       {avaliacao > 0 && (
         <>
+          {/* Header da seção */}
           <div style={{ fontSize: 10.5, fontWeight: 700, color: C.navy,
-            textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginTop: 14 }}>
-            {isSegundoLeilao ? '2º Leilão — Cenários de lance' : 'Projeção 2º Leilão'}
-            <span style={{ fontSize: 9, fontWeight: 400, color: C.hint, marginLeft: 6 }}>
+            textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginTop: 14,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>{isSegundoLeilao ? '2º Leilão — Cenários de lance' : '📐 Projeção Hipotética: 2º Leilão'}</span>
+            <span style={{ fontSize: 9, fontWeight: 400, color: C.hint }}>
               {isSegundoLeilao
                 ? `Mín. legal: R$ ${Math.round(avaliacao*0.35).toLocaleString('pt-BR')}`
-                : '(se 1º leilão não fechar)'}
+                : `Mín. art.891 CPC: R$ ${Math.round(avaliacao*0.50).toLocaleString('pt-BR')}`}
             </span>
           </div>
 
+          {/* Box informativo quando no 1º leilão */}
+          {!isSegundoLeilao && (
+            <div style={{ padding:'10px 12px', borderRadius:8, marginBottom:10,
+              background:'#F0F4FF', border:'1px solid #C7D4F8', fontSize:10.5, color:'#2D4A9A' }}>
+              <strong>Cenário hipotético:</strong> se o 1º leilão não fechar, o imóvel volta como
+              2º leilão com lance mínimo de 50% da avaliação (art. 891 CPC). Histórico TRT-3 BH:
+              ~65% dos imóveis arremata no 1º leilão. Probabilidade de 2º leilão: ~35%.
+            </div>
+          )}
+
           <CardCenario
-            label={isSegundoLeilao ? "Piso legal (35%)" : "Piso legal (50%)"}
-            sublabel={isSegundoLeilao ? "Mínimo art. 891 CPC — sem concorrência" : "Lance mínimo 2º leilão"}
+            label={isSegundoLeilao ? "Piso legal (35%)" : "Piso legal 2º leilão (50%)"}
+            sublabel={isSegundoLeilao ? "Mínimo art. 891 CPC — sem concorrência" : `R$ ${Math.round(avaliacao*0.50).toLocaleString('pt-BR')} — mínimo legal`}
             lance={lance2p} cenario={c2p} avaliacao={avaliacao}
             isDestaque={isSegundoLeilao && c2p.roi >= 50} />
           <CardCenario
-            label={isSegundoLeilao ? "Esperado (50%)" : "Esperado (57%)"}
-            sublabel={isSegundoLeilao ? "Faixa histórica de arremate TRT" : "Média histórica TRT-MG"}
+            label={isSegundoLeilao ? "Esperado (50%)" : "Esperado 2º leilão (57%)"}
+            sublabel={isSegundoLeilao ? "Faixa histórica de arremate TRT" : "Média histórica TRT-MG para 2º leilão"}
             lance={lance2e} cenario={c2e} avaliacao={avaliacao}
             isDestaque={!isSegundoLeilao && c2e.roi >= 30 && !c1.viavel} />
           <CardCenario
-            label={isSegundoLeilao ? "Competitivo (60%)" : "Competitivo (65%)"}
-            sublabel={isSegundoLeilao ? "Cenário com concorrência" : "Cenário com concorrência"}
+            label={isSegundoLeilao ? "Competitivo (60%)" : "Competitivo 2º leilão (65%)"}
+            sublabel={isSegundoLeilao ? "Cenário com concorrência" : "Cenário com maior disputa"}
             lance={lance2c} cenario={c2c} avaliacao={avaliacao} />
 
           {/* Comparativo 1º vs 2º */}
-          {c1.viavel && c2e.roi > c1.roi && (
+          {!isSegundoLeilao && (
+            <div style={{ padding:'10px 12px', borderRadius:7, marginTop:6,
+              background: c1.viavel ? `${C.emerald}08` : `${C.mustard}10`,
+              border:`1px solid ${c1.viavel ? C.emerald : C.mustard}30`, fontSize:10.5 }}>
+              {c1.viavel
+                ? <span style={{color:C.emerald}}>✅ <strong>Recomendação:</strong> Lance no 1º leilão (ROI {pct(c1.roi)}) — não vale esperar o 2º ({pct(c2e.roi - c1.roi)} de diferença vs risco de concorrência).</span>
+                : <span style={{color:C.mustard}}>⏳ <strong>Recomendação:</strong> Aguardar 2º leilão. ROI do 1º ({pct(c1.roi)}) é inferior ao esperado no 2º ({pct(c2e.roi)}), diferença de +{pct(c2e.roi - c1.roi)}.</span>
+              }
+            </div>
+          )}
+          {isSegundoLeilao && c1.viavel && c2e.roi > c1.roi && (
             <div style={{ padding: '8px 12px', borderRadius: 7, background: `${C.mustard}10`,
               border: `1px solid ${C.mustard}30`, marginTop: 4, fontSize: 10.5, color: C.muted }}>
-              💡 Aguardar 2º leilão pode melhorar o ROI em <strong style={{ color: C.mustard }}>
-                +{pct(c2e.roi - c1.roi)}</strong> no cenário esperado, mas há risco de concorrência.
+              💡 Aguardar maior valorização pode melhorar ROI em <strong style={{ color: C.mustard }}>
+                +{pct(c2e.roi - c1.roi)}</strong>, mas há risco de concorrência no leilão.
             </div>
           )}
         </>
