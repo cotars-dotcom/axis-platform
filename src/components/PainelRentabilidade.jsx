@@ -46,12 +46,15 @@ function calcFlip(lance, vmercado, reforma, juridico = 0) {
   const c = custoArrematacao(lance)
   const custoTotal = lance + c.total + reforma + juridico
   const corretagem = vmercado * 0.06
-  const irpf       = Math.max(0, (vmercado - custoTotal) * 0.15) // 15% ganho capital
-  const recebido   = vmercado - corretagem - irpf
-  const lucro      = recebido - custoTotal
-  const roi        = custoTotal > 0 ? (lucro / custoTotal * 100) : 0
-  const mao        = (vmercado * (1 - 0.06 - 0.15) - reforma - juridico - c.total) / 1.0
-  return { custoTotal, corretagem, irpf, recebido, lucro, roi, mao, viavel: roi >= 20 }
+  const precoVendaLiq = vmercado - corretagem  // valor líquido de venda
+  // IRPF: 15% sobre ganho de capital = precoVendaLiq - custoAquisição
+  const ganhoCapital = Math.max(0, precoVendaLiq - custoTotal)
+  const irpf = vmercado <= 440000 ? 0 : ganhoCapital * 0.15
+  const lucro = precoVendaLiq - custoTotal - irpf
+  const roi   = custoTotal > 0 ? (lucro / custoTotal * 100) : 0
+  // MAO: preço máximo para ROI ≥ 20% | vm*0.80 = MAO * (1+tx) + fixos + reforma
+  const mao = (vmercado * 0.80 - 1500 - reforma - juridico) / (1 + 0.095)
+  return { custoTotal, corretagem, irpf, lucro, roi, mao, viavel: roi >= 20 }
 }
 
 // Calcular cenário LOCAÇÃO

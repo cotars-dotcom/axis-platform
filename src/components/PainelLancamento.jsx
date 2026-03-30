@@ -25,10 +25,12 @@ const TX = {
 function calcularCenario(lance, vmercado, reforma, juridico = 0) {
   const taxas = lance * (TX.comissao + TX.itbi + TX.doc + TX.adv) + TX.reg
   const custoTotal = lance + taxas + (reforma || 0) + (juridico || 0)
-  const ganho = Math.max(0, vmercado - custoTotal)
-  const irpf = vmercado <= TX.isencao_irpf ? 0 : ganho * TX.irpf_pct
+  // IRPF: 15% sobre ganho de capital = (preço_venda_líquido - custo_aquisição)
   const corretagem = vmercado * TX.corretagem_venda
-  const lucro = vmercado - custoTotal - irpf - corretagem
+  const precoVendaLiq = vmercado - corretagem  // valor recebido após corretagem
+  const ganho = Math.max(0, precoVendaLiq - custoTotal)  // ganho de capital real
+  const irpf = vmercado <= TX.isencao_irpf ? 0 : ganho * TX.irpf_pct
+  const lucro = precoVendaLiq - custoTotal - irpf
   const roi = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0
   // MAO = preço máximo que posso pagar para o lance ainda ser viável
   const custosExtrasSemLance = taxas + (reforma || 0) + (juridico || 0)
@@ -130,14 +132,21 @@ export default function PainelLancamento({ imovel }) {
     valor_minimo, valor_avaliacao, valor_mercado_estimado,
     preco_m2_mercado, preco_m2_imovel,
     area_privativa_m2, area_m2,
-    custo_reforma_calculado, custo_juridico_estimado,
+    custo_reforma_calculado,
+    custo_juridico_estimado,
     num_leilao, aluguel_mensal_estimado,
   } = imovel
 
   const area = parseFloat(area_privativa_m2 || area_m2) || 0
   const avaliacao = parseFloat(valor_avaliacao) || 0
   const lancePrin = parseFloat(valor_minimo) || 0
-  const reforma = parseFloat(custo_reforma_calculado) || 0
+  // Seletor de reforma — padrão: médio
+  const [cenarioReforma, setCenarioReformaLocal] = useState('media')
+  const custo_reforma_basica = parseFloat(imovel.custo_reforma_basica) || parseFloat(area) * 600
+  const custo_reforma_media = parseFloat(imovel.custo_reforma_media) || parseFloat(area) * 1500  
+  const custo_reforma_completa = parseFloat(imovel.custo_reforma_completa) || parseFloat(area) * 2420
+  const reformaMap = { basica: custo_reforma_basica, media: custo_reforma_media, completa: custo_reforma_completa }
+  const reforma = reformaMap[cenarioReforma]
   const juridico = parseFloat(custo_juridico_estimado) || 0
   const aluguel = parseFloat(aluguel_mensal_estimado) || 0
 
@@ -198,13 +207,35 @@ export default function PainelLancamento({ imovel }) {
   return (
     <div style={{ ...card(), marginBottom: 14 }}>
       {/* Header */}
-      <div style={{ marginBottom: 14 }}>
+      <div style={{ marginBottom: 10 }}>
         <div style={{ fontWeight: 700, color: C.navy, fontSize: 13, marginBottom: 4 }}>
           🎯 Estratégia de Lance
         </div>
         <div style={{ fontSize: 10.5, color: C.muted }}>
-          Valor de mercado referência: <strong style={{ color: C.navy }}>{fmt(vmercado)}</strong>
+          Mercado ref.: <strong style={{ color: C.navy }}>{fmt(vmercado)}</strong>
           {preco_m2_mercado > 0 && ` · R$ ${parseFloat(preco_m2_mercado).toLocaleString('pt-BR')}/m²`}
+        </div>
+      </div>
+
+      {/* Seletor de reforma */}
+      <div style={{ marginBottom:12 }}>
+        <div style={{ fontSize:9.5, color:C.muted, marginBottom:5, textTransform:'uppercase', letterSpacing:.3 }}>
+          Cenário de reforma
+        </div>
+        <div style={{ display:'flex', gap:5 }}>
+          {[
+            ['basica',   `🪣 Básica ${(custo_reforma_basica/1000).toFixed(0)}k`],
+            ['media',    `🔧 Média ${(custo_reforma_media/1000).toFixed(0)}k`],
+            ['completa', `✨ Completa ${(custo_reforma_completa/1000).toFixed(0)}k`],
+          ].map(([id,lbl]) => (
+            <button key={id} onClick={() => setCenarioReformaLocal(id)} style={{
+              fontSize:10, padding:'4px 8px', borderRadius:5,
+              border:`1px solid ${C.borderW}`,
+              background: cenarioReforma===id ? C.navy : '#fff',
+              color: cenarioReforma===id ? '#fff' : C.navy,
+              cursor:'pointer', flex:1
+            }}>{lbl}</button>
+          ))}
         </div>
       </div>
 
