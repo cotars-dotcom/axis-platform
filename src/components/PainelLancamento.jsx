@@ -195,11 +195,16 @@ export default function PainelLancamento({ imovel }) {
 
   // Recomendação estratégica
   const estrategia = useMemo(() => {
+    if (isSegundoLeilao) {
+      if (c1.roi >= 50 && c1.viavel) return 'lance_1'
+      if (c1.roi >= 25 && c1.viavel) return 'lance_1_cauteloso'
+      return 'aguardar_2'
+    }
     if (!c1.viavel && c1.roi < 15) return 'aguardar_2'
     if (c1.roi >= 25 && c1.viavel) return 'lance_1'
     if (c2e.roi > c1.roi * 1.25) return 'aguardar_2'
     return 'lance_1_cauteloso'
-  }, [c1, c2e])
+  }, [c1, c2e, isSegundoLeilao])
 
   const rendaYield = vmercado > 0 && aluguel > 0
     ? ((aluguel * 12 / vmercado) * 100).toFixed(1) : null
@@ -247,9 +252,11 @@ export default function PainelLancamento({ imovel }) {
       }}>
         <div style={{ fontSize: 11, fontWeight: 700,
           color: estrategia === 'aguardar_2' ? C.mustard : C.emerald, marginBottom: 3 }}>
-          {estrategia === 'aguardar_2' ? '⏳ Estratégia recomendada: AGUARDAR 2º LEILÃO'
-            : estrategia === 'lance_1_cauteloso' ? '⚠️ 1º leilão: lance com cautela'
-            : '✅ 1º leilão: lance viável'}
+          {estrategia === 'aguardar_2'
+            ? `⏳ Aguardar ${isSegundoLeilao ? '2º' : '2º'} leilão`
+            : estrategia === 'lance_1_cauteloso'
+            ? `⚠️ ${isSegundoLeilao ? '2º' : '1º'} leilão: lance com cautela`
+            : `✅ ${isSegundoLeilao ? '2º' : '1º'} leilão: lance viável`}
         </div>
         <div style={{ fontSize: 10.5, color: C.muted }}>
           {estrategia === 'aguardar_2'
