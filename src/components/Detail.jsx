@@ -7,7 +7,7 @@ import CalculadoraROI from "./CalculadoraROI.jsx"
 import { CLASSES_MERCADO_REFORMA, calcularCustoReforma, detectarClasseMercado } from "../data/custos_reforma.js"
 import PainelLeilao from './PainelLeilao.jsx'
 import AbaJuridicaAgente from './AbaJuridicaAgente.jsx'
-import { buscarArrematesSimilares } from '../lib/buscaArrematesGPT.js'
+import { buscarArrematesSimilares, carregarCacheArremates } from '../lib/buscaArrematesGPT.js'
 import PainelLancamento from './PainelLancamento.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
@@ -782,6 +782,20 @@ function AbaArremates({ imovel }) {
   const [dados, setDados] = useState(null)
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
+  const [doCache, setDoCache] = useState(false)
+
+  // Carregar cache ao montar — sem custo de API
+  useEffect(() => {
+    if (!imovel?.id) return
+    carregarCacheArremates(imovel.id).then(cache => {
+      if (cache) {
+        setDados(cache)
+        setDoCache(true)
+        const diasAtras = Math.floor((Date.now() - new Date(cache._cache_em)) / (1000*60*60*24))
+        setMsg(`📦 Cache carregado (${diasAtras === 0 ? 'hoje' : diasAtras + 'd atrás'} · ${cache._modelo || 'IA'})`)
+      }
+    }).catch(() => {})
+  }, [imovel?.id])
 
   const buscar = async () => {
     const openaiKey = localStorage.getItem('axis-openai-key') || ''
@@ -790,7 +804,7 @@ function AbaArremates({ imovel }) {
     setLoading(true); setMsg('Pesquisando arremates similares...')
     try {
       const res = await buscarArrematesSimilares(imovel, openaiKey, geminiKey)
-      if (res) { setDados(res); setMsg(`✅ ${res.n_amostras || res.arremates?.length || 0} arremates encontrados via ${res._modelo}`) }
+      if (res) { setDados(res); setDoCache(false); setMsg(`✅ ${res.n_amostras || res.arremates?.length || 0} arremates encontrados via ${res._modelo} · salvo no banco`) }
       else setMsg('Nenhum arrematado similar encontrado.')
     } catch(e) { setMsg('Erro: ' + e.message) }
     setLoading(false)
@@ -808,7 +822,7 @@ function AbaArremates({ imovel }) {
         <button onClick={buscar} disabled={loading} style={{
           ...btn('s'), background:C.navy, color:'#fff', border:'none', opacity:loading?0.6:1
         }}>
-          {loading ? '🔍 Pesquisando...' : '🔨 Buscar arremates similares'}
+          {loading ? '🔍 Pesquisando...' : doCache ? '🔄 Atualizar (nova busca)' : '🔨 Buscar arremates similares'}
         </button>
         {msg && <div style={{fontSize:11, marginTop:8, color: msg.includes('✅') ? C.emerald : C.muted}}>{msg}</div>}
       </div>

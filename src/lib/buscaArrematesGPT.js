@@ -68,6 +68,7 @@ export async function buscarArrematesSimilares(imovel, openaiKey, geminiKey = nu
       const resultado = JSON.parse(match[0])
       resultado._modelo = 'gpt-4o-mini'
       resultado._custo_estimado_brl = 0.05
+      await salvarCacheBusca(imovel, resultado)
       return resultado
     } catch(e) {
       console.warn('[AXIS arremates] GPT-4o-mini:', e.message)
@@ -97,6 +98,7 @@ export async function buscarArrematesSimilares(imovel, openaiKey, geminiKey = nu
       const resultado = JSON.parse(match[0])
       resultado._modelo = 'gemini-1.5-flash'
       resultado._custo_estimado_brl = 0.03
+      await salvarCacheBusca(imovel, resultado)
       return resultado
     } catch(e) {
       console.warn('[AXIS arremates] Gemini:', e.message)
@@ -104,6 +106,70 @@ export async function buscarArrematesSimilares(imovel, openaiKey, geminiKey = nu
   }
 
   return null
+}
+
+// ─── Persistência: salvar resultado da busca no banco ─────────────────────────
+async function salvarCacheBusca(imovel, resultado) {
+  try {
+    const { supabase } = await import('./supabase.js')
+    
+    // 1. Salvar cache na tabela imoveis (para exibição imediata sem rebuscar)
+    await supabase.from('imoveis').update({
+      arremates_busca_cache: resultado,
+      arremates_busca_em: new Date().toISOString(),
+      arremates_busca_modelo: resultado._modelo || 'gpt',
+    }).eq('id', imovel.id)
+
+    // 2. Salvar cada arremate individual na tabela arremates_historico
+    const arremates = resultado.arremates || []
+    for (const a of arremates) {
+      await supabase.from('arremates_historico').insert({
+        imovel_axis_id: imovel.codigo_axis,
+        endereco: a.descricao || null,
+        bairro: a.bairro || imovel.bairro,
+        cidade: imovel.cidade || 'Belo Horizonte',
+        tipo: imovel.tipo || 'apartamento',
+        valor_avaliacao: a.valor_avaliacao || null,
+        lance_final: a.valor_arrematado || null,
+        pct_avaliacao: a.pct_avaliacao || null,
+        leiloeiro: a.fonte || null,
+        resultado_real: 'arrematado',
+        fonte: resultado._modelo || 'busca_gpt',
+        origem_busca: 'busca_gpt',
+        notas: a.data ? `Data: ${a.data}` : null,
+      }).select().maybeSingle()  // ignorar duplicatas silenciosamente
+    }
+    console.log('[AXIS] Cache arremates salvo:', imovel.codigo_axis, arremates.length, 'arremates')
+  } catch(e) {
+    console.warn('[AXIS] salvarCacheBusca:', e.message)
+  }
+}
+
+// Carregar cache de arremates do banco (evitar rebusca)
+export async function carregarCacheArremates(imovelId) {
+  try {
+    const { supabase } = await import('./supabase.js')
+    const { data } = await supabase
+      .from('imoveis')
+      .select('arremates_busca_cache, arremates_busca_em, arremates_busca_modelo')
+      .eq('id', imovelId)
+      .single()
+    
+    if (!data?.arremates_busca_cache || !data?.arremates_busca_em) return null
+    
+    // Cache válido por 7 dias
+    const diasDesde = (Date.now() - new Date(data.arremates_busca_em)) / (1000 * 60 * 60 * 24)
+    if (diasDesde > 7) return null
+    
+    const cache = data.arremates_busca_cache
+    cache._do_cache = true
+    cache._cache_em = data.arremates_busca_em
+    cache._modelo = data.arremates_busca_modelo
+    return cache
+  } catch(e) {
+    console.warn('[AXIS] carregarCacheArremates:', e.message)
+    return null
+  }
 }
 
 // Salvar arrremate no banco para calibração futura
