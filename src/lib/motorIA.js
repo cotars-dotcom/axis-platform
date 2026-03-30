@@ -512,6 +512,8 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
   "total_andares": null,
   "ano_construcao": null,
   "condominio_mensal": null,
+  "fator_homogenizacao": 1.0,
+  "yield_bruto_pct": null,
   "padrao_acabamento": "simples|medio|alto|luxo",
   "vaga_tipo": "privativa_vinculada|privativa_autonoma|comum_rotativa|null",
   "modalidade": "string",
