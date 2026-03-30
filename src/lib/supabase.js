@@ -204,8 +204,6 @@ export async function saveImovelCompleto(imovel, userId) {
           const CAMPOS_IDENTIDADE = ['bairro','tipo','tipologia','cidade','estado']
           for (const campo of CAMPOS_IDENTIDADE) {
             if (atual[campo] && payload[campo] && atual[campo] !== payload[campo]) {
-              // Só aceitar mudança se valor atual parece nome de pessoa/exequente (não bairro)
-              // Heurística: valores com "cpf", "cnpj", espaços e mais de 20 chars são provavelmente erros
               const valNovo = String(payload[campo])
               const suspeito = valNovo.length > 25 || /\d{3}\.\d{3}/.test(valNovo)
               if (suspeito) {
@@ -213,6 +211,23 @@ export async function saveImovelCompleto(imovel, userId) {
                 console.warn('[AXIS] Campo identidade protegido:', campo, '— mantendo:', atual[campo])
               }
             }
+          }
+          // Proteção de scores: não degradar scores bem calibrados com variação > 2.5 pts
+          const SCORES_PROTEGIDOS = ['score_localizacao','score_desconto','score_juridico','score_ocupacao','score_liquidez','score_mercado','score_total']
+          for (const s of SCORES_PROTEGIDOS) {
+            if (atual[s] != null && payload[s] != null) {
+              const diff = Math.abs(parseFloat(payload[s]) - parseFloat(atual[s]))
+              if (diff > 2.5) {
+                console.warn('[AXIS] Score protegido:', s, `${atual[s]} → ${payload[s]} (diff ${diff.toFixed(1)}) — mantendo atual`)
+                payload[s] = atual[s]
+              }
+            }
+          }
+          // Proteção de score_total: recalcular com pesos se scores individuais foram mantidos
+          const pesosScore = {score_localizacao:0.20,score_desconto:0.18,score_juridico:0.18,score_ocupacao:0.15,score_liquidez:0.15,score_mercado:0.14}
+          if (SCORES_PROTEGIDOS.some(s => payload[s] === atual[s])) {
+            const novoTotal = SCORES_PROTEGIDOS.slice(0,-1).reduce((acc,s) => acc + (parseFloat(payload[s]||0) * (pesosScore[s]||0)), 0)
+            if (novoTotal > 0) payload.score_total = parseFloat(novoTotal.toFixed(2))
           }
           // Para atributos booleanos do imóvel, preservar se já definidos (não null)
           const ATTRS_PREDIO = ['piscina','salao_festas','area_lazer','churrasqueira',

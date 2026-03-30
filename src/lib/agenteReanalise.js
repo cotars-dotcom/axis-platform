@@ -110,6 +110,8 @@ SCORES ATUAIS:
 
 CALIBRAÇÃO DOS SCORES (escala 0-10 — OBRIGATÓRIO seguir):
 - Localização: bairro nobre BH (Savassi/Lourdes)→9.5, bom (Dona Clara/Pampulha)→7.5-8.5, médio→5-6, periferia→3-4
+  ESTE IMÓVEL está em: ${imovelAtual.bairro} → aplique calibração correspondente
+  Se bairro for Dona Clara: score_localizacao deve ser 8.0-9.0
 - Desconto: 60%+→9.5, 50%→8.5, 40%→7.5, 30%→6.0, 20%→4.5, <10%→2.0
   ATENÇÃO: desconto de ${imovelAtual.desconto_percentual}% deve resultar em score aproximado de ${Math.round((imovelAtual.desconto_percentual >= 60 ? 9.5 : imovelAtual.desconto_percentual >= 50 ? 8.5 : imovelAtual.desconto_percentual >= 40 ? 7.5 : imovelAtual.desconto_percentual >= 30 ? 6.0 : imovelAtual.desconto_percentual >= 20 ? 4.5 : 2.0) * 10) / 10}
 - Jurídico: sem processos→8.5, 1 processo trabalhista→6.5, risco grave→3.0
@@ -122,6 +124,9 @@ Se mao_flip ou mao_locacao estiverem nulos, calcule:
 - mao_flip = (valor_mercado_estimado × 0.80) - (custo_reforma_estimado + valor_minimo × 0.10)
 - mao_locacao = aluguel_mensal_estimado × 120 × 0.90
 Lance acima do mao_flip → [CRITICO] nos alertas.
+
+COMPARÁVEIS: NÃO retorne comparáveis neste JSON de reanálise — eles são gerenciados separadamente.
+Se o prompt pedir comparáveis, ignore — essa reanálise só valida scores e síntese.
 
 Retorne APENAS JSON com os campos atualizados:
 {
@@ -255,7 +260,17 @@ Retorne APENAS JSON com os campos atualizados:
     valor_avaliacao: imovelAtual.valor_avaliacao,
     fotos: imovelAtual.fotos || [],
     foto_principal: imovelAtual.foto_principal,
-    comparaveis: delta.comparaveis || imovelAtual.comparaveis || [],
+    // Comparáveis: só usar do delta se tiver links reais e não for tipo terreno
+    comparaveis: (() => {
+      const deltaComp = delta.comparaveis || []
+      const atualComp = imovelAtual.comparaveis || []
+      const deltaOk = deltaComp.filter(c => c.link && !['terreno','lote'].includes((c.tipo||'').toLowerCase()))
+      const atualOk = atualComp.filter(c => c.link)
+      // Manter os do banco se tiver mais comparáveis com links válidos
+      if (atualOk.length > 0 && deltaOk.length < atualOk.length) return atualComp
+      if (deltaOk.length > 0) return deltaComp
+      return atualComp
+    })(),
     criado_em: imovelAtual.criado_em,
     criado_por: imovelAtual.criado_por,
     mao_flip: delta.mao_flip || imovelAtual.mao_flip || null,

@@ -1034,10 +1034,19 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
         if ((!novo.fotos || novo.fotos.length === 0) && original.fotos?.length > 0) merged.fotos = original.fotos
         // Manter comparáveis existentes se novo tem menos ou tipo errado (terreno em vez de apt)
 if (original.comparaveis?.length > 2) {
-  const novosOk = (novo.comparaveis || []).filter(c => c.link && c.tipo !== 'terreno' && c.tipo !== 'lote')
+  const novosOk = (novo.comparaveis || []).filter(c => c.link && c.tipo !== 'terreno' && c.tipo !== 'lote' && c.tipo?.toLowerCase() !== 'terreno')
   const atuaisOk = original.comparaveis.filter(c => c.link)
   if (!novo.comparaveis?.length || novosOk.length < atuaisOk.length) {
     merged.comparaveis = original.comparaveis
+  }
+}
+// Proteção de scores no merge: não deixar degradar > 2.5 pontos
+const SCORES = ['score_localizacao','score_desconto','score_juridico','score_ocupacao','score_liquidez','score_mercado']
+for (const s of SCORES) {
+  if (original[s] != null && novo[s] != null) {
+    if (Math.abs(parseFloat(novo[s]) - parseFloat(original[s])) > 2.5) {
+      merged[s] = original[s]
+    }
   }
 }
         return merged
