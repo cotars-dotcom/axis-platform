@@ -53,11 +53,17 @@ ${jurimetria.map(v => `- ${v.vara_nome}: ${v.tempo_total_ciclo_dias} dias ciclo 
 Use o tipo de processo para identificar a vara e calibrar prazo_liberacao_estimado_meses.
 Taxa sucesso < 85% → score_juridico máximo 6.0.` : ''}
 ${metricasBairro ? `
-MÉTRICAS DO BAIRRO ${metricasBairro.bairro} (FipeZAP/QuintoAndar 2026):
+MÉTRICAS DO BAIRRO ${metricasBairro.bairro} (FipeZAP/SECOVI-MG/QuintoAndar 2025-2026):
 - Preço anúncio: R$ ${(metricasBairro.preco_anuncio_m2||0).toLocaleString('pt-BR')}/m²
-- Preço contrato real: R$ ${(metricasBairro.preco_contrato_m2||0).toLocaleString('pt-BR')}/m²
+- Preço contrato real: R$ ${(metricasBairro.preco_contrato_m2||0).toLocaleString('pt-BR')}/m² — USE ESTE como preco_m2_mercado base
 - Yield bruto: ${metricasBairro.yield_bruto||'—'}% a.a. | Classe IPEAD: ${metricasBairro.classe_ipead||'—'}
-USE preço contrato como preco_m2_mercado — é o que o mercado realmente fecha.` : ''}
+- Aluguel/m² c/ elevador: R$ ${(metricasBairro.aluguel_m2_com_elevador||0).toFixed(2)}/m²
+- Aluguel/m² SEM elevador: R$ ${(metricasBairro.aluguel_m2_sem_elevador||0).toFixed(2)}/m² (fator ${metricasBairro.fator_elevador||0.85})
+- Aluguel típico 3 quartos: R$ ${(metricasBairro.aluguel_3q_tipico||0).toLocaleString('pt-BR')}/mês
+- Vacância estimada: ${metricasBairro.vacancia_pct||6}% | Tempo p/ alugar: ${metricasBairro.tempo_locacao_dias||15} dias
+HOMOGENEIZAÇÃO (NBR 14653): aplique multiplicadores ao preco_m2_mercado base:
+  sem elevador × ${metricasBairro.fator_elevador||0.85} | sem piscina × 0.97 | sem lazer × 0.95 | sem vaga × 0.90
+  Preencha fator_homogenizacao = produto dos fatores aplicáveis.` : ''}
 COMPARÁVEIS — REGRAS CRÍTICAS:
 Retorne 3 a 5 imóveis do MESMO TIPO que o imóvel analisado (campo "tipo" acima).
 Se tipo=Apartamento: só comparar com apartamentos similares (mesmo nº quartos, área ±40m², mesmo bairro ou vizinhos).
@@ -66,14 +72,19 @@ NUNCA incluir terrenos, lotes ou tipos diferentes como comparável.
 Para cada comparável, use preço de venda/anúncio ativo no ZAP/VivaReal/OLX ou estimativas do mercado.
 Calcule similaridade: mesmo tipo +3, área ±20% +3, mesmos quartos +2, mesmo bairro +1, vagas +1.
 
-CALCULE obrigatoriamente:
-- aluguel_mensal_estimado = preco_m2_mercado × area_m2 × (yield_bruto_anual_pct / 100) / 12
-  Se não tiver yield, use: Popular=7.5%, Médio=6.0%, Alto=5.0%, Luxo=4.0%
-  Exemplo: 7065/m² × 97m² × 6% / 12 = R$ 3.432/mês
-- mao_flip = (valor_mercado_estimado × 0.80) − (custo_reforma_estimado + valor_minimo × 0.10)
+CALCULE obrigatoriamente (com homogeneização por atributos):
+- preco_m2_mercado: use preco_contrato do bairro × fator_homogenizacao
+  fator_homogenizacao = 1.0 × (sem elevador: 0.87) × (sem piscina: 0.97) × (sem lazer: 0.95)
+  Preencha o campo fator_homogenizacao com o valor calculado
+- aluguel_mensal_estimado: se bairro tem dados → usar aluguel_m2 × area_m2 (conforme elevador)
+  Se sem dados → preco_m2_mercado × area_m2 × yield_bruto / 100 / 12
+  yields: Popular=7.5%, Médio=6.5%, Alto=5.3%, Luxo=4.5%
+  Não use o aluguel_3q_tipico diretamente — ajuste pela área privativa real
+- mao_flip = valor_mercado_estimado × 0.88 − (custo_reforma_estimado + valor_minimo × 0.075)
+  (88% = 1 - 6% corretagem - 6% ITBI+taxas)
 - mao_locacao = aluguel_mensal_estimado × 120 × 0.90
-- Lance acima do mao_flip → [CRITICO] nos alertas.
-NUNCA retorne aluguel_mensal_estimado = 0 se tiver preco_m2_mercado e area_m2.
+- yield_bruto_pct = (aluguel_mensal_estimado × 12 / valor_mercado_estimado) × 100
+- NUNCA retorne aluguel_mensal_estimado = 0 se tiver preco_m2_mercado e area_m2.
 
 Complete e corrija os dados. Retorne JSON com EXATAMENTE estes campos:
 {

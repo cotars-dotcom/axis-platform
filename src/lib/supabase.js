@@ -74,7 +74,7 @@ export async function updateProfile(id, updates) {
 }
 
 // == IMOVEIS ==
-const IMOVEIS_LIST_COLS = `id,codigo_axis,titulo,cidade,estado,bairro,tipo,tipologia,score_total,recomendacao,status,valor_minimo,valor_avaliacao,desconto_percentual,area_m2,area_privativa_m2,ocupacao,processos_ativos,foto_principal,fotos,fonte_url,criado_em,criado_por,num_leilao,data_leilao,modalidade_leilao,score_localizacao,score_desconto,score_juridico,score_ocupacao,score_liquidez,score_mercado,jurimetria_vara,prazo_liberacao_estimado_meses,aluguel_mensal_estimado,valor_mercado_estimado,custo_reforma_calculado,mao_flip,mao_locacao,vara_judicial,tipo_justica,sintese_executiva,estrategia_recomendada,financiavel,analise_dupla_ia,preco_m2_imovel,preco_m2_mercado,num_documentos,score_viabilidade_docs,recomendacao_juridica_docs,resumo_documentos,mercado_tendencia,mercado_demanda,mercado_tempo_venda_meses,mercado_obs,yield_bruto_pct,classe_ipead,debitos_condominio,debitos_iptu,estrutura_recomendada,responsabilidade_debitos,obs_juridicas,positivos,negativos,alertas,custo_reforma_previsto,comparaveis,desconto_sobre_mercado_pct`
+const IMOVEIS_LIST_COLS = `id,codigo_axis,titulo,cidade,estado,bairro,tipo,tipologia,score_total,recomendacao,status,valor_minimo,valor_avaliacao,desconto_percentual,area_m2,area_privativa_m2,ocupacao,processos_ativos,foto_principal,fotos,fonte_url,criado_em,criado_por,num_leilao,data_leilao,modalidade_leilao,score_localizacao,score_desconto,score_juridico,score_ocupacao,score_liquidez,score_mercado,jurimetria_vara,prazo_liberacao_estimado_meses,aluguel_mensal_estimado,valor_mercado_estimado,custo_reforma_calculado,mao_flip,mao_locacao,vara_judicial,tipo_justica,sintese_executiva,estrategia_recomendada,financiavel,analise_dupla_ia,preco_m2_imovel,preco_m2_mercado,num_documentos,score_viabilidade_docs,recomendacao_juridica_docs,resumo_documentos,mercado_tendencia,mercado_demanda,mercado_tempo_venda_meses,mercado_obs,yield_bruto_pct,classe_ipead,debitos_condominio,debitos_iptu,estrutura_recomendada,responsabilidade_debitos,obs_juridicas,positivos,negativos,alertas,custo_reforma_previsto,comparaveis,desconto_sobre_mercado_pct,fator_homogenizacao,valor_mercado_homogenizado,aluguel_sem_reforma,aluguel_com_reforma,custo_reforma_basica,custo_reforma_media,custo_reforma_completa,elevador,piscina,area_lazer,salao_festas,salao_festas,suites,banheiros,andar,condominio_mensal,aluguel_m2_estimado,yield_bruto_pct`
 
 export async function getImoveis() {
   const { data, error } = await supabase
@@ -193,8 +193,16 @@ export async function saveImovelCompleto(imovel, userId) {
           // Scores podem ser zero válido; campos monetários e percentuais com zero = dado errado
           const camposNuncaZero = ['valor_minimo','valor_avaliacao','desconto_percentual',
             'preco_m2_mercado','preco_m2_imovel','aluguel_mensal_estimado','valor_mercado_estimado',
-            'num_leilao','desconto_sobre_mercado_pct']
-          const novoVazio = payload[campo] === null || payload[campo] === undefined || payload[campo] === ''
+            'num_leilao','desconto_sobre_mercado_pct',
+            // Atributos físicos — preservar se já preenchidos (IA pode não extrair em reanálise)
+            'custo_reforma_basica','custo_reforma_media','custo_reforma_completa',
+            'aluguel_sem_reforma','aluguel_com_reforma','fator_homogenizacao',
+            'valor_mercado_homogenizado']
+          // Para atributos booleanos do imóvel, preservar se já definidos (não null)
+          const ATTRS_PREDIO = ['piscina','salao_festas','area_lazer','churrasqueira',
+                                 'academia','portaria_24h','playground']
+          const ehAtributoPreservavel = ATTRS_PREDIO.includes(campo) && atual[campo] !== null
+          const novoVazio = (payload[campo] === null || payload[campo] === undefined || payload[campo] === '') && !ehAtributoPreservavel
             || (camposNuncaZero.includes(campo) && (payload[campo] === 0 || payload[campo] === '0'))
           const novoGenerico = campo === 'titulo' && ['Imóvel de Teste','Lote - Marco Antônio Leiloeiro'].includes(payload[campo])
           if ((novoVazio || novoGenerico) && atual[campo] != null && atual[campo] !== 0 && atual[campo] !== '') {
