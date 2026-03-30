@@ -17,8 +17,17 @@ import { detectarRegiao, getMercado } from '../data/mercado_regional.js'
 import { calcularCustoReforma, detectarClasseMercado } from '../data/custos_reforma.js'
 
 // ─── PROMPT GEMINI COMPACTO ──────────────────────────────────────────────────
-function buildPromptGemini(campos, textoScrapeado, contextoMercado, imovelContexto = null, jurimetria = [], metricasBairro = null) {
-  return `Você é especialista em leilões judiciais imobiliários no Brasil (BH/MG).
+function buildPromptGemini(campos, textoScrapeado, contextoMercado, imovelContexto = null, jurimetria = [], metricasBairro = null, eMercadoDireto = false) {
+  const instrucaoTipo = eMercadoDireto ? `
+ATENÇÃO: Este é um imóvel de MERCADO DIRETO (não é leilão).
+- tipo_transacao = "mercado_direto"
+- valor_minimo = preço pedido pelo vendedor (não é lance mínimo)
+- num_leilao = null, data_leilao = null, modalidade_leilao = null
+- desconto_percentual = quanto o preço pedido está abaixo do valor real de mercado
+- Analise necessidade de reforma pelo padrão e idade estimada do imóvel
+- Score de desconto: positivo se preço pedido < mercado real homogeneizado
+` : ''
+  return `${instrucaoTipo}Você é especialista em leilões judiciais imobiliários no Brasil (BH/MG) e avaliação imobiliária.
 Analise o imóvel e retorne APENAS JSON válido (sem markdown, sem texto extra).
 
 DADOS JÁ EXTRAÍDOS AUTOMATICAMENTE:
@@ -267,7 +276,8 @@ export async function analisarComGemini(url, geminiKey, parametros, onProgress, 
   onProgress?.('Gemini analisando imóvel (~$0.002)...')
   let analiseGemini = null
   try {
-    const prompt = buildPromptGemini(camposBasicos, textoScrapeado, contextoMercado, imovelContexto, _jurimetria, _metricasBairro)
+    const _eMercado = isMercadoDireto(camposBasicos.fonte_url || '', null)
+    const prompt = buildPromptGemini(camposBasicos, textoScrapeado, contextoMercado, imovelContexto, _jurimetria, _metricasBairro, _eMercado)
     const { resultado: geminiResult, modeloUsado: geminiModelo } = await chamarGemini(prompt, geminiKey)
     analiseGemini = geminiResult
     _modeloGemini = geminiModelo
@@ -432,7 +442,8 @@ export async function analisarComDeepSeek(url, deepseekKey, parametros, onProgre
     ])
   } catch(e) { /* banco opcional */ }
 
-  const prompt = buildPromptGemini(camposBasicos, textoScrapeado, null, imovelContexto, _dsJurimetria, _dsMetricasBairro)
+  const _eMercadoDS = isMercadoDireto(camposBasicos?.fonte_url || '', null)
+  const prompt = buildPromptGemini(camposBasicos, textoScrapeado, null, imovelContexto, _dsJurimetria, _dsMetricasBairro, _eMercadoDS)
   
   try {
     const r = await fetch('https://api.deepseek.com/chat/completions', {

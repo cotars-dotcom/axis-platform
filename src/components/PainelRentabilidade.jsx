@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { C, card } from '../appConstants.js'
+import { isMercadoDireto } from '../lib/detectarFonte.js'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
@@ -162,9 +163,11 @@ export default function PainelRentabilidade({ imovel }) {
     area_m2, area_privativa_m2, preco_m2_mercado,
   } = imovel
 
+  const eMercado = isMercadoDireto(imovel.fonte_url, imovel.tipo_transacao)
   const area     = parseFloat(area_privativa_m2 || area_m2) || 97
-  const avaliacao = parseFloat(valor_avaliacao) || 550000
-  const lance1   = parseFloat(valor_minimo) || avaliacao * 0.675
+  const avaliacao = parseFloat(valor_avaliacao) || parseFloat(valor_mercado_estimado) || parseFloat(valor_minimo) || 550000
+  const precoBase = parseFloat(preco_pedido || valor_minimo) || avaliacao * 0.675
+  const lance1   = precoBase
 
   // Lances dos cenários
   const lance2piso  = Math.round(avaliacao * 0.35)
@@ -201,8 +204,13 @@ export default function PainelRentabilidade({ imovel }) {
     return parseFloat(fator_homogenizacao) || f
   }, [elevador, piscina, area_lazer, salao_festas, vagas, fator_homogenizacao])
 
-  // Cenários de lance
-  const cenarios = [
+  // Cenários de lance — adaptado para leilão ou mercado direto
+  const cenarios = eMercado ? [
+    { titulo: `Preço pedido (${((lance1/avaliacao)*100).toFixed(0)}% do mercado)`, lance: lance1, leilao: null, isMercado: true },
+    { titulo: `Negociação conservadora (-5%)`, lance: Math.round(lance1 * 0.95), leilao: null, isMercado: true },
+    { titulo: `Negociação agressiva (-10%)`,   lance: Math.round(lance1 * 0.90), leilao: null, isMercado: true },
+    { titulo: `Oferta mínima (-15%)`,          lance: Math.round(lance1 * 0.85), leilao: null, isMercado: true },
+  ] : [
     { titulo: `Lance mínimo 1º leilão (${((lance1/avaliacao)*100).toFixed(0)}%)`, lance: lance1, leilao: num_leilao || 1 },
     { titulo: `Piso legal 2º leilão (35%)`, lance: lance2piso, leilao: 2 },
     { titulo: `Esperado 2º leilão (50%)`,   lance: lance2exp,  leilao: 2 },
@@ -213,7 +221,7 @@ export default function PainelRentabilidade({ imovel }) {
     const desc = ((avaliacao - c.lance) / avaliacao * 100)
     const f = calcFlip(c.lance, vmercado, reformaValor)
     const l = calcLocacao(c.lance, aluguelAtual, reformaValor, vmercado)
-    const p = probArrematacao(desc, c.leilao)
+    const p = c.isMercado ? { prob: 1.0, label: '—', cor: GREEN } : probArrematacao(desc, c.leilao)
     return { ...c, desc, flip: f, loc: l, prob: p }
   })
 
@@ -234,7 +242,7 @@ export default function PainelRentabilidade({ imovel }) {
       {/* Header */}
       <div style={{ marginBottom:10 }}>
         <div style={{ fontSize:13, fontWeight:700, color:C.navy, marginBottom:4 }}>
-          📊 Rentabilidade — Flip vs Locação
+          {eMercado ? '🏠 Oportunidade de Compra' : '📊 Rentabilidade'} — Flip vs Locação
         </div>
         <div style={{ fontSize:10, color:C.muted }}>
           Mercado ref.: {fmt(vmercado)}

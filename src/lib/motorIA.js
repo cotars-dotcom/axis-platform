@@ -22,6 +22,8 @@ const CLAUDE_MODEL = 'claude-sonnet-4-20250514'
 const GPT_MODEL_MARKET  = 'gpt-4o-mini'   // comparáveis e pesquisa de mercado (~16x mais barato)
 const GPT_MODEL_COMPLEX = 'gpt-4o'        // fallback se mini falhar ou retornar sem dados
 
+import { detectarTipoTransacao, isMercadoDireto } from './detectarFonte.js'
+
 const REGRAS_MODALIDADE_TEXTO = `
 REGRAS CRÍTICAS POR MODALIDADE (APLIQUE SEMPRE):
 LEILÃO JUDICIAL:
@@ -517,6 +519,8 @@ Use apenas tags de texto: [CRITICO] [ATENCAO] [OK] [INFO]
   "padrao_acabamento": "simples|medio|alto|luxo",
   "vaga_tipo": "privativa_vinculada|privativa_autonoma|comum_rotativa|null",
   "modalidade": "string",
+  "tipo_transacao": "leilao|mercado_direto|caixa_venda_direta",
+  "preco_pedido": null,
   "modalidade_leilao": "judicial|extrajudicial_fiduciario|caixa_leilao|caixa_venda_direta|extincao_condominio",
   "processo_numero": null,
   "leiloeiro": "string",
@@ -1051,6 +1055,13 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
     }
   }
 
+  // ─── Detectar tipo de transação ─────────────────────────────────────────────
+  const tipoTransacaoDetectado = detectarTipoTransacao(url)
+  const eMercadoDireto = isMercadoDireto(url, null)
+  if (eMercadoDireto) {
+    progress('🏠 URL de mercado detectada — análise de compra direta')
+  }
+
   // ─── CASCATA DE CUSTO ZERO ─────────────────────────────────────────────────
   // Tier 1: Gemini Flash (~$0.002) — 99% mais barato que Claude Sonnet
   const forceClassic = false  // flag interna — mover aqui para evitar TDZ
@@ -1342,6 +1353,8 @@ DADOS DE BAIRRO (parcial):
     dados_mercado_regional: dadosMercado || null,
     id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
     fonte_url: url,
+    tipo_transacao: analise.tipo_transacao || tipoTransacaoDetectado,
+    preco_pedido: eMercadoDireto ? parseFloat(analise.valor_minimo || 0) : null,
     status: 'analisado',
     analise_dupla_ia: !!dadosGPT,
     fotos: fotosResult.fotos || [],

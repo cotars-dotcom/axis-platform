@@ -10,6 +10,7 @@ import AbaJuridicaAgente from './AbaJuridicaAgente.jsx'
 import { buscarArrematesSimilares } from '../lib/buscaArrematesGPT.js'
 import PainelLancamento from './PainelLancamento.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
+import { isMercadoDireto } from '../lib/detectarFonte.js'
 import CenariosReforma from './CenariosReforma.jsx'
 
 const ESCOPOS_INFO = {
@@ -1097,7 +1098,8 @@ if (original.comparaveis?.length > 2) {
     setSending(false)
   }
   return <div>
-    <Hdr title={<>{p.titulo||"Imóvel"}{p.codigo_axis&&<span style={{fontSize:"10.5px",fontWeight:700,padding:"2px 8px",borderRadius:4,background:"#002B8010",color:"#002B80",border:"1px solid #002B8020",fontFamily:"monospace",letterSpacing:"0.5px",marginLeft:10,verticalAlign:"middle"}}>{p.codigo_axis}</span>}{p.num_leilao&&<span style={{display:"inline-block",background:p.num_leilao>=2?"#FEF3C7":"#ECFDF5",color:p.num_leilao>=2?"#D97706":"#065F46",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,marginLeft:6,verticalAlign:"middle"}}>{p.num_leilao}º LEILÃO{p.valor_minimo&&p.valor_avaliacao?` · mín. ${Math.round(p.valor_minimo/p.valor_avaliacao*100)}%`:p.num_leilao>=2?" · mín. 35%":""}</span>}{p.trello_card_url&&<a href={p.trello_card_url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#0052CC",marginLeft:8,verticalAlign:"middle",textDecoration:"none"}}>Trello</a>}</>} sub={`${p.cidade}/${p.estado} · ${fmtD(p.createdAt)}`}
+    <Hdr title={<>{p.titulo||"Imóvel"}{p.codigo_axis&&<span style={{fontSize:"10.5px",fontWeight:700,padding:"2px 8px",borderRadius:4,background:"#002B8010",color:"#002B80",border:"1px solid #002B8020",fontFamily:"monospace",letterSpacing:"0.5px",marginLeft:10,verticalAlign:"middle"}}>{p.codigo_axis}</span>}{p.num_leilao&&!isMercadoDireto(p.fonte_url,p.tipo_transacao)&&<span style={{display:"inline-block",background:p.num_leilao>=2?"#FEF3C7":"#ECFDF5",color:p.num_leilao>=2?"#D97706":"#065F46",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,marginLeft:6,verticalAlign:"middle"}}>{p.num_leilao}º LEILÃO{p.valor_minimo&&p.valor_avaliacao?` · mín. ${Math.round(p.valor_minimo/p.valor_avaliacao*100)}%`:p.num_leilao>=2?" · mín. 35%":""}</span>}
+      {isMercadoDireto(p.fonte_url,p.tipo_transacao)&&<span style={{display:"inline-block",background:"#FFFBEB",color:"#92400E",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,marginLeft:6,verticalAlign:"middle"}}>🏠 MERCADO DIRETO</span>}{p.trello_card_url&&<a href={p.trello_card_url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#0052CC",marginLeft:8,verticalAlign:"middle",textDecoration:"none"}}>Trello</a>}</>} sub={`${p.cidade}/${p.estado} · ${fmtD(p.createdAt)}`}
       actions={<>
         {p.fonte_url&&<a href={p.fonte_url} target="_blank" rel="noopener noreferrer" title="Abrir edital original no portal do leiloeiro" style={{...btn("s"),textDecoration:"none",display:"inline-block",background:`${C.blue}08`,color:C.blue,border:`1px solid ${C.blue}30`}}>🔗 Edital</a>}
         {isAdmin&&<>
@@ -1289,7 +1291,31 @@ if (original.comparaveis?.length > 2) {
       </div>
       {/* Análise de Leilão */}
       <PainelLeilao imovel={p} isAdmin={isAdmin} />
-        <PainelLancamento imovel={p}/>
+        {/* Mostrar PainelLancamento só para leilões */}
+        {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && <PainelLancamento imovel={p}/>}
+        {/* Mercado direto: badge de oportunidade */}
+        {isMercadoDireto(p.fonte_url, p.tipo_transacao) && p.preco_pedido > 0 && (
+          <div style={{...card(),marginBottom:'14px',padding:'12px 14px',background:'#FFFBEB',border:'1.5px solid #F59E0B'}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#92400E',marginBottom:6}}>
+              🏠 Compra de Mercado — Análise de Oportunidade
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px'}}>
+              {[
+                ['Preço pedido', p.preco_pedido ? `R$ ${Math.round(p.preco_pedido).toLocaleString('pt-BR')}` : '—'],
+                ['Valor mercado', p.valor_mercado_estimado ? `R$ ${Math.round(p.valor_mercado_estimado).toLocaleString('pt-BR')}` : '—'],
+                ['Diferença', p.desconto_sobre_mercado_pct_calculado > 0
+                  ? <span style={{color:'#065F46',fontWeight:700}}>-{p.desconto_sobre_mercado_pct_calculado}% abaixo</span>
+                  : <span style={{color:'#991B1B',fontWeight:700}}>{Math.abs(p.desconto_sobre_mercado_pct_calculado || 0)}% acima</span>
+                ],
+              ].map(([l,v]) => (
+                <div key={l}>
+                  <div style={{fontSize:9,color:'#92400E',textTransform:'uppercase',letterSpacing:.3}}>{l}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:'#78350F'}}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <PainelRentabilidade imovel={p}/>
       {/* Cenários de Reforma */}
       <CenariosReforma imovel={p} isAdmin={isAdmin} />
