@@ -1035,7 +1035,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
       if (msg.includes('Créditos esgotados') || msg.includes('402')) {
         setMsg('⚠️ Créditos Claude esgotados — recarregue em console.anthropic.com')
       } else if (msg.includes('Chave inválida') || msg.includes('401')) {
-        setMsg('⚠️ Chave Claude inválida — verifique em Admin > API Keys')
+        setMsg('⚠️ Chave Claude inválida — use Gemini: configure chave em Config → API Keys')
       } else if (msg.includes('Timeout') || msg.includes('AbortError')) {
         setMsg('⚠️ Timeout — o imóvel pode ser complexo. Tente novamente.')
       } else if (msg.includes('URL') || msg.includes('fetch')) {
@@ -1100,13 +1100,13 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
       </>}/>
     {/* Tabs */}
     <div style={{display:"flex",gap:isPhone?4:0,borderBottom:`1px solid ${K.bd}`,padding:isPhone?"0 16px":"0 28px",background:K.s1,overflowX:isPhone?'auto':'visible',scrollbarWidth:'none',WebkitOverflowScrolling:'touch',msOverflowStyle:'none'}}>
-      {[{id:'resumo',label:'📊 Resumo'},{id:'juridico',label:'⚖️ Jurídico'},{id:'fotos',label:'📸 Fotos'},{id:'mercado',label:'🏙️ Mercado'},...(isAdmin?[{id:'arremates',label:'🔨 Arremates'}]:[])].map(tab=>(
+      {[{id:'resumo',label:'📊 Resumo',labelMobile:'📊'},{id:'juridico',label:'⚖️ Jurídico',labelMobile:'⚖️'},{id:'fotos',label:'📸 Fotos',labelMobile:'📸'},{id:'mercado',label:'🏙️ Mercado',labelMobile:'🏙️'},...(isAdmin?[{id:'arremates',label:'🔨 Arremates',labelMobile:'🔨 Arr.'}]:[])].map(tab=>(
         <button key={tab.id} onClick={()=>setAbaDetalhe(tab.id)} style={{
           background:"none",border:"none",padding:isPhone?"10px 12px":"10px 18px",fontSize:"12.5px",fontWeight:abaDetalhe===tab.id?700:500,whiteSpace:'nowrap',flexShrink:0,
           color:abaDetalhe===tab.id?K.teal:K.t3,cursor:"pointer",
           borderBottom:abaDetalhe===tab.id?`2px solid ${K.teal}`:"2px solid transparent",
           transition:"all 0.15s",
-        }}>{tab.label}</button>
+        }}>{isPhone&&tab.labelMobile?tab.labelMobile:tab.label}</button>
       ))}
     </div>
     <div style={{padding:isPhone?"16px":"20px 28px"}}>

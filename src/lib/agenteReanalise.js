@@ -108,13 +108,15 @@ SCORES ATUAIS:
 - Liquidez: ${imovelAtual.score_liquidez} (peso 15%)
 - Mercado: ${imovelAtual.score_mercado} (peso 14%)
 
-CALIBRAÇÃO DOS SCORES (escala 0-10):
-- Localização: bairro nobre BH (Savassi/Lourdes)→9.5, bom→7-8, médio→5-6, periferia→3-4
-- Desconto 32.5%→6.5, 40%→7.5, 50%→8.5, 60%+→9.5
+CALIBRAÇÃO DOS SCORES (escala 0-10 — OBRIGATÓRIO seguir):
+- Localização: bairro nobre BH (Savassi/Lourdes)→9.5, bom (Dona Clara/Pampulha)→7.5-8.5, médio→5-6, periferia→3-4
+- Desconto: 60%+→9.5, 50%→8.5, 40%→7.5, 30%→6.0, 20%→4.5, <10%→2.0
+  ATENÇÃO: desconto de ${imovelAtual.desconto_percentual}% deve resultar em score aproximado de ${Math.round((imovelAtual.desconto_percentual >= 60 ? 9.5 : imovelAtual.desconto_percentual >= 50 ? 8.5 : imovelAtual.desconto_percentual >= 40 ? 7.5 : imovelAtual.desconto_percentual >= 30 ? 6.0 : imovelAtual.desconto_percentual >= 20 ? 4.5 : 2.0) * 10) / 10}
 - Jurídico: sem processos→8.5, 1 processo trabalhista→6.5, risco grave→3.0
-- Ocupação: desocupado→8.5, incerto→5.5, ocupado→3.0
+- Ocupação: desocupado confirmado→8.5, incerto→5.5, ocupado→3.0
 - Liquidez: alta demanda bairro→8.5, média→6.5, baixa→4.0
 - Mercado: classe Luxo BH→8.5, Alto→7.0, Médio→5.5, Popular→4.0
+REGRA: Nenhum score individual pode ser alterado em mais de 1.5 pontos vs o valor atual sem justificativa explícita.
 
 Se mao_flip ou mao_locacao estiverem nulos, calcule:
 - mao_flip = (valor_mercado_estimado × 0.80) - (custo_reforma_estimado + valor_minimo × 0.10)
