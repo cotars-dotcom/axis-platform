@@ -242,6 +242,10 @@ REGRAS DE PESQUISA:
 1. IDENTIFICAR O IMÓVEL CORRETAMENTE:
    - Leia o endereço completo: rua, número, bairro, cidade, UF
    - Não confundir município: Contagem ≠ BH, Nova Lima ≠ BH
+   - CRÍTICO: "Comitente" = nome jurídico do credor no processo, NÃO é bairro
+     Bairro é sempre uma localização geográfica (Dona Clara, Serra, Buritis...)
+   - Se o edital diz "Comitente: João Silva" isso é o exequente, não o bairro
+   - Tipo do imóvel deve ser Apartamento/Casa/Cobertura — não "Terreno" para apt
    - Identificar tipologia: apartamento, cobertura, duplex, casa, studio
    - Extrair atributos do prédio/edital: elevador (sim/não), piscina, área de lazer,
      salão de festas, churrasqueira, academia, portaria 24h, andares do prédio,

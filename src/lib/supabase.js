@@ -200,6 +200,20 @@ export async function saveImovelCompleto(imovel, userId) {
             'custo_reforma_basica','custo_reforma_media','custo_reforma_completa',
             'aluguel_sem_reforma','aluguel_com_reforma','fator_homogenizacao',
             'valor_mercado_homogenizado']
+          // Campos de identidade: preservar se já foram definidos corretamente
+          const CAMPOS_IDENTIDADE = ['bairro','tipo','tipologia','cidade','estado']
+          for (const campo of CAMPOS_IDENTIDADE) {
+            if (atual[campo] && payload[campo] && atual[campo] !== payload[campo]) {
+              // Só aceitar mudança se valor atual parece nome de pessoa/exequente (não bairro)
+              // Heurística: valores com "cpf", "cnpj", espaços e mais de 20 chars são provavelmente erros
+              const valNovo = String(payload[campo])
+              const suspeito = valNovo.length > 25 || /\d{3}\.\d{3}/.test(valNovo)
+              if (suspeito) {
+                payload[campo] = atual[campo]
+                console.warn('[AXIS] Campo identidade protegido:', campo, '— mantendo:', atual[campo])
+              }
+            }
+          }
           // Para atributos booleanos do imóvel, preservar se já definidos (não null)
           const ATTRS_PREDIO = ['piscina','salao_festas','area_lazer','churrasqueira',
                                  'academia','portaria_24h','playground']

@@ -18,6 +18,15 @@ import { calcularCustoReforma, detectarClasseMercado } from '../data/custos_refo
 
 // ─── PROMPT GEMINI COMPACTO ──────────────────────────────────────────────────
 function buildPromptGemini(campos, textoScrapeado, contextoMercado, imovelContexto = null, jurimetria = [], metricasBairro = null, eMercadoDireto = false) {
+  const ALERTAS_CRITICOS = `
+ALERTAS CRÍTICOS DE IDENTIFICAÇÃO (APLIQUE SEMPRE):
+- "Comitente" = nome jurídico do credor/exequente no edital → NÃO é bairro
+  Bairro = localização geográfica real (Dona Clara, Serra, Buritis, Savassi...)
+- Tipo do imóvel: identificar pelo edital/fotos (Apartamento/Casa/Cobertura)
+  Nunca classificar como "Terreno" se o edital descreve um apartamento
+- Município: Contagem ≠ BH | Nova Lima ≠ BH | verificar endereço completo
+`
+
   const instrucaoTipo = eMercadoDireto ? `
 ATENÇÃO: Este é um imóvel de MERCADO DIRETO (não é leilão).
 - tipo_transacao = "mercado_direto"
@@ -27,7 +36,7 @@ ATENÇÃO: Este é um imóvel de MERCADO DIRETO (não é leilão).
 - Analise necessidade de reforma pelo padrão e idade estimada do imóvel
 - Score de desconto: positivo se preço pedido < mercado real homogeneizado
 ` : ''
-  return `${instrucaoTipo}Você é especialista em leilões judiciais imobiliários no Brasil (BH/MG) e avaliação imobiliária.
+  return `${ALERTAS_CRITICOS}${instrucaoTipo}Você é especialista em leilões judiciais imobiliários no Brasil (BH/MG) e avaliação imobiliária.
 Analise o imóvel e retorne APENAS JSON válido (sem markdown, sem texto extra).
 
 DADOS JÁ EXTRAÍDOS AUTOMATICAMENTE:
