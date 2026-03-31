@@ -7,12 +7,26 @@
 // ─── EXTRAÇÃO VIA JINA.AI (FREE) ─────────────────────────────────────────────
 export async function scrapeUrlJina(url) {
   const jinaUrl = `https://r.jina.ai/${url}`
-  const res = await fetch(jinaUrl, {
-    headers: { 'Accept': 'text/plain', 'X-Return-Format': 'markdown' },
-    signal: AbortSignal.timeout(20000)
+  // Primeira tentativa: markdown
+  try {
+    const res = await fetch(jinaUrl, {
+      headers: { 'Accept': 'text/plain', 'X-Return-Format': 'markdown' },
+      signal: AbortSignal.timeout(25000)
+    })
+    if (res.ok) {
+      const text = await res.text()
+      if (text && text.length > 100) return text
+    }
+  } catch(e) { /* retry abaixo */ }
+  // Segunda tentativa: text plain (às vezes funciona quando markdown falha)
+  const res2 = await fetch(jinaUrl, {
+    headers: { 'Accept': 'text/plain', 'X-Return-Format': 'text' },
+    signal: AbortSignal.timeout(25000)
   })
-  if (!res.ok) throw new Error(`Jina failed: ${res.status}`)
-  return await res.text()
+  if (!res2.ok) throw new Error(`Jina failed: ${res2.status}`)
+  const text2 = await res2.text()
+  if (!text2 || text2.length < 50) throw new Error('Jina retornou conteúdo vazio')
+  return text2
 }
 
 // ─── EXTRATOR DE CAMPOS VIA REGEX (ZERO CUSTO) ───────────────────────────────

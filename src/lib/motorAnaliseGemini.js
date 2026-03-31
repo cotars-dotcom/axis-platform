@@ -60,7 +60,8 @@ ${JSON.stringify({
 }, null, 2)}
 
 TEXTO DA PÁGINA (primeiros 4000 chars):
-${textoScrapeado?.substring(0, 4000) || 'Não disponível'}
+${textoScrapeado?.substring(0, 4000) || 'Não disponível — use a URL e dados extraídos acima como referência principal'}
+${(!textoScrapeado || textoScrapeado.length < 200) ? '\n⚠️ TEXTO ESCASSO: o scraper não conseguiu extrair o conteúdo completo da página. Use seus dados internos sobre mercado imobiliário de BH/MG, a URL acima e os campos já extraídos para completar a análise. Retorne os melhores dados possíveis mesmo com informação limitada.\n' : ''}
 
 CONTEXTO MERCADO (${campos.bairro || campos.cidade || 'BH'}):
 ${contextoMercado ? JSON.stringify(contextoMercado) : 'Usar conhecimento geral de BH/MG'}
@@ -200,9 +201,12 @@ async function chamarGeminiModelo(prompt, geminiKey, modelo) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        }
       }),
-      signal: AbortSignal.timeout(45000)
+      signal: AbortSignal.timeout(60000)
     }
   )
   if (!res.ok) {
@@ -212,6 +216,7 @@ async function chamarGeminiModelo(prompt, geminiKey, modelo) {
   }
   const data = await res.json()
   const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  if (!txt || txt.length < 10) throw new Error('Gemini retornou resposta vazia')
   const clean = txt.replace(/```json|```/g, '').trim()
   const jsonMatch = clean.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('Gemini não retornou JSON válido')
@@ -220,7 +225,7 @@ async function chamarGeminiModelo(prompt, geminiKey, modelo) {
 
 // Cascata de modelos Gemini: 2.0-flash → 1.5-flash → 1.5-pro
 async function chamarGemini(prompt, geminiKey) {
-  const MODELOS = ['gemini-1.5-flash', 'gemini-1.5-pro']  // 2.0-flash: 404 em contas novas
+  const MODELOS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
   let ultimoErro = null
   for (const modelo of MODELOS) {
     try {
@@ -231,7 +236,10 @@ async function chamarGemini(prompt, geminiKey) {
     } catch(e) {
       console.warn('[AXIS Gemini] Falhou com', modelo, ':', e.message.substring(0, 100))
       ultimoErro = e
-      if (e.message.includes('400') && e.message.includes('API_KEY_INVALID')) break
+      // Se chave inválida, não tentar outros modelos
+      if (e.message.includes('API_KEY_INVALID') || e.message.includes('401')) break
+      // Se 404 (modelo não existe), tentar o próximo
+      if (e.message.includes('404')) continue
     }
   }
   throw ultimoErro || new Error('Todos os modelos Gemini falharam')
@@ -254,7 +262,14 @@ export async function analisarComGemini(url, geminiKey, parametros, onProgress, 
       const r = await fetch(url, { signal: AbortSignal.timeout(15000) })
       textoScrapeado = await r.text()
       textoScrapeado = textoScrapeado.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
-    } catch(e2) { erros.push(`Fetch direto também falhou: ${e2.message}`) }
+    } catch(e2) {
+      erros.push(`Fetch direto também falhou: ${e2.message}`)
+      // Último recurso: extrair info da própria URL
+      // URLs como vivareal.com.br/imovel/apartamento-3-quartos-dona-clara contêm dados úteis
+      const urlPath = url.replace(/https?:\/\/[^/]+\//, '').replace(/[?#].*/,'').replace(/[-_/]/g, ' ')
+      textoScrapeado = `URL do imóvel: ${url}\nDados extraídos da URL: ${urlPath}`
+      onProgress?.('⚠️ Scrape falhou — analisando com dados da URL e IA')
+    }
   }
 
   // PASSO 2: Extração por regex (zero custo)
@@ -438,7 +453,14 @@ export async function analisarComDeepSeek(url, deepseekKey, parametros, onProgre
     textoScrapeado = await scrapeUrlJina(url)
     const extraidos = extrairCamposTexto(textoScrapeado, url)
     camposBasicos = { ...camposBasicos, ...extraidos }
-  } catch(e) { console.warn('[AXIS DeepSeek] scrape:', e.message) }
+  } catch(e) {
+    console.warn('[AXIS DeepSeek] scrape:', e.message)
+    // Fallback: extrair da URL
+    const urlPath = url.replace(/https?:\/\/[^/]+\//, '').replace(/[?#].*/,'').replace(/[-_/]/g, ' ')
+    textoScrapeado = `URL do imóvel: ${url}\nDados extraídos da URL: ${urlPath}`
+    const extraidos = extrairCamposTexto(textoScrapeado, url)
+    camposBasicos = { ...camposBasicos, ...extraidos }
+  }
 
   progress('DeepSeek V3 analisando (~$0.04)...')
 
