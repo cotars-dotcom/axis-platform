@@ -179,7 +179,7 @@ function buildTrelloCard(p) {
 
 ### 💰 Valores
 - **Avaliação:** ${fmtC(p.valor_avaliacao)}
-- **Lance mínimo:** ${fmtC(p.valor_minimo)}
+- **${isMercadoDireto(p.fonte_url,p.tipo_transacao)?'Preço pedido':'Lance mínimo'}:** ${fmtC(isMercadoDireto(p.fonte_url,p.tipo_transacao)?(p.preco_pedido||p.valor_minimo):p.valor_minimo)}
 - **Desconto:** ${p.desconto_percentual||"—"}%
 - **Preço/m² imóvel:** R$ ${p.preco_m2_imovel||"—"}/m²
 - **Preço/m² mercado:** R$ ${p.preco_m2_mercado||"—"}/m²
@@ -1282,7 +1282,7 @@ for (const s of SCORES) {
       <div style={{display:"grid",gridTemplateColumns:isPhone?"1fr":"1fr 1fr",gap:"14px",marginBottom:"14px"}}>
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>💰 Valores</div>
-          {[["Avaliação",fmtC(p.valor_avaliacao),K.t2],["Lance mínimo",fmtC(p.valor_minimo),K.amb],["Desconto",p.desconto_percentual?`${p.desconto_percentual}%`:"—",K.grn],["Preço/m² imóvel",p.preco_m2_imovel?`R$ ${p.preco_m2_imovel}/m²`:"—",K.teal],["Preço/m² mercado",p.preco_m2_mercado?`R$ ${p.preco_m2_mercado}/m²`:"—",K.t2],["Aluguel estimado",fmtC(p.aluguel_mensal_estimado)+"/mês",K.pur]].map(([l,v,c])=>(
+          {[["Avaliação",fmtC(p.valor_avaliacao),K.t2],[isMercadoDireto(p.fonte_url,p.tipo_transacao)?"Preço pedido":"Lance mínimo",fmtC(isMercadoDireto(p.fonte_url,p.tipo_transacao)?(p.preco_pedido||p.valor_minimo):p.valor_minimo),K.amb],["Desconto",p.desconto_percentual?`${p.desconto_percentual}%`:(p.desconto_sobre_mercado_pct_calculado?`${p.desconto_sobre_mercado_pct_calculado}%`:"—"),K.grn],["Preço/m² imóvel",p.preco_m2_imovel?`R$ ${Math.round(p.preco_m2_imovel).toLocaleString('pt-BR')}/m²`:"—",K.teal],["Preço/m² mercado",p.preco_m2_mercado?`R$ ${Math.round(p.preco_m2_mercado).toLocaleString('pt-BR')}/m²`:"—",K.t2],["Aluguel estimado",fmtC(p.aluguel_mensal_estimado)+"/mês",K.pur],...(p.fator_homogenizacao&&p.fator_homogenizacao<1?[["Fator homogeneização",`${(p.fator_homogenizacao*100).toFixed(0)}%`,"#92400E"]]:[])].map(([l,v,c])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
               <span style={{fontSize:"12px",color:K.t3}}>{l}</span><span style={{fontSize:"12.5px",fontWeight:"600",color:c}}>{v}</span>
             </div>
