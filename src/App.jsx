@@ -828,12 +828,17 @@ function PropCard({p,onNav}) {
     onMouseEnter={e=>{e.currentTarget.style.borderColor=K.teal;e.currentTarget.style.transform="translateY(-2px)"}}
     onMouseLeave={e=>{e.currentTarget.style.borderColor=K.bd;e.currentTarget.style.borderLeftColor=cidCor.accent;e.currentTarget.style.transform="none"}}>
 
-    {/* Cidade label — destaque para cidades fora de BH */}
-    {p.cidade && (
-      <div style={{marginBottom:6,display:'inline-block',padding:'1px 8px',borderRadius:4,background:cidCor.bg,border:`1px solid ${cidCor.accent}25`,fontSize:9,fontWeight:700,color:cidCor.accent,letterSpacing:.5,textTransform:'uppercase'}}>
-        {p.cidade}
-      </div>
-    )}
+    {/* Top bar: código AXIS (esquerda) + cidade (direita) */}
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+      {p.codigo_axis
+        ? <span style={{fontSize:13,fontWeight:800,padding:'2px 10px',borderRadius:5,background:'#002B8015',color:'#002B80',fontFamily:'monospace',letterSpacing:1}}>{p.codigo_axis}</span>
+        : <span/>}
+      {p.cidade && (
+        <span style={{padding:'1px 8px',borderRadius:4,background:cidCor.bg,border:`1px solid ${cidCor.accent}25`,fontSize:9,fontWeight:700,color:cidCor.accent,letterSpacing:.5,textTransform:'uppercase'}}>
+          {p.cidade}
+        </span>
+      )}
+    </div>
 
     {/* Foto */}
     {p.foto_principal && (
@@ -845,10 +850,9 @@ function PropCard({p,onNav}) {
       </div>
     )}
 
-    {/* Header: título + código + leilão */}
-    <div style={{display:"flex",alignItems:"flex-start",gap:5,marginBottom:3,flexWrap:"wrap"}}>
-      <div style={{fontWeight:"700",fontSize:isPhone?"13px":"13.5px",color:K.wh,flex:1,minWidth:0,wordBreak:"break-word",lineHeight:1.3}}>{p.titulo||"Imóvel sem título"}</div>
-      {p.codigo_axis&&<span style={{fontSize:"9px",fontWeight:700,padding:"1px 6px",borderRadius:3,background:"#002B8010",color:"#002B80",fontFamily:"monospace",flexShrink:0,whiteSpace:"nowrap"}}>{p.codigo_axis}</span>}
+    {/* Header: título */}
+    <div style={{marginBottom:3}}>
+      <div style={{fontWeight:"700",fontSize:isPhone?"13px":"13.5px",color:K.wh,lineHeight:1.3}}>{p.titulo||"Imóvel sem título"}</div>
     </div>
 
     {/* Localização + tipo + área */}
@@ -883,7 +887,15 @@ function PropCard({p,onNav}) {
         </div>
         <div style={{background:K.s2,borderRadius:6,padding:"7px 9px"}}>
           <div style={{fontSize:"8.5px",color:K.t3,marginBottom:1,textTransform:"uppercase",letterSpacing:.3}}>Desconto</div>
-          <div style={{fontSize:"12px",fontWeight:"800",color:K.grn}}>{p.desconto_percentual?`${p.desconto_percentual}%`:(scoreDelta&&scoreDelta>0?`~${scoreDelta}%`:"—")}</div>
+          <div style={{fontSize:"12px",fontWeight:"800",color:K.grn}}>{(()=>{
+            if(p.desconto_percentual&&p.desconto_percentual>0) return `${p.desconto_percentual}%`
+            if(p.desconto_sobre_mercado_pct_calculado&&p.desconto_sobre_mercado_pct_calculado>0) return `${p.desconto_sobre_mercado_pct_calculado}%`
+            // Calcular on-the-fly para mercado direto
+            const pp=parseFloat(eMercado?(p.preco_pedido||p.valor_minimo):p.valor_minimo)||0
+            const vm=parseFloat(p.valor_mercado_estimado)||0
+            if(pp>0&&vm>0){const d=((vm-pp)/vm*100).toFixed(1);return parseFloat(d)>0?`${d}%`:`${d}%`}
+            return scoreDelta&&scoreDelta>0?`~${scoreDelta}%`:"—"
+          })()}</div>
         </div>
         <div style={{background:K.s2,borderRadius:6,padding:"7px 9px"}}>
           <div style={{fontSize:"8.5px",color:K.t3,marginBottom:1,textTransform:"uppercase",letterSpacing:.3}}>Aluguel est.</div>
@@ -891,7 +903,14 @@ function PropCard({p,onNav}) {
         </div>
         <div style={{background:K.s2,borderRadius:6,padding:"7px 9px"}}>
           <div style={{fontSize:"8.5px",color:K.t3,marginBottom:1,textTransform:"uppercase",letterSpacing:.3}}>MAO flip</div>
-          <div style={{fontSize:"12px",fontWeight:"700",color:K.teal}}>{p.mao_flip&&p.mao_flip>0?`R$ ${Math.round(p.mao_flip).toLocaleString('pt-BR')}`:"—"}</div>
+          <div style={{fontSize:"12px",fontWeight:"700",color:K.teal}}>{(()=>{
+            if(p.mao_flip&&p.mao_flip>0) return `R$ ${Math.round(p.mao_flip).toLocaleString('pt-BR')}`
+            // Calcular on-the-fly: mercado × 0.80 - custos fixos
+            const vm=parseFloat(p.valor_mercado_estimado)||0
+            const pp=parseFloat(eMercado?(p.preco_pedido||p.valor_minimo):p.valor_minimo)||0
+            if(vm>0){const taxas=eMercado?0.035:0.105;const mao=Math.round(vm*0.80-pp*taxas);return mao>0?`R$ ${mao.toLocaleString('pt-BR')}`:"—"}
+            return "—"
+          })()}</div>
         </div>
       </div>
       {/* ScoreRing */}

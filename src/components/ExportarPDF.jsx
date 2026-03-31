@@ -85,11 +85,20 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;font-size:13px;color:#1
 .row-l{color:#666} .row-v{font-weight:600}
 .green{color:#065F46} .red{color:#991B1B} .amber{color:#92400E} .blue{color:#1D4ED8} .purple{color:#7C3AED}
 
-/* Tabs */
+/* Tabs — visible only with JS, otherwise all content shows */
 .tabs{display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:14px;overflow-x:auto}
 .tab{padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;white-space:nowrap}
 .tab.active{color:#002B80;border-bottom-color:#002B80}
-.tab-content{display:none} .tab-content.active{display:block}
+.tab-content{display:block} /* Show ALL by default (no JS = WhatsApp) */
+.js-enabled .tab-content{display:none} .js-enabled .tab-content.active{display:block}
+
+/* Section dividers for flat mode */
+.section-divider{margin:20px 0 14px;padding:8px 12px;background:#F0F4FF;border-radius:8px;font-size:13px;font-weight:700;color:#002B80;border-left:4px solid #002B80}
+/* Without JS: hide tab bar, show dividers */
+.tabs{display:none}
+/* With JS: show tab bar, hide dividers */
+.js-enabled .tabs{display:flex}
+.js-enabled .section-divider{display:none}
 
 /* Toggle sections */
 .toggle{cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8f7f4;border-radius:8px;margin-bottom:6px;font-weight:600;font-size:12px;color:#002B80}
@@ -158,6 +167,7 @@ ${p.foto_principal ? `<img src="${p.foto_principal}" style="width:100%;max-heigh
 
 <!-- TAB: Resumo -->
 <div class="tab-content active" id="tab-resumo">
+  <div class="section-divider">📊 Resumo</div>
   <!-- Valores -->
   <div class="grid3">
     <div class="card" style="text-align:center">
@@ -252,6 +262,7 @@ ${p.foto_principal ? `<img src="${p.foto_principal}" style="width:100%;max-heigh
 
 <!-- TAB: Reforma -->
 <div class="tab-content" id="tab-reforma">
+  <div class="section-divider">🔧 Cenários de Reforma</div>
   <div class="card-t" style="margin-bottom:10px">🔧 Cenários de Reforma — Clique para comparar</div>
   <div class="grid3" style="margin-bottom:14px">
     ${reformas.map((r, i) => `
@@ -301,6 +312,7 @@ ${p.foto_principal ? `<img src="${p.foto_principal}" style="width:100%;max-heigh
 
 <!-- TAB: Detalhe -->
 <div class="tab-content" id="tab-detalhe">
+  <div class="section-divider">📋 Detalhamento</div>
   <div class="grid">
     <!-- Ficha técnica -->
     <div class="card">
@@ -371,7 +383,7 @@ ${p.foto_principal ? `<img src="${p.foto_principal}" style="width:100%;max-heigh
 <!-- TAB: Refs (comparáveis) -->
 ${p.comparaveis?.length ? `
 <div class="tab-content" id="tab-refs">
-  <div class="card-t" style="margin-bottom:10px">🏘️ Comparáveis (${p.comparaveis.length})</div>
+  <div class="section-divider">🏘️ Comparáveis (${p.comparaveis.length})</div>
   ${p.comparaveis.slice(0, 5).map(c => `
   <div class="comp">
     <div>
@@ -395,16 +407,18 @@ ${p.comparaveis?.length ? `
 </div>
 
 <script>
-// Tab switching
+// Enable tab switching only when JS is available
+document.querySelector('.wrap').classList.add('js-enabled')
 function showTab(id){
   document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'))
   document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'))
   document.getElementById('tab-'+id).classList.add('active')
-  // Find the clicked tab button
   document.querySelectorAll('.tab').forEach(t=>{
     if(t.textContent.toLowerCase().includes(id.substring(0,3))) t.classList.add('active')
   })
 }
+// Set first tab active on load
+document.getElementById('tab-resumo').classList.add('active')
 
 // Reforma selector
 const REF = ${JSON.stringify(reformas)};

@@ -969,22 +969,25 @@ export async function gerarAxisId(cidade) {
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
   const prefixo = Object.entries(PREFIXOS)
     .find(([k]) => norm.includes(k))?.[1] || 'MG'
-  const ano = new Date().getFullYear()
 
-  // Sequência GLOBAL — busca o maior número entre TODAS as cidades
+  // Busca TODOS os códigos existentes (formato PREFIX-NNN)
   const { data } = await supabase
     .from('imoveis')
     .select('codigo_axis')
-    .like('codigo_axis', `%-${ano}-%`)
+    .not('codigo_axis', 'is', null)
     .order('codigo_axis', { ascending: false })
-    .limit(50)
+    .limit(200)
 
   let maxSeq = 0
   if (data?.length) {
     for (const row of data) {
-      const parts = (row.codigo_axis || '').split('-')
-      const n = parseInt(parts[parts.length - 1], 10)
-      if (!isNaN(n) && n > maxSeq) maxSeq = n
+      const code = row.codigo_axis || ''
+      // Extrai número final de qualquer formato: CT-003, BH-002, MG-2026-0001
+      const match = code.match(/(\d+)$/)
+      if (match) {
+        const n = parseInt(match[1], 10)
+        if (!isNaN(n) && n > maxSeq) maxSeq = n
+      }
     }
   }
   return `${prefixo}-${String(maxSeq + 1).padStart(3, '0')}`
