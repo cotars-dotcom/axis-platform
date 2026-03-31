@@ -184,13 +184,43 @@ export default function PainelRentabilidade({ imovel }) {
   const vmBase = parseFloat(valor_mercado_homogenizado || valor_mercado_estimado) || avaliacao * 1.05
   const vmercado = vmBase
 
-  // Aluguel por cenário de reforma
-  const aluguelMap = {
-    basica:   parseFloat(aluguel_sem_reforma) || parseFloat(aluguel_mensal_estimado) * 0.90,
-    media:    parseFloat(aluguel_com_reforma) || parseFloat(aluguel_mensal_estimado),
-    completa: (parseFloat(aluguel_com_reforma) || parseFloat(aluguel_mensal_estimado)) * 1.10,
+  // Fator de homogeneização para ALUGUEL (impacto diferente da venda)
+  const FATORES_ALUGUEL = {
+    sem_elevador: 0.85,   // -15% no aluguel (maior impacto que na venda)
+    sem_piscina:  0.98,   // -2%
+    sem_lazer:    0.96,   // -4%
+    sem_salao:    0.98,   // -2%
+    vaga_0:       0.88,   // sem vaga = -12% no aluguel
+    vaga_2:       1.04,   // 2ª vaga = +4%
+    mobiliado:    1.15,   // mobiliado = +15%
+    semi_mobiliado: 1.08, // semi-mobiliado = +8%
   }
-  const aluguelAtual = aluguelMap[cenarioReforma] || 3200
+
+  // Calcular fator de impacto no aluguel por atributos
+  const fatorAluguel = useMemo(() => {
+    let f = 1.0
+    if (elevador === false) f *= FATORES_ALUGUEL.sem_elevador
+    if (piscina === false)  f *= FATORES_ALUGUEL.sem_piscina
+    if (area_lazer === false) f *= FATORES_ALUGUEL.sem_lazer
+    if (salao_festas === false) f *= FATORES_ALUGUEL.sem_salao
+    if ((vagas || 0) === 0) f *= FATORES_ALUGUEL.vaga_0
+    if ((vagas || 0) >= 2) f *= FATORES_ALUGUEL.vaga_2
+    // Mobiliado: verificar campo do imóvel
+    if (imovel.mobiliado === true || imovel.mobiliado === 'sim') f *= FATORES_ALUGUEL.mobiliado
+    else if (imovel.mobiliado === 'semi' || imovel.semi_mobiliado === true) f *= FATORES_ALUGUEL.semi_mobiliado
+    return f
+  }, [elevador, piscina, area_lazer, salao_festas, vagas, imovel.mobiliado, imovel.semi_mobiliado])
+
+  // Aluguel base com homogeneização aplicada
+  const aluguelBase = parseFloat(aluguel_mensal_estimado) || 3200
+  const aluguelHomogeneizado = Math.round(aluguelBase * fatorAluguel)
+
+  const aluguelMap = {
+    basica:   parseFloat(aluguel_sem_reforma) || Math.round(aluguelHomogeneizado * 0.90),
+    media:    parseFloat(aluguel_com_reforma) || aluguelHomogeneizado,
+    completa: (parseFloat(aluguel_com_reforma) || aluguelHomogeneizado) * 1.10,
+  }
+  const aluguelAtual = Math.round(aluguelMap[cenarioReforma]) || 3200
 
   // Calcular fator de homogeneização real
   const fatorCalc = useMemo(() => {
@@ -320,9 +350,49 @@ export default function PainelRentabilidade({ imovel }) {
         </div>
       </div>
 
+      {/* Impacto dos atributos no aluguel */}
+      {fatorAluguel < 0.99 && (
+        <div style={{ marginTop:8, padding:'8px 12px', borderRadius:7,
+          background:'#FFF8E1', border:'1px solid #FFE082' }}>
+          <div style={{ fontSize:10, fontWeight:700, color:'#92400E', marginBottom:4 }}>
+            📉 Impacto no aluguel: {((1 - fatorAluguel) * 100).toFixed(0)}% abaixo do padrão
+          </div>
+          <div style={{ fontSize:10, color:'#78350F', lineHeight:1.5 }}>
+            {elevador === false && <span>Sem elevador (-15%) · </span>}
+            {piscina === false && <span>Sem piscina (-2%) · </span>}
+            {area_lazer === false && <span>Sem lazer (-4%) · </span>}
+            {(vagas || 0) === 0 && <span>Sem vaga (-12%) · </span>}
+            Aluguel ajustado: <strong>{fmt(aluguelHomogeneizado)}/mês</strong> (base: {fmt(aluguelBase)})
+          </div>
+        </div>
+      )}
+
+      {/* Comparação com Leilão — só para mercado direto */}
+      {eMercado && (
+        <div style={{ marginTop:8, padding:'10px 12px', borderRadius:8,
+          background:'#FFF1F2', border:'1px solid #FECDD3' }}>
+          <div style={{ fontSize:10, fontWeight:700, color:'#9F1239', marginBottom:6, textTransform:'uppercase', letterSpacing:.4 }}>
+            🔍 Comparação: Mercado vs Leilão
+          </div>
+          <div style={{ fontSize:11, color:'#881337', lineHeight:1.7 }}>
+            <strong>Preço pedido:</strong> {fmt(precoBase)} ({area ? `R$ ${Math.round(precoBase/area).toLocaleString('pt-BR')}/m²` : '—'})<br/>
+            <strong>Em leilão judicial (2º leilão, ~50% av.):</strong> imóvel similar custaria ~{fmt(Math.round(vmercado * 0.50))}<br/>
+            <strong>Economia potencial:</strong>{' '}
+            <span style={{ fontWeight:700, color:'#065F46' }}>
+              {fmt(Math.round(precoBase - vmercado * 0.50))} ({Math.round((1 - vmercado * 0.50 / precoBase) * 100)}% menos)
+            </span>
+          </div>
+          <div style={{ marginTop:6, fontSize:10, color:'#6B7280', lineHeight:1.5, borderTop:'1px solid #FECDD3', paddingTop:6 }}>
+            ⚠️ Leilão envolve riscos jurídicos, prazo de desocupação e custos extras (comissão 5%, ITBI, advogado).
+            Para este preço ({fmt(precoBase)}), busque leilões no mesmo bairro ou região com tipologia similar ({imovel.tipo || 'Apartamento'}, {area ? `~${area}m²` : ''}).
+          </div>
+        </div>
+      )}
+
       {/* Nota */}
       <div style={{ marginTop:8, fontSize:9, color:C.hint, lineHeight:1.5 }}>
-        Homogeneização: sem elevador -13% · sem piscina -3% · sem lazer -5% · sem vaga -10% (NBR 14653/IBAPE).
+        Homogeneização venda: sem elevador -13% · sem piscina -3% · sem lazer -5% · sem vaga -10% (NBR 14653/IBAPE).
+        Homogeneização aluguel: sem elevador -15% · sem vaga -12% · mobiliado +15%.
         Yield líquido considera vacância 6%, manutenção 0,5% a.a. Flip: IRPF 15%, corretagem 6%, ITBI 3%.
       </div>
     </div>

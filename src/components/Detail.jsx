@@ -1319,8 +1319,8 @@ for (const s of SCORES) {
           ))}
         </div>
       </div>
-      {/* Análise de Leilão */}
-      <PainelLeilao imovel={p} isAdmin={isAdmin} />
+      {/* Análise de Leilão — só para leilões */}
+      {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && <PainelLeilao imovel={p} isAdmin={isAdmin} />}
       {/* ═══ ReformaProvider: sincroniza cenário de reforma entre painéis ═══ */}
       <ReformaProvider imovel={p}>
         {/* Mostrar PainelLancamento só para leilões */}
