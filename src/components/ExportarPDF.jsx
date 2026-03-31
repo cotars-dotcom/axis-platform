@@ -4,7 +4,7 @@
  */
 import { C } from '../appConstants.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
-import { CUSTO_M2_SINAPI, FATOR_VALORIZACAO, detectarClasse } from '../lib/reformaUnificada.js'
+import { CUSTO_M2_SINAPI, FATOR_VALORIZACAO, detectarClasse, avaliarViabilidadeReforma } from '../lib/reformaUnificada.js'
 
 const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 const pct = v => v != null ? `${Number(v).toFixed(1)}%` : '—'
@@ -22,13 +22,19 @@ function gerarHTML(p) {
   const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 0
   const classe = detectarClasse(parseFloat(p.preco_m2_mercado) || 7000)
 
-  // Calcular reformas
-  const reformas = ['refresh_giro', 'leve_reforcada_1_molhado', 'pesada'].map(esc => {
+  // Calcular reformas com viabilidade
+  const precoCompra = parseFloat(p.preco_pedido || p.valor_minimo) || 0
+  const valorMercado = parseFloat(p.valor_mercado_estimado) || (area * (parseFloat(p.preco_m2_mercado) || 7000))
+  const viab = avaliarViabilidadeReforma(valorMercado, precoCompra, area, parseFloat(p.preco_m2_mercado) || 7000)
+  const reformas = ['refresh_giro', 'leve_reforcada_1_molhado', 'pesada'].map((esc, i) => {
     const custoM2 = CUSTO_M2_SINAPI[esc]?.[classe] || 0
     const custo = Math.round(area * custoM2)
     const fv = FATOR_VALORIZACAO[esc] || 1
+    const cenario = ['basica', 'media', 'completa'][i]
     const label = esc === 'refresh_giro' ? 'Básica' : esc === 'leve_reforcada_1_molhado' ? 'Média' : 'Completa'
-    return { label, custo, custoM2, valorizacao: Math.round((fv - 1) * 100) }
+    const v = viab?.[cenario]
+    return { label, custo, custoM2, valorizacao: Math.round((fv - 1) * 100),
+      recomendacao: v?.recomendacao || '', roiFlip: v?.roiFlip || 0, eficiencia: v?.eficiencia || 0 }
   })
 
   // Scores

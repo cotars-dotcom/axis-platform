@@ -971,19 +971,23 @@ export async function gerarAxisId(cidade) {
     .find(([k]) => norm.includes(k))?.[1] || 'MG'
   const ano = new Date().getFullYear()
 
+  // Sequência GLOBAL — busca o maior número entre TODAS as cidades
   const { data } = await supabase
     .from('imoveis')
     .select('codigo_axis')
-    .like('codigo_axis', `${prefixo}-${ano}-%`)
+    .like('codigo_axis', `%-${ano}-%`)
     .order('codigo_axis', { ascending: false })
-    .limit(1)
+    .limit(50)
 
-  let seq = 1
-  if (data?.[0]?.codigo_axis) {
-    const n = parseInt(data[0].codigo_axis.split('-').pop(), 10)
-    if (!isNaN(n)) seq = n + 1
+  let maxSeq = 0
+  if (data?.length) {
+    for (const row of data) {
+      const parts = (row.codigo_axis || '').split('-')
+      const n = parseInt(parts[parts.length - 1], 10)
+      if (!isNaN(n) && n > maxSeq) maxSeq = n
+    }
   }
-  return `${prefixo}-${ano}-${String(seq).padStart(4, '0')}`
+  return `${prefixo}-${String(maxSeq + 1).padStart(3, '0')}`
 }
 
 // ── Verificar imóvel duplicado por URL ────────────────────────────

@@ -164,3 +164,88 @@ export function calcularCustoEscopo(escopoId, area, preco_m2_mercado) {
 export function fatorValorizacao(cenarioOuEscopo) {
   return FATOR_VALORIZACAO[cenarioOuEscopo] || 1.08
 }
+
+/**
+ * Avalia a viabilidade financeira de cada cenário de reforma.
+ * Retorna ROI, lucro estimado, e recomendação.
+ *
+ * @param {number} valorMercado - Valor de mercado atual do imóvel
+ * @param {number} precoCompra - Preço de aquisição (lance ou pedido)
+ * @param {number} area - Área privativa em m²
+ * @param {number} precoM2Mercado - Preço/m² mercado (para detectar classe)
+ * @param {object} valoresBanco - Valores de reforma já salvos no banco
+ * @returns {Object} 3 cenários com ROI e recomendação
+ */
+export function avaliarViabilidadeReforma(valorMercado, precoCompra, area, precoM2Mercado, valoresBanco = {}) {
+  if (!valorMercado || !precoCompra || !area) return null
+
+  const cenarios = ['basica', 'media', 'completa']
+  const resultado = {}
+
+  for (const cenario of cenarios) {
+    const custoReforma = calcularCustoReformaSINAPI(cenario, area, precoM2Mercado, valoresBanco)
+    const escopo = MAPA_SIMPLIFICADO[cenario]
+    const fv = FATOR_VALORIZACAO[escopo] || 1.0
+    const prazo = PRAZO_OBRA_MESES[escopo] || 2
+    const liquidezBonus = LIQUIDEZ_BONUS[escopo] || 0
+
+    // Valor pós-reforma
+    const valorPosReforma = Math.round(valorMercado * fv)
+    const valorizacaoAbsoluta = valorPosReforma - valorMercado
+
+    // Custos totais (compra + reforma + taxas ~10%)
+    const taxas = Math.round(precoCompra * 0.10)
+    const custoTotal = precoCompra + custoReforma + taxas
+
+    // Lucro e ROI
+    const lucroFlip = valorPosReforma * 0.94 - custoTotal // 6% corretagem
+    const roiFlip = custoTotal > 0 ? (lucroFlip / custoTotal * 100) : 0
+
+    // Eficiência: quanto cada R$1 de reforma gera de valorização
+    const eficiencia = custoReforma > 0 ? (valorizacaoAbsoluta / custoReforma) : 0
+
+    // Recomendação
+    let recomendacao, cor
+    if (eficiencia >= 2.0 && roiFlip > 10) {
+      recomendacao = '🟢 Excelente'
+      cor = '#065F46'
+    } else if (eficiencia >= 1.2 && roiFlip > 0) {
+      recomendacao = '🟡 Vale a pena'
+      cor = '#92400E'
+    } else if (eficiencia >= 0.8) {
+      recomendacao = '🟠 Marginal'
+      cor = '#C2410C'
+    } else {
+      recomendacao = '🔴 Não compensa'
+      cor = '#991B1B'
+    }
+
+    // Se custo reforma > 30% do valor do imóvel → alerta sobrecapitalização
+    const pctDoValor = (custoReforma / valorMercado * 100)
+    if (pctDoValor > 30) {
+      recomendacao = '🔴 Sobrecapitalização'
+      cor = '#991B1B'
+    }
+
+    resultado[cenario] = {
+      custoReforma,
+      custoTotal,
+      valorPosReforma,
+      valorizacaoAbsoluta,
+      lucroFlip: Math.round(lucroFlip),
+      roiFlip: parseFloat(roiFlip.toFixed(1)),
+      eficiencia: parseFloat(eficiencia.toFixed(2)),
+      prazoMeses: prazo,
+      pctDoValor: parseFloat(pctDoValor.toFixed(1)),
+      recomendacao,
+      cor,
+    }
+  }
+
+  // Melhor cenário
+  const melhor = Object.entries(resultado).sort((a, b) => b[1].roiFlip - a[1].roiFlip)[0]
+  resultado._melhor = melhor[0]
+  resultado._melhorROI = melhor[1].roiFlip
+
+  return resultado
+}

@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase.js"
 // trelloService: import dinâmico em handleTrello
 import CalculadoraROI from "./CalculadoraROI.jsx"
 import { CLASSES_MERCADO_REFORMA, calcularCustoReforma, detectarClasseMercado } from "../data/custos_reforma.js"
-import { CUSTO_M2_SINAPI, ESCOPOS as ESCOPOS_REFORMA, FATOR_VALORIZACAO, detectarClasse as detectarClasseReforma } from "../lib/reformaUnificada.js"
+import { CUSTO_M2_SINAPI, ESCOPOS as ESCOPOS_REFORMA, FATOR_VALORIZACAO, detectarClasse as detectarClasseReforma, avaliarViabilidadeReforma } from "../lib/reformaUnificada.js"
 import PainelLeilao from './PainelLeilao.jsx'
 const AbaJuridicaAgente = lazy(() => import('./AbaJuridicaAgente.jsx'))
 import { buscarArrematesSimilares, carregarCacheArremates } from '../lib/buscaArrematesGPT.js'
@@ -1573,35 +1573,57 @@ for (const s of SCORES) {
       <div style={{...card(),marginBottom:"14px"}}>
         <CalculadoraROI imovel={p} />
       </div>
-      {/* Plano de Reforma — SINAPI Unificado (mesma fonte dos painéis) */}
+      {/* Plano de Reforma — SINAPI Unificado com ROI */}
       {(() => {
         const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 60
         const preco_m2 = parseFloat(p.preco_m2_mercado) || 7000
         const classe = detectarClasseReforma(preco_m2)
         const classeLabels = { A_prime:'A — Prime', B_medio_alto:'B — Médio-Alto', C_intermediario:'C — Intermediário', D_popular:'D — Popular' }
-        const escopos = ['refresh_giro','leve_funcional','leve_reforcada_1_molhado']
+        const precoCompra = parseFloat(p.preco_pedido || p.valor_minimo) || 0
+        const valorMercado = parseFloat(p.valor_mercado_estimado) || (area * preco_m2)
+        const viab = avaliarViabilidadeReforma(valorMercado, precoCompra, area, preco_m2)
+        const cenarios = [
+          { id: 'basica', label: 'Básica', desc: 'Pintura, reparos, limpeza', ico: '🖌' },
+          { id: 'media', label: 'Média', desc: 'Pisos, banheiro, elétrica', ico: '🔧' },
+          { id: 'completa', label: 'Completa', desc: 'Total + estrutura + projeto', ico: '🏗' },
+        ]
         return (
           <div style={{...card(),marginBottom:"14px"}}>
-            <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>🏗️ Plano de Reforma — Custos SINAPI</div>
-            <div style={{fontSize:11,color:K.t2,marginBottom:10}}>Classe: <strong style={{color:K.tx}}>{classeLabels[classe] || classe}</strong> · Área: {area} m²</div>
+            <div style={{fontWeight:"600",color:C.navy,marginBottom:"4px",fontSize:"13px"}}>🏗️ Plano de Reforma — Vale a pena?</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>
+              Classe: <strong style={{color:C.navy}}>{classeLabels[classe] || classe}</strong> · Área: {area}m² · Mercado: {fmtC(valorMercado)}
+            </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-              {escopos.map(esc => {
-                const custoM2 = CUSTO_M2_SINAPI[esc]?.[classe] || 0
-                const custoBase = Math.round(area * custoM2)
-                const escInfo = ESCOPOS_REFORMA?.find(e => e.id === esc)
-                const fatorVal = FATOR_VALORIZACAO[esc] || 1.0
-                const isRefresh = esc === 'refresh_giro'
+              {cenarios.map(c => {
+                const v = viab?.[c.id]
+                if (!v) return null
                 return (
-                  <div key={esc} style={{background:isRefresh?K.s2:C.white,borderRadius:10,padding:12,border:`1px solid ${isRefresh?K.teal+'30':C.borderW}`}}>
-                    <div style={{fontSize:11,fontWeight:600,color:isRefresh?K.teal:K.tx,marginBottom:6}}>{escInfo?.label || esc.replace(/_/g,' ')}</div>
-                    <div style={{fontSize:10,color:K.t2,marginBottom:4}}>R$ {custoM2}/m²</div>
-                    <div style={{fontSize:16,fontWeight:700,color:K.tx}}>{fmtC(custoBase)}</div>
-                    <div style={{fontSize:9,color:K.teal,marginTop:4}}>Valorização: +{((fatorVal-1)*100).toFixed(0)}%</div>
+                  <div key={c.id} style={{borderRadius:10,padding:12,border:`2px solid ${v.cor}25`,background:`${v.cor}06`}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.navy,marginBottom:4}}>{c.ico} {c.label}</div>
+                    <div style={{fontSize:9,color:C.muted,marginBottom:6,lineHeight:1.3}}>{c.desc}</div>
+                    <div style={{fontSize:16,fontWeight:800,color:C.navy}}>{fmtC(v.custoReforma)}</div>
+                    <div style={{fontSize:10,color:C.muted,marginTop:4}}>R$ {Math.round(v.custoReforma / area)}/m²</div>
+                    {/* ROI indicator */}
+                    <div style={{marginTop:8,padding:'4px 8px',borderRadius:6,background:`${v.cor}15`,textAlign:'center'}}>
+                      <div style={{fontSize:12,fontWeight:700,color:v.cor}}>{v.recomendacao}</div>
+                    </div>
+                    <div style={{marginTop:6,fontSize:9,color:C.muted,lineHeight:1.4}}>
+                      <div>Valorização: <strong style={{color:C.navy}}>+{Math.round((FATOR_VALORIZACAO[({basica:'refresh_giro',media:'leve_reforcada_1_molhado',completa:'pesada'})[c.id]] - 1) * 100)}%</strong> ({fmtC(v.valorizacaoAbsoluta)})</div>
+                      <div>Pós-reforma: <strong>{fmtC(v.valorPosReforma)}</strong></div>
+                      <div>ROI flip: <strong style={{color:v.roiFlip > 0 ? '#065F46' : '#991B1B'}}>{v.roiFlip > 0 ? '+' : ''}{v.roiFlip}%</strong></div>
+                      <div>Eficiência: <strong>{v.eficiencia}x</strong> (R$1 → R${v.eficiencia})</div>
+                      {v.pctDoValor > 25 && <div style={{color:'#D97706',fontWeight:600}}>⚠️ {v.pctDoValor}% do valor</div>}
+                    </div>
                   </div>
                 )
               })}
             </div>
-            <div style={{fontSize:9,color:K.t3,marginTop:6,borderTop:`1px solid ${C.borderW}`,paddingTop:6}}>Fonte: SINAPI MG 2026 · Valores idênticos aos painéis de Rentabilidade e Cenários</div>
+            {viab?._melhor && (
+              <div style={{marginTop:10,padding:'8px 12px',borderRadius:8,background:'#F0FDF4',border:'1px solid #BBF7D0',fontSize:11,color:'#065F46'}}>
+                💡 <strong>Melhor cenário: {viab._melhor.charAt(0).toUpperCase() + viab._melhor.slice(1)}</strong> — ROI {viab._melhorROI > 0 ? '+' : ''}{viab._melhorROI}%
+              </div>
+            )}
+            <div style={{fontSize:9,color:C.hint,marginTop:6,borderTop:`1px solid ${C.borderW}`,paddingTop:6}}>SINAPI-MG 2026 · Eficiência = valorização ÷ custo reforma (>1.5x = bom)</div>
           </div>
         )
       })()}
