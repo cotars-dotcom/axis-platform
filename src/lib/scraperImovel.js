@@ -321,9 +321,29 @@ export function isCondominioPage(url) {
 /**
  * Extrai links individuais de imóveis de uma página de condomínio.
  * Retorna: { condominio, endereco, links[], precoMinimo, cidade, bairro }
+ * Se Jina falha (SPA), extrai info da URL e marca para Gemini Grounding.
  */
-export async function extrairLinksCondominio(url) {
-  const result = { condominio: '', endereco: '', links: [], precoMinimo: 0, cidade: '', bairro: '' }
+export async function extrairLinksCondominio(url, geminiKey = null) {
+  const result = { condominio: '', endereco: '', links: [], precoMinimo: 0, cidade: '', bairro: '', _needsGrounding: false }
+
+  // 1. Extrair info básica da própria URL (sempre funciona)
+  const urlPath = url.replace(/https?:\/\/[^/]+\//, '').replace(/[?#].*/,'')
+  const urlParts = urlPath.replace(/condominio\//,'').split(/[-/]/).filter(Boolean)
+  // QuintoAndar: /condominio/conquista-monte-belo-parque-xangri-la-contagem-XXXXX
+  const cidadesConhecidas = ['contagem','betim','belo-horizonte','nova-lima','juiz-de-fora','sabara','santa-luzia']
+  for (const cid of cidadesConhecidas) {
+    if (urlPath.toLowerCase().includes(cid)) {
+      result.cidade = cid.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      break
+    }
+  }
+  // Nome do condomínio da URL (remover código hash final)
+  const nomeParts = urlParts.filter(p => !cidadesConhecidas.some(c => c.includes(p)) && p.length > 2 && !/^[a-z0-9]{8,}$/.test(p))
+  if (nomeParts.length > 0) {
+    result.condominio = nomeParts.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  }
+
+  // 2. Tentar Jina para links
   try {
     const jinaUrl = `https://r.jina.ai/${url}`
     const res = await fetch(jinaUrl, {
@@ -333,38 +353,96 @@ export async function extrairLinksCondominio(url) {
     if (!res.ok) throw new Error(`Jina ${res.status}`)
     const texto = await res.text()
 
-    // Nome do condomínio
+    // Nome do condomínio (se melhor que URL)
     const tituloMatch = texto.match(/(?:^#\s*|Title:\s*)(.+)/m)
-    result.condominio = tituloMatch?.[1]?.replace(/\s*[-|].*$/, '').trim() || ''
+    const titJina = tituloMatch?.[1]?.replace(/\s*[-|].*(?:QuintoAndar|Alugue|Compre).*$/i, '').trim()
+    if (titJina && titJina.length > result.condominio.length) result.condominio = titJina
 
     // Endereço e bairro
     const endMatch = texto.match(/(?:Rua|Av|Alameda|R\.)\s+[^,\n]+,\s*\d+[^,\n]*,?\s*([A-ZÀ-Ú][a-zà-ú\s]+)/i)
     if (endMatch) { result.endereco = endMatch[0].trim(); result.bairro = endMatch[1]?.trim() || '' }
 
-    // Cidade
-    if (/contagem/i.test(texto)) result.cidade = 'Contagem'
-    else if (/belo horizonte|bh/i.test(texto)) result.cidade = 'Belo Horizonte'
-    else if (/betim/i.test(texto)) result.cidade = 'Betim'
-    else if (/nova lima/i.test(texto)) result.cidade = 'Nova Lima'
+    // Cidade do texto
+    if (!result.cidade) {
+      if (/contagem/i.test(texto)) result.cidade = 'Contagem'
+      else if (/belo horizonte|bh/i.test(texto)) result.cidade = 'Belo Horizonte'
+    }
 
-    // Preço mínimo
+    // Preço
     const precoMatch = texto.match(/(?:a partir de|compra|valor)\s*:?\s*R?\$?\s*([\d.,]+)/i)
     if (precoMatch) result.precoMinimo = parseFloat(precoMatch[1].replace(/\./g, '').replace(',', '.'))
 
-    // Links individuais QuintoAndar: /imovel/XXXXX
+    // Links individuais
     const baseUrl = new URL(url).origin
     const qaLinks = texto.match(/\/imovel\/[a-zA-Z0-9_-]+/g) || []
     for (const l of qaLinks) {
       const full = `${baseUrl}${l}`
       if (!result.links.includes(full)) result.links.push(full)
     }
-    // Links genéricos /imovel/ ou /venda/
     const vrLinks = texto.match(/https?:\/\/[^\s)"]+\/imovel\/[^\s)"]+/gi) || []
     for (const l of vrLinks) {
       const clean = l.replace(/[)"\s]+$/, '')
       if (!result.links.includes(clean) && !clean.includes('/condominio/')) result.links.push(clean)
     }
-  } catch(e) { console.warn('[AXIS] Erro extraindo links condomínio:', e.message) }
+  } catch(e) { console.warn('[AXIS] Jina condomínio falhou:', e.message) }
+
+  // 3. Se Jina não encontrou links → usar Gemini Grounding para buscar
+  if (result.links.length === 0 && geminiKey) {
+    try {
+      const prompt = `Preciso encontrar os links de ANÚNCIOS INDIVIDUAIS de apartamentos à venda no condomínio "${result.condominio}" em ${result.cidade || 'Minas Gerais'}.
+
+URL da página do condomínio: ${url}
+
+Busque no QuintoAndar os apartamentos disponíveis para COMPRA neste condomínio.
+Para cada apartamento encontrado, retorne o link individual (formato quintoandar.com.br/imovel/XXXXX), preço, área e quartos.
+
+Retorne APENAS JSON válido:
+{
+  "condominio": "nome do condomínio",
+  "endereco": "endereço completo",
+  "cidade": "cidade",
+  "bairro": "bairro",
+  "imoveis": [
+    { "link": "https://www.quintoandar.com.br/imovel/XXXXX", "preco": 204000, "area_m2": 42, "quartos": 2, "vagas": 1, "descricao": "breve" }
+  ]
+}`
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            tools: [{ google_search_retrieval: { dynamic_retrieval_config: { mode: 'MODE_DYNAMIC', dynamic_threshold: 0.3 } } }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
+          }),
+          signal: AbortSignal.timeout(60000)
+        }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        const txt = data.candidates?.[0]?.content?.parts?.filter(p => p.text)?.map(p => p.text)?.join('') || ''
+        const clean = txt.replace(/```json|```/g, '').trim()
+        const jsonMatch = clean.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          if (parsed.condominio) result.condominio = parsed.condominio
+          if (parsed.endereco) result.endereco = parsed.endereco
+          if (parsed.cidade) result.cidade = parsed.cidade
+          if (parsed.bairro) result.bairro = parsed.bairro
+          if (parsed.imoveis?.length) {
+            result._imoveis = parsed.imoveis // dados completos para uso direto
+            for (const im of parsed.imoveis) {
+              if (im.link && !result.links.includes(im.link)) result.links.push(im.link)
+            }
+          }
+        }
+      }
+    } catch(e) { console.warn('[AXIS] Gemini Grounding condomínio falhou:', e.message) }
+  }
+
   result.links = result.links.slice(0, 10)
+  result._needsGrounding = result.links.length === 0
   return result
 }

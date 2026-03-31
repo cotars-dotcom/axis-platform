@@ -613,44 +613,100 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
       const { isCondominioPage, extrairLinksCondominio } = await import('./lib/scraperImovel.js')
       if (isCondominioPage(urlTrimmed)) {
         setLoading(true); setStep('🏢 Página de condomínio detectada — buscando imóveis individuais...')
-        const info = await extrairLinksCondominio(urlTrimmed)
+        const geminiKey = localStorage.getItem("axis-gemini-key") || ""
+        const info = await extrairLinksCondominio(urlTrimmed, geminiKey)
         setLoading(false)
-        if (info.links.length > 0) {
+
+        // Se Gemini Grounding retornou dados completos dos imóveis (sem precisar de links)
+        const imoveisGrounding = info._imoveis || []
+
+        if (info.links.length > 0 || imoveisGrounding.length > 0) {
+          const totalImoveis = info.links.length || imoveisGrounding.length
+          const precoInfo = imoveisGrounding.length > 0
+            ? imoveisGrounding.map(im => `R$ ${(im.preco||0).toLocaleString('pt-BR')} · ${im.area_m2||'?'}m² · ${im.quartos||'?'}q`).join('\n')
+            : (info.precoMinimo > 0 ? `A partir de R$ ${info.precoMinimo.toLocaleString('pt-BR')}` : '')
           const confirmar = window.confirm(
             `🏢 ${info.condominio || 'Condomínio'}\n` +
             `📍 ${info.endereco || info.bairro || ''} ${info.cidade ? '— ' + info.cidade : ''}\n` +
-            `${info.precoMinimo > 0 ? '💰 A partir de R$ ' + info.precoMinimo.toLocaleString('pt-BR') + '\n' : ''}` +
-            `\n🔗 ${info.links.length} imóvel(is) encontrado(s).\n\n` +
-            `Analisar ${info.links.length === 1 ? 'este imóvel' : 'todos os ' + info.links.length + ' imóveis'} individualmente?\n` +
+            `${precoInfo ? '\n' + precoInfo + '\n' : ''}` +
+            `\n🔗 ${totalImoveis} apartamento(s) encontrado(s).\n\n` +
+            `Analisar ${totalImoveis === 1 ? 'este imóvel' : 'todos os ' + totalImoveis + ' imóveis'} individualmente?\n` +
             `(Cada um terá seu próprio card com score)`
           )
           if (confirmar) {
             setLoading(true)
-            for (let i = 0; i < info.links.length; i++) {
-              setStep(`🏠 Analisando imóvel ${i + 1}/${info.links.length}...`)
-              try {
-                const openaiKey = localStorage.getItem("axis-openai-key") || ""
-                const claudeKeyReal = localStorage.getItem("axis-api-key") || ""
-                const { analisarImovelCompleto: _analisarImovelCompleto } = await import('./lib/motorIA.js')
-                const data = await _analisarImovelCompleto(info.links[i], claudeKeyReal, openaiKey, parametrosBanco, criteriosBanco, (msg) => setStep(`[${i+1}/${info.links.length}] ${msg}`), [], null, null)
-                data.fonte_url = info.links[i]
-                if (!data.tipo_transacao) data.tipo_transacao = 'mercado_direto'
-                // Validação mínima
-                const precoOk = parseFloat(data.valor_minimo || data.preco_pedido) > 0
-                const tituloOk = data.titulo && data.titulo.length > 5
-                if (precoOk || tituloOk) {
-                  const property = {...data, id:uid(), createdAt:new Date().toISOString()}
-                  await onSave(property)
-                  showToast(`✓ [${i+1}/${info.links.length}] ${data.titulo?.substring(0,40)||'Imóvel'} — Score ${(data.score_total||0).toFixed(1)}`)
-                } else {
-                  showToast(`⚠️ [${i+1}/${info.links.length}] Dados insuficientes — pulando`, '#E5484D')
+            // Se temos links individuais → analisar cada um
+            if (info.links.length > 0) {
+              for (let i = 0; i < info.links.length; i++) {
+                setStep(`🏠 Analisando imóvel ${i + 1}/${info.links.length}...`)
+                try {
+                  const openaiKey = localStorage.getItem("axis-openai-key") || ""
+                  const claudeKeyReal = localStorage.getItem("axis-api-key") || ""
+                  const { analisarImovelCompleto: _analisarImovelCompleto } = await import('./lib/motorIA.js')
+                  const data = await _analisarImovelCompleto(info.links[i], claudeKeyReal, openaiKey, parametrosBanco, criteriosBanco, (msg) => setStep(`[${i+1}/${info.links.length}] ${msg}`), [], null, null)
+                  data.fonte_url = info.links[i]
+                  if (!data.tipo_transacao) data.tipo_transacao = 'mercado_direto'
+                  const precoOk = parseFloat(data.valor_minimo || data.preco_pedido) > 0
+                  const tituloOk = data.titulo && data.titulo.length > 5
+                  if (precoOk || tituloOk) {
+                    const property = {...data, id:uid(), createdAt:new Date().toISOString()}
+                    await onSave(property)
+                    showToast(`✓ [${i+1}/${info.links.length}] ${data.titulo?.substring(0,40)||'Imóvel'} — Score ${(data.score_total||0).toFixed(1)}`)
+                  } else {
+                    showToast(`⚠️ [${i+1}/${info.links.length}] Dados insuficientes — pulando`, '#E5484D')
+                  }
+                } catch(e) {
+                  showToast(`⚠️ [${i+1}/${info.links.length}] Erro: ${e.message?.substring(0,60)}`, '#E5484D')
                 }
-              } catch(e) {
-                showToast(`⚠️ [${i+1}/${info.links.length}] Erro: ${e.message?.substring(0,60)}`, '#E5484D')
+              }
+            }
+            // Se temos dados diretos do Grounding (sem links) → analisar cada imóvel via Grounding individual
+            else if (imoveisGrounding.length > 0) {
+              for (let i = 0; i < imoveisGrounding.length; i++) {
+                const im = imoveisGrounding[i]
+                setStep(`🏠 Analisando imóvel ${i + 1}/${imoveisGrounding.length}: ${im.descricao || ''}...`)
+                try {
+                  // Se tem link individual → usar pipeline normal
+                  if (im.link && im.link.includes('/imovel/')) {
+                    const openaiKey = localStorage.getItem("axis-openai-key") || ""
+                    const claudeKeyReal = localStorage.getItem("axis-api-key") || ""
+                    const { analisarImovelCompleto: _analisarImovelCompleto } = await import('./lib/motorIA.js')
+                    const data = await _analisarImovelCompleto(im.link, claudeKeyReal, openaiKey, parametrosBanco, criteriosBanco, (msg) => setStep(`[${i+1}/${imoveisGrounding.length}] ${msg}`), [], null, null)
+                    data.fonte_url = im.link
+                    if (!data.tipo_transacao) data.tipo_transacao = 'mercado_direto'
+                    if (!data.preco_pedido && im.preco) { data.preco_pedido = im.preco; data.valor_minimo = im.preco }
+                    const property = {...data, id:uid(), createdAt:new Date().toISOString()}
+                    await onSave(property)
+                    showToast(`✓ [${i+1}/${imoveisGrounding.length}] ${data.titulo?.substring(0,40)||im.descricao||'Imóvel'}`)
+                  } else {
+                    // Sem link → criar card com dados do Grounding diretamente
+                    const property = {
+                      id: uid(), createdAt: new Date().toISOString(),
+                      titulo: `${im.descricao || 'Apartamento'} — ${info.condominio}`,
+                      tipo_transacao: 'mercado_direto',
+                      fonte_url: urlTrimmed,
+                      preco_pedido: im.preco || 0, valor_minimo: im.preco || 0,
+                      area_m2: im.area_m2 || 0, quartos: im.quartos || 0, vagas: im.vagas || 0,
+                      bairro: info.bairro || '', cidade: info.cidade || 'Contagem', estado: 'MG',
+                      endereco: info.endereco || '',
+                      tipo: 'Apartamento', tipologia: 'apartamento_padrao',
+                      aluguel_mensal_estimado: im.preco ? Math.round(im.preco * 0.005) : 0,
+                      valor_mercado_estimado: im.preco || 0,
+                      preco_m2_imovel: im.area_m2 > 0 ? Math.round((im.preco||0) / im.area_m2) : 0,
+                      score_total: 0, recomendacao: 'AGUARDAR',
+                      _modelo_usado: 'gemini-grounding-condominio',
+                      alertas: ['[INFO] Dados extraídos via Gemini Grounding — reanalisar para score completo'],
+                    }
+                    await onSave(property)
+                    showToast(`✓ [${i+1}/${imoveisGrounding.length}] ${im.descricao||'Imóvel'} · R$ ${(im.preco||0).toLocaleString('pt-BR')}`)
+                  }
+                } catch(e) {
+                  showToast(`⚠️ [${i+1}/${imoveisGrounding.length}] Erro: ${e.message?.substring(0,60)}`, '#E5484D')
+                }
               }
             }
             setLoading(false); setStep('')
-            showToast(`✅ ${info.links.length} imóvel(is) do condomínio analisado(s)`)
+            showToast(`✅ ${totalImoveis} apartamento(s) do condomínio processado(s)`)
             return
           } else { setLoading(false); return }
         } else {
