@@ -1560,7 +1560,7 @@ for (const s of SCORES) {
                     </div>
                     <div style={{textAlign:'right',flexShrink:0}}>
                       <div style={{fontSize:14,fontWeight:800,color:op._isLeilao ? '#D97706' : '#1D4ED8'}}>
-                        R$ {Math.round(op.valor_minimo / 1000)}k
+                        R$ {Math.round((op._isLeilao ? op.valor_minimo : (op.preco_pedido || op.valor_minimo)) / 1000)}k
                       </div>
                       {op._economia > 0 && (
                         <div style={{fontSize:10,fontWeight:700,color:'#065F46',marginTop:2}}>
