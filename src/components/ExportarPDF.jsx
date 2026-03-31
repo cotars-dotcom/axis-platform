@@ -132,7 +132,7 @@ ${p.foto_principal ? `<img src="${p.foto_principal}" style="width:100%;max-heigh
     <h1>${p.titulo || 'Imóvel'}</h1>
     <div class="sub">
       ${p.codigo_axis ? `<strong>${p.codigo_axis}</strong> · ` : ''}📍 ${[p.bairro, p.cidade].filter(Boolean).join(', ')}/${p.estado || 'MG'}
-      · ${area ? area + 'm²' : '—'} · ${p.quartos || '—'}q · ${p.vagas || '—'}v
+      · ${area ? area + 'm²' : ''}${p.quartos ? ' · ' + p.quartos + 'q' : ''}${p.vagas ? ' · ' + p.vagas + 'v' : ''}
     </div>
     <div style="margin-top:6px">
       <span class="badge" style="background:${rec.bg};color:${rec.color}">${rec.text}</span>
@@ -377,7 +377,10 @@ function showTab(id){
   document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'))
   document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'))
   document.getElementById('tab-'+id).classList.add('active')
-  event.target.classList.add('active')
+  // Find the clicked tab button
+  document.querySelectorAll('.tab').forEach(t=>{
+    if(t.textContent.toLowerCase().includes(id.substring(0,3))) t.classList.add('active')
+  })
 }
 
 // Reforma selector

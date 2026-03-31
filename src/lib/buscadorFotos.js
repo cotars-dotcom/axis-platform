@@ -80,6 +80,15 @@ function isFotoImovel(url) {
 }
 
 // Filtrar e ordenar fotos — prioriza imagens claramente de imóvel
+function isImagemPequena(url) {
+  // Detectar dimensões na URL
+  const dimMatch = url.match(/dimension=(\d+)x(\d+)/)
+  if (dimMatch && (parseInt(dimMatch[1]) < 200 || parseInt(dimMatch[2]) < 150)) return true
+  // Detectar thumbnails por nome
+  if (/72x56|48x48|100x100|thumb-xs|thumbnail-xs|avatar|corretora|pereira|profile/i.test(url)) return true
+  return false
+}
+
 function filtrarFotos(urls) {
   const vistas = new Set()
   const prioritarias = []
@@ -89,17 +98,16 @@ function filtrarFotos(urls) {
     if (!url || !url.startsWith('http')) continue
     if (vistas.has(url)) continue
     if (isUrlBanida(url)) continue
+    if (isImagemPequena(url)) continue
     vistas.add(url)
 
     if (isFotoImovel(url)) {
       prioritarias.push(url)
     } else if (url.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)) {
-      // Só aceitar jpg/png genérico se tiver dimensão razoável no nome ou contexto
       secundarias.push(url)
     }
   }
 
-  // Priorizar fotos claramente de imóvel, depois jpg/png genéricos
   return [...prioritarias, ...secundarias].slice(0, 15)
 }
 
@@ -157,19 +165,18 @@ const PADROES_LEILOEIRO = {
   'vivareal.com.br': {
     extrairFotos: (html) => {
       const fotos = []
-      // resized.co images (CDN principal VivaReal)
-      const resized = html.match(/https?:\/\/resized[^\s"'<>]+/gi) || []
-      fotos.push(...resized)
-      // img.vivareal
-      const imgVR = html.match(/https?:\/\/img\.vivareal[^\s"'<>]+\.(?:jpg|jpeg|png|webp)[^\s"'<>]*/gi) || []
-      fotos.push(...imgVR)
-      // cdn vivareal
-      const cdn = html.match(/https?:\/\/cdn[^\s"'<>]*vivareal[^\s"'<>]+\.(?:jpg|jpeg|png)[^\s"'<>]*/gi) || []
-      fotos.push(...cdn)
-      // Qualquer URL de imagem no conteúdo
-      const generic = html.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png)\b[^\s"'<>]*/gi) || []
-      fotos.push(...generic.filter(u => !isUrlBanida(u)))
-      return [...new Set(fotos)].filter(u => !isUrlBanida(u))
+      // resized images — APENAS fotos grandes (>200px de dimensão)
+      const resized = html.match(/https?:\/\/resizedimgs\.vivareal\.com\/img\/vr-listing\/[^\s"'<>]+/gi) || []
+      for (const url of resized) {
+        const clean = url.replace(/&amp;/g, '&')
+        // Filtrar avatars e thumbnails pequenos
+        if (/72x56|dimension=72|48x48|200x200|pereira|corretora|logo/i.test(clean)) continue
+        // Só manter fotos com dimensão razoável (>300)
+        const dimMatch = clean.match(/dimension=(\d+)x(\d+)/)
+        if (dimMatch && parseInt(dimMatch[1]) < 300) continue
+        if (!fotos.includes(clean)) fotos.push(clean)
+      }
+      return fotos.filter(u => !isUrlBanida(u))
     }
   },
   'zapimoveis.com.br': {
