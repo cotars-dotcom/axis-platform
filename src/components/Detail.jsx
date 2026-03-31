@@ -871,10 +871,19 @@ function AbaArremates({ imovel }) {
                 <span style={{fontSize:11, fontWeight:700, color:C.emerald, flexShrink:0, marginLeft:8}}>{fmt(a.valor_arrematado)}</span>
               </div>
               <div style={{fontSize:10, color:C.muted}}>
-                {a.pct_avaliacao?.toFixed(1)}% da avaliação ({fmt(a.valor_avaliacao)}) · {a.data} · {a.fonte}
+                {a.pct_avaliacao?.toFixed(1)}% da avaliação ({fmt(a.valor_avaliacao)}) · {a.data}
+                {a.fonte && !a.fonte.includes('XYZ') && !a.fonte.includes('ABC') && !a.fonte.includes('DEF')
+                  ? ` · ${a.fonte}`
+                  : <span style={{color:C.mustard}}> · estimativa IA</span>}
               </div>
             </div>
           ))}
+
+          {dados._modelo && (
+            <div style={{padding:'8px 12px', borderRadius:6, background:'#FEF9C3', border:'1px solid #FDE68A', fontSize:10, color:'#92400E', marginBottom:8}}>
+              ⚠️ Dados estimados por IA ({dados._modelo}). Nomes de leiloeiros e valores são aproximações baseadas em mercado — não são registros oficiais. Confirme em sites de leiloeiros credenciados (suporteleiloes.com.br, saraivaleiloes.com.br).
+            </div>
+          )}
 
           {dados.observacoes && (
             <div style={{...card(), padding:12, fontSize:11, color:C.muted}}>{dados.observacoes}</div>
