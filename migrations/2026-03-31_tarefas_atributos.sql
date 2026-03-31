@@ -30,6 +30,7 @@ ALTER TABLE imoveis ADD COLUMN IF NOT EXISTS _axis_demanda TEXT;
 
 -- 5. Imoveis: mercado direto
 ALTER TABLE imoveis ADD COLUMN IF NOT EXISTS desconto_sobre_mercado_pct_calculado NUMERIC(5,1);
+ALTER TABLE imoveis ADD COLUMN IF NOT EXISTS _modelo_usado TEXT;
 
 -- 6. Verificação
 SELECT 'tarefas.imovel_id' as campo, data_type FROM information_schema.columns WHERE table_name='tarefas' AND column_name='imovel_id'

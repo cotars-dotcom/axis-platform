@@ -163,6 +163,7 @@ const IMOVEIS_COLS = new Set([
   'mobiliado','_correcoes_vision','_vision_observacoes','_vision_estado',
   '_dados_bairro_axis','_score_axis_patrimonial','_gap_asking_closing_pct',
   '_preco_asking_m2','_preco_closing_m2','_axis_yield','_axis_tendencia','_axis_demanda',
+  '_modelo_usado',
 ])
 
 export async function saveImovelCompleto(imovel, userId) {
