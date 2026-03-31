@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { C, RED, ESTRATEGIA_CONFIG } from "../appConstants.js"
+import { isMercadoDireto } from '../lib/detectarFonte.js'
 
 export default function CalculadoraROI({ imovel }) {
   const [entrada, setEntrada] = useState(30)
@@ -7,18 +8,21 @@ export default function CalculadoraROI({ imovel }) {
   const [taxaJuros, setTaxaJuros] = useState(10.5)
   const [tabela, setTabela] = useState('price')
   const [estrategia, setEstrategia] = useState('flip')
-  const lance       = imovel.valor_minimo || 0
-  const comissao    = lance * 0.05
-  const itbi        = lance * ((imovel.itbi_pct || 2) / 100)
-  const doc         = lance * 0.005
+  const eMercado = isMercadoDireto(imovel.fonte_url, imovel.tipo_transacao)
+  const precoAquisicao = eMercado
+    ? (parseFloat(imovel.preco_pedido) || parseFloat(imovel.valor_minimo) || 0)
+    : (parseFloat(imovel.valor_minimo) || 0)
+  const comissao    = eMercado ? 0 : precoAquisicao * 0.05
+  const itbi        = precoAquisicao * ((imovel.itbi_pct || (eMercado ? 3 : 2)) / 100)
+  const doc         = precoAquisicao * 0.005
   const reforma     = imovel.custo_reforma_calculado || imovel.custo_reforma_previsto || 0
-  const advogado      = lance * 0.02
+  const advogado      = eMercado ? 0 : precoAquisicao * 0.02
   const registro      = 1500
   const custoJuridico = imovel.custo_juridico_estimado || 0
-  const custoTotal    = lance + comissao + itbi + doc + advogado + registro + reforma + custoJuridico
+  const custoTotal    = precoAquisicao + comissao + itbi + doc + advogado + registro + reforma + custoJuridico
   const vmercado = imovel.valor_mercado_estimado || imovel.valor_pos_reforma_estimado
     || (imovel.preco_m2_mercado * (imovel.area_privativa_m2 || imovel.area_m2 || 0))
-    || lance * 1.4
+    || precoAquisicao * 1.4
   // IRPF: isento até R$440k (imóvel único PF - Lei 11.196/2005); 15% acima
   const ganhoCapital = Math.max(0, vmercado - custoTotal)
   const irpfGanho = vmercado <= 440000 ? 0 : ganhoCapital * 0.15
@@ -52,24 +56,24 @@ export default function CalculadoraROI({ imovel }) {
   const maoLocacao  = aluguelMensal > 0
                     ? (aluguelMensal * 12) / (capRatePct / 100) - custosFixos
                     : 0
-  const lanceViavel = lance <= maoFlip
+  const lanceViavel = precoAquisicao <= maoFlip
   return (
     <div style={{ marginTop: 20 }}>
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
         <span style={{ fontSize:16 }}>💰</span>
         <h4 style={{ margin:0, fontSize:14, fontWeight:700, color:C.navy }}>
-          Calculadora de Retorno
+          {eMercado ? 'Calculadora de Retorno — Compra Direta' : 'Calculadora de Retorno'}
         </h4>
       </div>
       <div style={{ background:C.surface, borderRadius:10, padding:'12px 14px', marginBottom:12 }}>
         <p style={{ margin:'0 0 8px', fontSize:11, fontWeight:600, color:C.muted,
           textTransform:'uppercase', letterSpacing:'0.5px' }}>Custo Total de Aquisição</p>
         {[
-          ['Lance mínimo',    fmt(lance)],
-          ['Comissão leiloeiro (5%)', fmt(comissao)],
-          [`ITBI (${imovel.itbi_pct || 2}%)`, fmt(itbi)],
+          [eMercado ? 'Preço aquisição' : 'Lance mínimo', fmt(precoAquisicao)],
+          ...(eMercado ? [] : [['Comissão leiloeiro (5%)', fmt(comissao)]]),
+          [`ITBI (${imovel.itbi_pct || (eMercado ? 3 : 2)}%)`, fmt(itbi)],
           ['Documentação (0,5%)', fmt(doc)],
-          ['Honorários advocacia (2%)', fmt(advogado)],
+          ...(eMercado ? [] : [['Honorários advocacia (2%)', fmt(advogado)]]),
           ['Registro cartório', fmt(registro)],
           custoJuridico > 0 ? ['Custo jurídico estimado', fmt(custoJuridico)] : null,
           reforma > 0 ? ['Reforma estimada', fmt(reforma)] : null,
@@ -122,13 +126,15 @@ export default function CalculadoraROI({ imovel }) {
             <div style={{background:C.surface, borderRadius:8, padding:'8px 12px',
               marginTop:8, border:`1px solid ${lanceViavel ? C.emerald+'40' : RED+'40'}`}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                <span style={{fontSize:11, color:C.muted}}>Lance máximo (margem 20%)</span>
+                <span style={{fontSize:11, color:C.muted}}>{eMercado ? 'Preço máximo (margem 20%)' : 'Lance máximo (margem 20%)'}</span>
                 <span style={{fontSize:14, fontWeight:800,
                   color: lanceViavel ? C.emerald : RED}}>{fmt(maoFlip)}</span>
               </div>
               <p style={{margin:'4px 0 0', fontSize:11,
                 color: lanceViavel ? C.emerald : RED}}>
-                {lanceViavel ? '✓ Lance atual está dentro do MAO' : '✗ Lance atual supera o MAO'}
+                {lanceViavel
+                  ? (eMercado ? '✓ Preço pedido dentro da margem' : '✓ Lance atual está dentro do MAO')
+                  : (eMercado ? '✗ Preço pedido supera a margem' : '✗ Lance atual supera o MAO')}
               </p>
             </div>
           )}
@@ -149,7 +155,7 @@ export default function CalculadoraROI({ imovel }) {
           ))}
           {maoLocacao > 0 && (
             <div style={{background:C.surface, borderRadius:8, padding:'8px 12px', marginTop:8}}>
-              <span style={{fontSize:11, color:C.muted}}>Lance máximo (yield {capRatePct}% a.a.)</span>
+              <span style={{fontSize:11, color:C.muted}}>{eMercado ? 'Preço máximo' : 'Lance máximo'} (yield {capRatePct}% a.a.)</span>
               <span style={{fontSize:14, fontWeight:800, color:C.navy, marginLeft:8}}>
                 {fmt(maoLocacao)}
               </span>

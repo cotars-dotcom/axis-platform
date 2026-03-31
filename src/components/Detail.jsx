@@ -755,14 +755,14 @@ function ModoAoVivo({ imovel, onClose }) {
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, flex:1 }}>
         {[
-          ['💰 Lance mínimo', s.valor_minimo
-            ? `R$ ${Number(s.valor_minimo).toLocaleString('pt-BR')}` : '—'],
+          [isMercadoDireto(s.fonte_url,s.tipo_transacao)?'💰 Preço pedido':'💰 Lance mínimo',
+            (isMercadoDireto(s.fonte_url,s.tipo_transacao)?(s.preco_pedido||s.valor_minimo):s.valor_minimo)
+            ? `R$ ${Number(isMercadoDireto(s.fonte_url,s.tipo_transacao)?(s.preco_pedido||s.valor_minimo):s.valor_minimo).toLocaleString('pt-BR')}` : '—'],
           ['💸 Desconto', s.desconto_percentual ? `${s.desconto_percentual}%` : '—'],
           ['⚖️ Jurídico', `${s.score_juridico?.toFixed(1) || '—'}/10`],
           ['🏠 Ocupação', s.ocupacao || 'Verificar'],
           ['📍 Localização', `${s.score_localizacao?.toFixed(1) || '—'}/10`],
-          ['💡 Custo total', s.valor_minimo
-            ? `R$ ${Math.round(s.valor_minimo * 1.075 / 1000)}k est.` : '—'],
+          ['💡 Custo total', (()=>{const pr=parseFloat(isMercadoDireto(s.fonte_url,s.tipo_transacao)?(s.preco_pedido||s.valor_minimo):s.valor_minimo)||0;const mult=isMercadoDireto(s.fonte_url,s.tipo_transacao)?1.035:1.075;return pr?`R$ ${Math.round(pr*mult/1000)}k est.`:'—'})()],
         ].map(([label, val]) => (
           <div key={label} style={{ background:'rgba(255,255,255,0.08)',
             borderRadius:10, padding:'12px 14px' }}>
@@ -1680,8 +1680,8 @@ for (const s of SCORES) {
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>💰 Preço/m²</div>
           <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
-            <span style={{fontSize:"12px",color:K.t3}}>Lance ÷ área privativa</span>
-            <span style={{fontSize:"12.5px",fontWeight:"600",color:K.tx}}>R$ {Math.round((p.valor_minimo||0)/(p.area_usada_calculo_m2||p.area_privativa_m2||p.area_m2||1)).toLocaleString('pt-BR')}/m²</span>
+            <span style={{fontSize:"12px",color:K.t3}}>{isMercadoDireto(p.fonte_url,p.tipo_transacao)?"Preço ÷ área":"Lance ÷ área privativa"}</span>
+            <span style={{fontSize:"12.5px",fontWeight:"600",color:K.tx}}>R$ {Math.round((isMercadoDireto(p.fonte_url,p.tipo_transacao)?(p.preco_pedido||p.valor_minimo||0):(p.valor_minimo||0))/(p.area_usada_calculo_m2||p.area_privativa_m2||p.area_m2||1)).toLocaleString('pt-BR')}/m²</span>
           </div>
           <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
             <span style={{fontSize:"12px",color:K.t3}}>Mercado</span>
@@ -1694,18 +1694,23 @@ for (const s of SCORES) {
           </div>}
         </div>
         <div style={card()}>
-          {p.custo_total_aquisicao?<>
-            <div style={{fontWeight:"600",color:K.amb,marginBottom:"10px",fontSize:"13px"}}>🧾 Custo total real</div>
-            {[[isMercadoDireto(p.fonte_url,p.tipo_transacao)?"Preço pedido":"Lance mínimo",fmtC(p.preco_pedido||p.valor_minimo)],...(!isMercadoDireto(p.fonte_url,p.tipo_transacao)?[["Comissão leiloeiro",fmtC(p.valor_minimo*(p.comissao_leiloeiro_pct||5)/100)]]:[]),["ITBI",fmtC((p.preco_pedido||p.valor_minimo)*(p.itbi_pct||2)/100)],["Regularização",fmtC(p.custo_regularizacao)]].filter(([,v])=>v&&v!=="R$ 0").map(([l,v])=>(
+          {(()=>{
+            const eMerc=isMercadoDireto(p.fonte_url,p.tipo_transacao)
+            const precoBase=parseFloat(eMerc?(p.preco_pedido||p.valor_minimo):p.valor_minimo)||0
+            const custoCalc=p.custo_total_aquisicao||(precoBase>0?Math.round(precoBase*(1+(eMerc?0.035:0.105))+1500):0)
+            return custoCalc>0?<>
+            <div style={{fontWeight:"600",color:K.amb,marginBottom:"10px",fontSize:"13px"}}>🧾 Custo total {p.custo_total_aquisicao?'real':'estimado'}</div>
+            {[[eMerc?"Preço pedido":"Lance mínimo",fmtC(precoBase)],...(!eMerc?[["Comissão leiloeiro",fmtC(precoBase*(p.comissao_leiloeiro_pct||5)/100)]]:[]),["ITBI",fmtC(precoBase*(p.itbi_pct||(eMerc?3:2))/100)],["Doc + Registro",fmtC(precoBase*0.005+1500)],...(!eMerc?[["Advogado (2%)",fmtC(precoBase*0.02)]]:[]),["Regularização",fmtC(p.custo_regularizacao)]].filter(([,v])=>v&&v!=="R$ 0"&&v!=="R$ NaN").map(([l,v])=>(
               <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:"12px"}}>
                 <span style={{color:K.t3}}>{l}</span><span style={{color:K.tx}}>{v}</span>
               </div>
             ))}
             <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:`1px solid ${K.bd}`,marginTop:"6px"}}>
               <span style={{fontSize:"13px",fontWeight:"700",color:K.wh}}>Total</span>
-              <span style={{fontSize:"13px",fontWeight:"700",color:K.amb}}>R$ {p.custo_total_aquisicao.toLocaleString('pt-BR')}</span>
+              <span style={{fontSize:"13px",fontWeight:"700",color:K.amb}}>R$ {custoCalc.toLocaleString('pt-BR')}</span>
             </div>
-          </>:<div style={{fontSize:"12px",color:K.t3}}>Custo total não calculado</div>}
+          </>:<div style={{fontSize:"12px",color:K.t3}}>Preço de aquisição não disponível</div>
+          })()}
         </div>
       </div>
       {/* Comparáveis */}

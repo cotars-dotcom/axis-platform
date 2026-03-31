@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { C, K, fmtC, btn, card } from '../appConstants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
+import { isMercadoDireto } from '../lib/detectarFonte.js'
 import {
   ESCOPOS,
   CUSTO_M2_SINAPI,
@@ -14,26 +15,31 @@ export default function CenariosReforma({ imovel, isAdmin }) {
   const [mostrarDetalhe, setMostrarDetalhe] = useState(false)
 
   const p = imovel || {}
-  const lance = parseFloat(p.valor_minimo) || 0
-  const semDados = lance === 0
-  const avaliacao = parseFloat(p.valor_avaliacao) || lance * 1.3
+  const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
+
+  // Base de aquisição: preco_pedido para mercado direto, valor_minimo para leilão
+  const precoAquisicao = eMercado
+    ? (parseFloat(p.preco_pedido) || parseFloat(p.valor_minimo) || 0)
+    : (parseFloat(p.valor_minimo) || 0)
+  const semDados = precoAquisicao === 0
+  const avaliacao = parseFloat(p.valor_avaliacao) || precoAquisicao * 1.3
   const vmercado = parseFloat(p.valor_mercado_estimado) || avaliacao * 1.2
   const aluguelBase = parseFloat(p.aluguel_mensal_estimado) || Math.round(vmercado * 0.005)
-  const prazoLib = parseFloat(p.prazo_liberacao_estimado_meses) || 0
+  const prazoLib = eMercado ? 0 : (parseFloat(p.prazo_liberacao_estimado_meses) || 0)
 
   const classeLabel = { A_prime:'A — Prime', B_medio_alto:'B — Médio-Alto', C_intermediario:'C — Intermediário', D_popular:'D — Popular' }[classe]
 
-  // Parâmetros de transação
-  const comissao = lance * 0.05
-  const itbi = lance * 0.03
-  const doc = lance * 0.005
-  const adv = lance * 0.02
+  // Parâmetros de transação — mercado direto: sem comissão de leiloeiro
+  const comissao = eMercado ? 0 : precoAquisicao * 0.05
+  const itbi = precoAquisicao * 0.03
+  const doc = precoAquisicao * 0.005
+  const adv = eMercado ? 0 : precoAquisicao * 0.02
   const reg = 1500
 
   const cenarios = useMemo(() => {
     return ESCOPOS.map(esc => {
       const custoReforma = (CUSTO_M2_SINAPI[esc.id]?.[classe] || 0) * area
-      const custoTotal = lance + comissao + itbi + doc + adv + reg + custoReforma
+      const custoTotal = precoAquisicao + comissao + itbi + doc + adv + reg + custoReforma
       const prazo = prazoLib + (PRAZO_OBRA_MESES[esc.id] || 0)
 
       // Valor pós-reforma = mercado × fator_valorizacao
@@ -80,7 +86,7 @@ export default function CenariosReforma({ imovel, isAdmin }) {
         valororiacao: Math.round((esc.fator_valorizacao - 1) * 100)
       }
     })
-  }, [lance, vmercado, area, classe, prazoLib, aluguelBase, avaliacao, comissao, itbi, doc, adv])
+  }, [precoAquisicao, vmercado, area, classe, prazoLib, aluguelBase, avaliacao, comissao, itbi, doc, adv])
 
   const sel = cenarios.find(c => c.id === escopoSel) || cenarios[0]
   const semReforma = cenarios[0]
@@ -105,10 +111,12 @@ export default function CenariosReforma({ imovel, isAdmin }) {
         </button>
       </div>
 
-      {/* Aviso quando não há dados de lance */}
+      {/* Aviso quando não há dados de preço */}
       {semDados && (
         <div style={{padding:'10px 12px', borderRadius:8, background:'#FAEEDA', border:'1px solid #BA751730', fontSize:12, color:'#633806', marginBottom:12}}>
-          ⚠️ Lance mínimo não disponível — reanalize o imóvel para calcular os cenários corretamente.
+          {eMercado
+            ? '⚠️ Preço pedido não disponível — reanalize o imóvel para calcular os cenários corretamente.'
+            : '⚠️ Lance mínimo não disponível — reanalize o imóvel para calcular os cenários corretamente.'}
         </div>
       )}
       {/* Seletor de escopos */}
@@ -132,10 +140,10 @@ export default function CenariosReforma({ imovel, isAdmin }) {
         <div style={{padding:'12px 14px', background:C.surface, borderRadius:10}}>
           <div style={{fontSize:11, fontWeight:600, color:C.muted, marginBottom:8}}>Custos</div>
           {[
-            ['Lance', lance > 0 ? fmt(lance) : '⚠ Sem dados'],
-            ['Comissão 5%', fmt(comissao)],
+            [eMercado ? 'Preço aquisição' : 'Lance', precoAquisicao > 0 ? fmt(precoAquisicao) : '⚠ Sem dados'],
+            ...(eMercado ? [] : [['Comissão 5%', fmt(comissao)]]),
             ['ITBI 3%', fmt(itbi)],
-            ['Doc + Adv', fmt(doc + adv + reg)],
+            [eMercado ? 'Doc + Registro' : 'Doc + Adv', fmt(doc + adv + reg)],
             ['Reforma', fmt(sel.custoReforma), sel.sobrecap],
             ['Total', fmt(sel.custoTotal), 'total'],
           ].map(([l, v, flag]) => (
@@ -235,7 +243,7 @@ export default function CenariosReforma({ imovel, isAdmin }) {
           fontSize:12, display:'flex', justifyContent:'space-between', alignItems:'center',
           marginBottom:12
         }}>
-          <span style={{color:C.muted}}>Ganho vs. sem reforma ({semReforma.id})</span>
+          <span style={{color:C.muted}}>Ganho vs. sem reforma</span>
           <span style={{fontWeight:700, color: gainVsSemReforma > 0 ? C.emerald : '#A32D2D'}}>
             {gainVsSemReforma > 0 ? '+' : ''}{fmt(gainVsSemReforma)}
           </span>

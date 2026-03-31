@@ -7,7 +7,7 @@ const LazyBuscaGPT = lazy(() => import('./components/BuscaGPT.jsx'))
 import { useAuth } from "./lib/AuthContext.jsx"
 import Login from "./pages/Login.jsx"
 import { supabase, getImoveis, deleteImovel } from "./lib/supabase.js"
-import { detectarTipoTransacao } from "./lib/detectarFonte.js"
+import { detectarTipoTransacao, isMercadoDireto } from "./lib/detectarFonte.js"
 const LazyTarefas = lazy(() => import('./pages/Tarefas.jsx'))
 // motorIA carregado dinamicamente no momento do uso para reduzir bundle inicial
 // trelloService carregado dinamicamente para reduzir bundle inicial
@@ -116,7 +116,7 @@ function buildTrelloCard(p) {
 
 ### 💰 Valores
 - **Avaliação:** ${fmtC(p.valor_avaliacao)}
-- **Lance mínimo:** ${fmtC(p.valor_minimo)}
+- **${isMercadoDireto(p.fonte_url,p.tipo_transacao)?'Preço pedido':'Lance mínimo'}:** ${fmtC(isMercadoDireto(p.fonte_url,p.tipo_transacao)?(p.preco_pedido||p.valor_minimo):p.valor_minimo)}
 - **Desconto:** ${p.desconto_percentual||"—"}%
 - **Preço/m² imóvel:** R$ ${p.preco_m2_imovel||"—"}/m²
 - **Preço/m² mercado:** R$ ${p.preco_m2_mercado||"—"}/m²
@@ -1270,9 +1270,9 @@ function BancoArquivados({ session, isAdmin, isPhone }) {
                 </div>
                 <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
                   <div>
-                    <p style={{ margin: 0, fontSize: 10.5, color: C.hint }}>Lance mínimo</p>
+                    <p style={{ margin: 0, fontSize: 10.5, color: C.hint }}>{isMercadoDireto(imovel.fonte_url,imovel.tipo_transacao)?'Preço pedido':'Lance mínimo'}</p>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.navy }}>
-                      {imovel.valor_minimo ? `R$ ${Number(imovel.valor_minimo).toLocaleString('pt-BR')}` : '—'}
+                      {(()=>{const v=isMercadoDireto(imovel.fonte_url,imovel.tipo_transacao)?(imovel.preco_pedido||imovel.valor_minimo):imovel.valor_minimo;return v?`R$ ${Number(v).toLocaleString('pt-BR')}`:'—'})()}
                     </p>
                   </div>
                   <div>

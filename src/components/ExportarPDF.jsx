@@ -269,10 +269,33 @@ ${p.foto_principal ? `<img src="${p.foto_principal}" style="width:100%;max-heigh
     <div class="row"><span class="row-l">Custo/m²</span><span class="row-v" id="ref-m2">R$ ${reformas[0].custoM2}/m²</span></div>
     <div class="row"><span class="row-l">Valorização</span><span class="row-v green" id="ref-val">+${reformas[0].valorizacao}%</span></div>
     <div class="row"><span class="row-l">Valor pós-reforma</span><span class="row-v" id="ref-pos">${fmt(Math.round((p.valor_mercado_estimado || 0) * (1 + reformas[0].valorizacao / 100)))}</span></div>
-    <div class="row"><span class="row-l">Custo total (compra+reforma+taxas)</span><span class="row-v" id="ref-total">${fmt((p.valor_minimo || 0) + reformas[0].custo + Math.round((p.valor_minimo || 0) * 0.10))}</span></div>
+    <div class="row"><span class="row-l">Custo total (compra+reforma+taxas)</span><span class="row-v" id="ref-total">${fmt(precoCompra + reformas[0].custo + Math.round(precoCompra * (eMercado ? 0.035 : 0.10)))}</span></div>
     <div class="row"><span class="row-l">ROI estimado (flip)</span><span class="row-v" style="color:${reformas[0].roiFlip > 0 ? '#065F46' : '#991B1B'}" id="ref-roi">${reformas[0].roiFlip > 0 ? '+' : ''}${reformas[0].roiFlip}%</span></div>
     <div class="row"><span class="row-l">Eficiência (R$1 gera)</span><span class="row-v" id="ref-ef">R$ ${reformas[0].eficiencia}</span></div>
   </div>
+
+  <!-- Aluguel estimado por cenário -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-t">🏠 Aluguel Estimado por Cenário de Reforma</div>
+    ${(()=>{
+      const alugBase = parseFloat(p.aluguel_mensal_estimado) || Math.round(valorMercado * 0.005)
+      const cenarios = [
+        { label: 'Sem reforma', fator: 0.90, cor: '#8E8EA0' },
+        { label: 'Básica (Refresh)', fator: 1.00, cor: '#3B8BD4' },
+        { label: 'Média', fator: 1.08, cor: '#059669' },
+        { label: 'Completa', fator: 1.20, cor: '#7C3AED' },
+      ]
+      return cenarios.map(c => {
+        const alug = Math.round(alugBase * c.fator)
+        const yieldB = precoCompra > 0 ? ((alug * 12) / precoCompra * 100).toFixed(1) : '—'
+        return `<div class="row">
+          <span class="row-l"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.cor};margin-right:5px"></span>${c.label}</span>
+          <span class="row-v">${fmt(alug)}/mês · <span style="color:${parseFloat(yieldB)>=6?'#065F46':'#92400E'}">${yieldB}% yield</span></span>
+        </div>`
+      }).join('')
+    })()}
+  </div>
+
   <div style="font-size:9px;color:#999">SINAPI-MG 2026 · Classe ${classe.replace(/_/g, ' ')}</div>
 </div>
 
@@ -386,7 +409,8 @@ function showTab(id){
 // Reforma selector
 const REF = ${JSON.stringify(reformas)};
 const VM = ${p.valor_mercado_estimado || 0};
-const LANCE = ${p.valor_minimo || 0};
+const LANCE = ${precoCompra || 0};
+const E_MERCADO = ${eMercado};
 function selReforma(i){
   document.querySelectorAll('.ref-opt').forEach((e,j)=>e.classList.toggle('sel',j===i))
   const r=REF[i]
@@ -394,7 +418,7 @@ function selReforma(i){
   document.getElementById('ref-m2').textContent='R$ '+r.custoM2+'/m²'
   document.getElementById('ref-val').textContent='+'+r.valorizacao+'%'
   document.getElementById('ref-pos').textContent='R$ '+Math.round(VM*(1+r.valorizacao/100)).toLocaleString('pt-BR')
-  document.getElementById('ref-total').textContent='R$ '+(LANCE+r.custo+Math.round(LANCE*0.10)).toLocaleString('pt-BR')
+  document.getElementById('ref-total').textContent='R$ '+(LANCE+r.custo+Math.round(LANCE*(E_MERCADO?0.035:0.10))).toLocaleString('pt-BR')
   const roiEl=document.getElementById('ref-roi'); if(roiEl) roiEl.textContent=(r.roiFlip>0?'+':'')+r.roiFlip+'%'
   const efEl=document.getElementById('ref-ef'); if(efEl) efEl.textContent='R$ '+r.eficiencia
 }
@@ -423,7 +447,7 @@ export async function compartilharRelatorio(p) {
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({
         title: `AXIS · ${p.codigo_axis || ''} · ${p.titulo || 'Imóvel'}`,
-        text: `${p.recomendacao || '—'} · Score ${(p.score_total || 0).toFixed(1)} · ${fmt(p.valor_minimo)}`,
+        text: `${p.recomendacao || '—'} · Score ${(p.score_total || 0).toFixed(1)} · ${fmt(p.preco_pedido || p.valor_minimo)}`,
         files: [file],
       })
       return 'shared'
