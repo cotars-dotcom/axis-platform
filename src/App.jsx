@@ -829,7 +829,7 @@ function PropCard({p,onNav}) {
     onMouseLeave={e=>{e.currentTarget.style.borderColor=K.bd;e.currentTarget.style.borderLeftColor=cidCor.accent;e.currentTarget.style.transform="none"}}>
 
     {/* Cidade label — destaque para cidades fora de BH */}
-    {p.cidade && p.cidade !== 'Belo Horizonte' && (
+    {p.cidade && (
       <div style={{marginBottom:6,display:'inline-block',padding:'1px 8px',borderRadius:4,background:cidCor.bg,border:`1px solid ${cidCor.accent}25`,fontSize:9,fontWeight:700,color:cidCor.accent,letterSpacing:.5,textTransform:'uppercase'}}>
         {p.cidade}
       </div>

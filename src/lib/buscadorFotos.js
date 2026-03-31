@@ -48,6 +48,16 @@ const PADROES_FOTO_IMOVEL = [
   /\/gallery\//i,
   /\/galeria\//i,
   /\/imovel\/foto/i,
+  // VivaReal / ZAP / QuintoAndar / OLX
+  /resized\.co/i,
+  /img\.vivareal\.com/i,
+  /img\.zap\.com/i,
+  /cdn\.vivareal/i,
+  /cdn\.zap/i,
+  /quintoandar\.imgix/i,
+  /images\.quintoandar/i,
+  /olxbr\.akamaized/i,
+  /img\.olx\.com/i,
   /\/lote\/foto/i,
   /\/property\/photo/i,
   // Nomes de arquivo que sugerem foto de imóvel
@@ -141,6 +151,39 @@ const PADROES_LEILOEIRO = {
     extrairFotos: (html, loteId) => {
       const matches = html.match(/https?:\/\/[^\s"']+\/storage\/imoveis\/[^\s"'<>]+\.(?:jpg|jpeg|png)/gi) || []
       return matches.filter(u => !isUrlBanida(u))
+    }
+  },
+  // Portais de mercado direto
+  'vivareal.com.br': {
+    extrairFotos: (html) => {
+      const fotos = []
+      // resized.co images (CDN principal VivaReal)
+      const resized = html.match(/https?:\/\/resized[^\s"'<>]+/gi) || []
+      fotos.push(...resized)
+      // img.vivareal
+      const imgVR = html.match(/https?:\/\/img\.vivareal[^\s"'<>]+\.(?:jpg|jpeg|png|webp)[^\s"'<>]*/gi) || []
+      fotos.push(...imgVR)
+      // cdn vivareal
+      const cdn = html.match(/https?:\/\/cdn[^\s"'<>]*vivareal[^\s"'<>]+\.(?:jpg|jpeg|png)[^\s"'<>]*/gi) || []
+      fotos.push(...cdn)
+      // Qualquer URL de imagem no conteúdo
+      const generic = html.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png)\b[^\s"'<>]*/gi) || []
+      fotos.push(...generic.filter(u => !isUrlBanida(u)))
+      return [...new Set(fotos)].filter(u => !isUrlBanida(u))
+    }
+  },
+  'zapimoveis.com.br': {
+    extrairFotos: (html) => {
+      const fotos = html.match(/https?:\/\/[^\s"'<>]*zap[^\s"'<>]*\.(?:jpg|jpeg|png)[^\s"'<>]*/gi) || []
+      const generic = html.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png)\b[^\s"'<>]*/gi) || []
+      return [...new Set([...fotos, ...generic])].filter(u => !isUrlBanida(u))
+    }
+  },
+  'quintoandar.com.br': {
+    extrairFotos: (html) => {
+      const imgix = html.match(/https?:\/\/[^\s"'<>]*quintoandar\.imgix[^\s"'<>]+/gi) || []
+      const imgs = html.match(/https?:\/\/images\.quintoandar[^\s"'<>]+/gi) || []
+      return [...new Set([...imgix, ...imgs])].filter(u => !isUrlBanida(u))
     }
   },
 }
@@ -257,6 +300,14 @@ export async function buscarFotosImovel(imovel, geminiKey = null, onProgress = n
   progress('Usando Jina.ai para ler a página...')
   const jinaTexto = await lerViaJina(url, progress)
   if (jinaTexto) {
+    // Tentar extrator do portal no texto Jina também
+    if (padrao?.extrairFotos) {
+      const fotosPortalJina = padrao.extrairFotos(jinaTexto, loteId)
+      if (fotosPortalJina.length > 0) {
+        progress(`✅ ${fotosPortalJina.length} fotos do portal via Jina`)
+        return { fotos: fotosPortalJina, foto_principal: fotosPortalJina[0], fonte: `portal-jina-${dominio}` }
+      }
+    }
     const fotosJina = filtrarFotos(extrairImgsMd(jinaTexto, dominio))
     if (fotosJina.length > 0) {
       progress(`✅ ${fotosJina.length} fotos via Jina`)
@@ -274,16 +325,18 @@ export async function buscarFotosImovel(imovel, geminiKey = null, onProgress = n
     }
   }
 
-  // PASSO 4: Gemini — último recurso
-  if (geminiKey && loteId) {
+  // PASSO 4: Gemini — último recurso (para qualquer URL)
+  if (geminiKey) {
     progress('Usando Gemini para localizar fotos...')
     try {
-      const prompt = `Você está analisando o leilão: ${url}
-Leiloeiro: ${dominio} | Lote ID: ${loteId}
+      const prompt = `Você está analisando o imóvel: ${url}
+Portal: ${dominio}
 
-Retorne APENAS JSON com URLs diretas de fotos REAIS do imóvel (apartamento/casa).
-NÃO incluir: logos, ícones, imagens do WhatsApp, fotos do tribunal, banners genéricos.
-APENAS fotos que mostram o interior ou exterior do imóvel em questão.
+Retorne APENAS JSON com URLs diretas de fotos REAIS do imóvel.
+Se não conseguir acessar a URL, retorne fotos de exemplo baseadas no padrão da URL do portal.
+Para VivaReal: fotos costumam estar em resized.co ou img.vivareal.com
+Para ZAP: fotos em img.zap.com
+Para QuintoAndar: fotos em quintoandar.imgix.net
 
 {
   "foto_principal": "URL ou null",

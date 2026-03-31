@@ -126,6 +126,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;font-size:13px;color:#1
 <div class="wrap">
 
 <!-- Header -->
+${p.foto_principal ? `<img src="${p.foto_principal}" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-bottom:12px" onerror="this.style.display='none'" />` : ''}
 <div class="hdr">
   <div>
     <h1>${p.titulo || 'Imóvel'}</h1>
@@ -187,6 +188,36 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;font-size:13px;color:#1
     }).join('')}
   </div>
 
+  <!-- Resumo financeiro -->
+  <div class="grid" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-t">💰 Custos</div>
+      ${[
+        [eMercado ? 'Preço pedido' : 'Lance mínimo', fmt(p.preco_pedido || p.valor_minimo)],
+        ['Avaliação', fmt(p.valor_avaliacao)],
+        ['Desconto', p.desconto_percentual ? p.desconto_percentual + '%' : (p.desconto_sobre_mercado_pct_calculado ? p.desconto_sobre_mercado_pct_calculado + '%' : '—')],
+        ['Preço/m² imóvel', p.preco_m2_imovel ? 'R$ ' + Math.round(p.preco_m2_imovel).toLocaleString('pt-BR') + '/m²' : null],
+        ['Preço/m² mercado', p.preco_m2_mercado ? 'R$ ' + Math.round(p.preco_m2_mercado).toLocaleString('pt-BR') + '/m²' : null],
+        ['Condomínio', p.condominio_mensal ? 'R$ ' + Number(p.condominio_mensal).toLocaleString('pt-BR') + '/mês' : null],
+      ].filter(([,v]) => v && v !== '—').map(([l,v]) =>
+        '<div class="row"><span class="row-l">' + l + '</span><span class="row-v">' + v + '</span></div>'
+      ).join('')}
+    </div>
+    <div class="card">
+      <div class="card-t">📈 Retorno</div>
+      ${[
+        ['Yield bruto', p.yield_bruto_pct ? p.yield_bruto_pct + '% a.a.' : null],
+        ['MAO Flip', fmt(p.mao_flip)],
+        ['MAO Locação', fmt(p.mao_locacao)],
+        ['Retorno revenda', p.retorno_venda_pct ? '+' + p.retorno_venda_pct + '%' : null],
+        ['Estrutura', p.estrutura_recomendada],
+        ['Estratégia', p.estrategia_recomendada],
+      ].filter(([,v]) => v && v !== '—').map(([l,v]) =>
+        '<div class="row"><span class="row-l">' + l + '</span><span class="row-v">' + v + '</span></div>'
+      ).join('')}
+    </div>
+  </div>
+
   <!-- Síntese -->
   ${p.sintese_executiva ? `
   <div class="card" style="margin-bottom:14px;background:#F0F4FF;border-color:#C7D4F8">
@@ -228,17 +259,21 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;font-size:13px;color:#1
       <div class="label">${r.label}</div>
       <div class="price">${fmt(r.custo)}</div>
       <div style="font-size:9px;color:#666">R$ ${r.custoM2}/m² · +${r.valorizacao}%</div>
+      <div style="margin-top:4px;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:${r.roiFlip > 10 ? '#ECFDF5' : r.roiFlip > 0 ? '#FEF9C3' : '#FEF2F2'};color:${r.roiFlip > 10 ? '#065F46' : r.roiFlip > 0 ? '#92400E' : '#991B1B'}">${r.recomendacao || (r.roiFlip > 0 ? 'Vale' : 'Não compensa')}</div>
+      <div style="font-size:8px;color:#666;margin-top:2px">ROI: ${r.roiFlip > 0 ? '+' : ''}${r.roiFlip}%</div>
     </div>`).join('')}
   </div>
   <div id="ref-detail" class="card" style="margin-bottom:14px">
-    <div class="card-t">Detalhamento</div>
+    <div class="card-t">Detalhamento — ${reformas[0].label}</div>
     <div class="row"><span class="row-l">Custo reforma</span><span class="row-v" id="ref-custo">${fmt(reformas[0].custo)}</span></div>
     <div class="row"><span class="row-l">Custo/m²</span><span class="row-v" id="ref-m2">R$ ${reformas[0].custoM2}/m²</span></div>
     <div class="row"><span class="row-l">Valorização</span><span class="row-v green" id="ref-val">+${reformas[0].valorizacao}%</span></div>
     <div class="row"><span class="row-l">Valor pós-reforma</span><span class="row-v" id="ref-pos">${fmt(Math.round((p.valor_mercado_estimado || 0) * (1 + reformas[0].valorizacao / 100)))}</span></div>
-    <div class="row"><span class="row-l">Custo total (lance+reforma+taxas)</span><span class="row-v" id="ref-total">${fmt((p.valor_minimo || 0) + reformas[0].custo + Math.round((p.valor_minimo || 0) * 0.10))}</span></div>
+    <div class="row"><span class="row-l">Custo total (compra+reforma+taxas)</span><span class="row-v" id="ref-total">${fmt((p.valor_minimo || 0) + reformas[0].custo + Math.round((p.valor_minimo || 0) * 0.10))}</span></div>
+    <div class="row"><span class="row-l">ROI estimado (flip)</span><span class="row-v" style="color:${reformas[0].roiFlip > 0 ? '#065F46' : '#991B1B'}" id="ref-roi">${reformas[0].roiFlip > 0 ? '+' : ''}${reformas[0].roiFlip}%</span></div>
+    <div class="row"><span class="row-l">Eficiência (R$1 gera)</span><span class="row-v" id="ref-ef">R$ ${reformas[0].eficiencia}</span></div>
   </div>
-  <div style="font-size:9px;color:#999">SINAPI-MG 2026 · Classe ${classe.replace('_', ' ')}</div>
+  <div style="font-size:9px;color:#999">SINAPI-MG 2026 · Classe ${classe.replace(/_/g, ' ')}</div>
 </div>
 
 <!-- TAB: Detalhe -->
@@ -357,6 +392,8 @@ function selReforma(i){
   document.getElementById('ref-val').textContent='+'+r.valorizacao+'%'
   document.getElementById('ref-pos').textContent='R$ '+Math.round(VM*(1+r.valorizacao/100)).toLocaleString('pt-BR')
   document.getElementById('ref-total').textContent='R$ '+(LANCE+r.custo+Math.round(LANCE*0.10)).toLocaleString('pt-BR')
+  const roiEl=document.getElementById('ref-roi'); if(roiEl) roiEl.textContent=(r.roiFlip>0?'+':'')+r.roiFlip+'%'
+  const efEl=document.getElementById('ref-ef'); if(efEl) efEl.textContent='R$ '+r.eficiencia
 }
 </script>
 </body>
