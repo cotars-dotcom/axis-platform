@@ -1298,6 +1298,89 @@ DADOS DE BAIRRO (parcial):
 
   // Extrair fotos — usar buscadorFotos (custo zero) com fallback para extrairFotosImovel
   progress('📷 Buscando fotos do imóvel...')
+
+  // ── CALIBRAÇÃO DE SCORES COM DADOS REAIS (metricas_bairros_bh + Supabase) ──
+  // Pós-análise: ajustar score_mercado e score_liquidez com dados verificáveis
+  const bairroAnalise = analise.bairro || dadosGPT?.bairro || ''
+  const dadosBairroCalib = getBairroDados(bairroAnalise)
+  if (dadosBairroCalib) {
+    // score_mercado: calibrar pela classe IPEAD + yield + tendência
+    const classeScore = { 4: 8.5, 3: 7.0, 2: 5.5, 1: 4.0 }
+    const scoreClasseBase = classeScore[dadosBairroCalib.classeIpead] || 5.5
+    // Ajustar por tendência: +0.5 se >10%, -0.5 se <3%
+    const ajusteTend = (dadosBairroCalib.tendencia12m || 0) > 10 ? 0.5
+      : (dadosBairroCalib.tendencia12m || 0) < 3 ? -0.5 : 0
+    // Ajustar por yield: +0.5 se >6%, -0.5 se <4.5%
+    const ajusteYield = (dadosBairroCalib.yieldBruto || 0) > 6 ? 0.5
+      : (dadosBairroCalib.yieldBruto || 0) < 4.5 ? -0.5 : 0
+    const scoreMercadoCalibrado = Math.min(10, Math.max(1, scoreClasseBase + ajusteTend + ajusteYield))
+    // Só sobrescrever se a IA deu um score genérico (5.0-6.0) — respeitar se deu algo mais específico
+    if ((analise.score_mercado || 0) >= 5.0 && (analise.score_mercado || 0) <= 6.5) {
+      analise.score_mercado = scoreMercadoCalibrado
+    }
+    // Salvar dados de bairro para exibição no frontend
+    analise._dados_bairro_axis = {
+      label: dadosBairroCalib.label,
+      zona: dadosBairroCalib.zona,
+      classeIpead: dadosBairroCalib.classeIpead,
+      classeIpeadLabel: dadosBairroCalib.classeIpeadLabel,
+      precoContratoM2: dadosBairroCalib.precoContratoM2,
+      precoAnuncioM2: dadosBairroCalib.precoAnuncioM2,
+      yieldBruto: dadosBairroCalib.yieldBruto,
+      tendencia12m: dadosBairroCalib.tendencia12m,
+      fatorElevador: dadosBairroCalib.fatorElevador || 0.85,
+    }
+    // Homogeneização: calcular e salvar fator se não veio da IA
+    if (!analise.fator_homogenizacao || analise.fator_homogenizacao >= 1) {
+      let fh = 1.0
+      if (analise.elevador === false) fh *= 0.87
+      if (analise.piscina === false) fh *= 0.97
+      if (analise.area_lazer === false) fh *= 0.95
+      if ((analise.vagas || 0) === 0) fh *= 0.90
+      if (fh < 1.0) analise.fator_homogenizacao = parseFloat(fh.toFixed(4))
+    }
+    // Calibrar valor_mercado_homogenizado
+    if (dadosBairroCalib.precoContratoM2 && analise.area_m2 && !analise.valor_mercado_homogenizado) {
+      const fh = analise.fator_homogenizacao || 1.0
+      analise.valor_mercado_homogenizado = Math.round(dadosBairroCalib.precoContratoM2 * analise.area_m2 * fh)
+    }
+    // Calibrar aluguel com dados reais do bairro
+    if (dadosBairroCalib.precoContratoM2 && analise.area_m2 && !analise.aluguel_mensal_estimado) {
+      const yieldMensal = (dadosBairroCalib.yieldBruto || 5.5) / 100 / 12
+      analise.aluguel_mensal_estimado = Math.round(
+        dadosBairroCalib.precoContratoM2 * analise.area_m2 * (analise.fator_homogenizacao || 1.0) * yieldMensal
+      )
+    }
+  }
+  // Buscar score AXIS do Supabase (vw_axis_score_patrimonial) se disponível
+  try {
+    const regiaoAxis = detectarRegiao(analise.cidade || '', analise.bairro || '')
+    if (regiaoAxis) {
+      const { supabase: sb } = await import('./supabase.js')
+      const { data: scoreAxisData } = await sb.from('vw_axis_score_patrimonial')
+        .select('score_axis, yield_bruto_pct, tendencia_pct_12m, demanda')
+        .eq('regiao_key', regiaoAxis)
+        .maybeSingle()
+      if (scoreAxisData?.score_axis) {
+        analise._score_axis_patrimonial = scoreAxisData.score_axis
+        analise._axis_yield = scoreAxisData.yield_bruto_pct
+        analise._axis_tendencia = scoreAxisData.tendencia_pct_12m
+        analise._axis_demanda = scoreAxisData.demanda
+      }
+      // Buscar gap asking/closing
+      const { data: gapData } = await sb.from('vw_axis_preco_gap')
+        .select('gap_pct, preco_asking_m2, preco_closing_m2')
+        .eq('regiao_key', regiaoAxis)
+        .maybeSingle()
+      if (gapData?.gap_pct) {
+        analise._gap_asking_closing_pct = gapData.gap_pct
+        analise._preco_asking_m2 = gapData.preco_asking_m2
+        analise._preco_closing_m2 = gapData.preco_closing_m2
+      }
+    }
+  } catch(e) { /* views opcionais — não bloquear */ }
+  // Recalcular score_total com scores calibrados
+  analise.score_total = calcularScore(analise, parametros)
   let fotosResult = { fotos: [], foto_principal: null }
   try {
     const { buscarFotosImovel } = await import('./buscadorFotos.js')

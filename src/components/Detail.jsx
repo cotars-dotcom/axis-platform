@@ -1166,7 +1166,7 @@ for (const s of SCORES) {
       </>}/>
     {/* Tabs */}
     <div style={{display:"flex",gap:isPhone?4:0,borderBottom:`1px solid ${K.bd}`,padding:isPhone?"0 16px":"0 28px",background:K.s1,overflowX:isPhone?'auto':'visible',scrollbarWidth:'none',WebkitOverflowScrolling:'touch',msOverflowStyle:'none'}}>
-      {[{id:'resumo',label:'📊 Resumo',labelMobile:'📊'},{id:'juridico',label:'⚖️ Jurídico',labelMobile:'⚖️'},{id:'fotos',label:'📸 Fotos',labelMobile:'📸'},{id:'mercado',label:'🏙️ Mercado',labelMobile:'🏙️'},...(isAdmin?[{id:'arremates',label:'🔨 Arremates',labelMobile:'🔨 Arr.'}]:[])].map(tab=>(
+      {[{id:'resumo',label:'📊 Resumo',labelMobile:'📊'},{id:'juridico',label:'⚖️ Jurídico',labelMobile:'⚖️'},{id:'fotos',label:'📸 Fotos',labelMobile:'📸'},{id:'mercado',label:'🏙️ Mercado',labelMobile:'🏙️'},...(isAdmin&&!isMercadoDireto(p.fonte_url,p.tipo_transacao)?[{id:'arremates',label:'🔨 Arremates',labelMobile:'🔨 Arr.'}]:[])].map(tab=>(
         <button key={tab.id} onClick={()=>setAbaDetalhe(tab.id)} style={{
           background:"none",border:"none",padding:isPhone?"10px 12px":"10px 18px",fontSize:"12.5px",fontWeight:abaDetalhe===tab.id?700:500,whiteSpace:'nowrap',flexShrink:0,
           color:abaDetalhe===tab.id?K.teal:K.t3,cursor:"pointer",
@@ -1208,12 +1208,58 @@ for (const s of SCORES) {
       {abaDetalhe==='mercado'&&<div>
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>🏙️ Mercado Regional</div>
-          {[["Tendência",mapDisplay(p.mercado_tendencia),p.mercado_tendencia==="alta"||p.mercado_tendencia==="Alta"||p.mercado_tendencia==="crescimento"?K.grn:p.mercado_tendencia==="queda"||p.mercado_tendencia==="Queda"?"#E5484D":K.t2],["Demanda",mapDisplay(p.mercado_demanda),p.mercado_demanda==="alta"||p.mercado_demanda==="Alta"?K.grn:p.mercado_demanda==="baixa"||p.mercado_demanda==="Baixa"?"#E5484D":K.t2],["Tempo médio venda",p.mercado_tempo_venda_meses?`${p.mercado_tempo_venda_meses} meses`:"—",K.t2],["Preço/m² mercado",p.preco_m2_mercado?`R$ ${p.preco_m2_mercado}/m²`:"—",K.teal],["Aluguel estimado",fmtC(p.aluguel_mensal_estimado)+"/mês",K.pur],["Obs. mercado",p.mercado_obs||"—",K.t2]].map(([l,v,c])=>(
+          {[["Tendência",mapDisplay(p.mercado_tendencia),p.mercado_tendencia==="alta"||p.mercado_tendencia==="Alta"||p.mercado_tendencia==="crescimento"?K.grn:p.mercado_tendencia==="queda"||p.mercado_tendencia==="Queda"?"#E5484D":K.t2],["Demanda",mapDisplay(p.mercado_demanda),p.mercado_demanda==="alta"||p.mercado_demanda==="Alta"?K.grn:p.mercado_demanda==="baixa"||p.mercado_demanda==="Baixa"?"#E5484D":K.t2],["Tempo médio venda",p.mercado_tempo_venda_meses?`${p.mercado_tempo_venda_meses} meses`:"—",K.t2],["Preço/m² mercado",p.preco_m2_mercado?`R$ ${Math.round(p.preco_m2_mercado).toLocaleString('pt-BR')}/m²`:"—",K.teal],["Aluguel estimado",fmtC(p.aluguel_mensal_estimado)+"/mês",K.pur],["Obs. mercado",p.mercado_obs||"—",K.t2]].map(([l,v,c])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
               <span style={{fontSize:"12px",color:K.t3}}>{l}</span><span style={{fontSize:"12.5px",fontWeight:"600",color:c}}>{v}</span>
             </div>
           ))}
         </div>
+        {/* Dados AXIS — bairro calibrado */}
+        {p._dados_bairro_axis && (
+          <div style={{...card(),marginTop:14,background:'#F0F9FF',border:'1px solid #BAE6FD'}}>
+            <div style={{fontWeight:600,color:'#0369A1',marginBottom:10,fontSize:13}}>📊 Dados AXIS — {p._dados_bairro_axis.label}</div>
+            {[
+              ['Classe IPEAD',`${p._dados_bairro_axis.classeIpead} — ${p._dados_bairro_axis.classeIpeadLabel}`,'#0369A1'],
+              ['Zona',p._dados_bairro_axis.zona,'#0369A1'],
+              ['Preço contrato (QA)',p._dados_bairro_axis.precoContratoM2?`R$ ${p._dados_bairro_axis.precoContratoM2.toLocaleString('pt-BR')}/m²`:'—',K.teal],
+              ['Preço anúncio (FipeZAP)',p._dados_bairro_axis.precoAnuncioM2?`R$ ${p._dados_bairro_axis.precoAnuncioM2.toLocaleString('pt-BR')}/m²`:'—',K.t2],
+              ['Yield bruto',p._dados_bairro_axis.yieldBruto?`${p._dados_bairro_axis.yieldBruto}% a.a.`:'—',p._dados_bairro_axis.yieldBruto>=6?K.grn:K.amb],
+              ['Tendência 12m',p._dados_bairro_axis.tendencia12m!=null?`${p._dados_bairro_axis.tendencia12m}%`:'—',p._dados_bairro_axis.tendencia12m>5?K.grn:K.red],
+            ].map(([l,v,c])=>(
+              <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #BAE6FD40'}}>
+                <span style={{fontSize:12,color:'#64748B'}}>{l}</span>
+                <span style={{fontSize:12.5,fontWeight:600,color:c}}>{v}</span>
+              </div>
+            ))}
+            {p._gap_asking_closing_pct && (
+              <div style={{marginTop:8,padding:'6px 10px',borderRadius:6,background:'#FEF3C7',border:'1px solid #FDE68A',fontSize:11,color:'#92400E'}}>
+                📉 Gap anúncio vs contrato: <strong>{p._gap_asking_closing_pct}%</strong> — margem de negociação típica neste bairro
+              </div>
+            )}
+            {p._score_axis_patrimonial && (
+              <div style={{marginTop:6,padding:'6px 10px',borderRadius:6,background:'#ECFDF5',border:'1px solid #A7F3D0',fontSize:11,color:'#065F46'}}>
+                🎯 Score AXIS patrimonial: <strong>{p._score_axis_patrimonial}</strong> (yield×40% + tendência×35% + demanda×25%)
+              </div>
+            )}
+            <div style={{marginTop:6,fontSize:9,color:'#94A3B8'}}>
+              Fontes: QuintoAndar 3T2025 · FipeZAP fev/2026 · IPEAD/UFMG · Supabase mercado_regional
+            </div>
+          </div>
+        )}
+        {/* Homogeneização */}
+        {p.fator_homogenizacao && p.fator_homogenizacao < 1 && (
+          <div style={{...card(),marginTop:14,background:'#FFFBEB',border:'1px solid #FDE68A'}}>
+            <div style={{fontWeight:600,color:'#92400E',marginBottom:8,fontSize:13}}>📐 Homogeneização (NBR 14653)</div>
+            <div style={{fontSize:12,color:'#78350F',lineHeight:1.7}}>
+              Fator aplicado: <strong>{(p.fator_homogenizacao * 100).toFixed(0)}%</strong><br/>
+              {p.valor_mercado_homogenizado && <>Valor homogeneizado: <strong>R$ {Math.round(p.valor_mercado_homogenizado).toLocaleString('pt-BR')}</strong><br/></>}
+              {p.elevador===false && <span>• Sem elevador: ×0.87 (-13%)<br/></span>}
+              {p.piscina===false && <span>• Sem piscina: ×0.97 (-3%)<br/></span>}
+              {p.area_lazer===false && <span>• Sem área lazer: ×0.95 (-5%)<br/></span>}
+              {(p.vagas||0)===0 && <span>• Sem vaga: ×0.90 (-10%)<br/></span>}
+            </div>
+          </div>
+        )}
       </div>}
 
       {abaDetalhe==='resumo'&&<>
