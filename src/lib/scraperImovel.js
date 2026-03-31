@@ -190,14 +190,26 @@ export function extrairCamposTexto(texto, url = '') {
   const andarMatch = t.match(andarPat)
   const andar = andarMatch ? parseInt(andarMatch[1]) : null
 
+  // Atributos do prédio
+  const elevador = /elevador/i.test(tl) ? true : /sem elevador|walk[\s-]?up/i.test(tl) ? false : null
+  const piscina = /piscina/i.test(tl) ? true : null
+  const area_lazer = /[áa]rea\s*(?:de\s*)?lazer|playground|academia|churrasqueira|quadra|espa[çc]o\s*gourmet|sal[ãa]o\s*de\s*jogos/i.test(tl) ? true : null
+  const salao_festas = /sal[ãa]o\s*(?:de\s*)?festas|espa[çc]o\s*gourmet|espa[çc]o\s*eventos/i.test(tl) ? true : null
+  const portaria_24h = /porteiro|portaria\s*24|seguran[çc]a\s*24/i.test(tl) ? true : null
+  // Banheiros
+  const banhPat = /(\d+)\s*(?:banheiros?|wc|ba[nñ]os?)/i
+  const banhMatch = t.match(banhPat)
+  const banheiros = banhMatch ? parseInt(banhMatch[1]) : null
+
   return {
     titulo, endereco, bairro, cidade, estado: 'MG',
-    tipo, area_m2, quartos, suites, vagas, andar,
+    tipo, area_m2, quartos, suites, vagas, andar, banheiros,
     valor_minimo, valor_avaliacao,
     modalidade_leilao, leiloeiro, data_leilao,
     num_leilao, ocupacao, financiavel, fgts_aceito,
     debitos_condominio, debitos_iptu, condominio_mensal,
     processos_ativos, processo_numero,
+    elevador, piscina, area_lazer, salao_festas, portaria_24h,
     desconto_percentual: valor_avaliacao && valor_minimo
       ? parseFloat(((1 - valor_minimo/valor_avaliacao)*100).toFixed(1)) : null,
     _texto_scrapeado: texto?.substring(0, 8000) // para Gemini processar

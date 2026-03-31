@@ -172,7 +172,16 @@ Complete e corrija os dados. Retorne JSON com EXATAMENTE estes campos:
   "mercado_demanda": "alta|media_alta|media|media_baixa|baixa",
   "mercado_tempo_venda_meses": 0,
   "tipologia": "apartamento_padrao|casa_padrao|cobertura|terreno|comercial",
-  "padrao_acabamento": "popular|medio|alto|luxo"
+  "padrao_acabamento": "popular|medio|alto|luxo",
+  "elevador": true,
+  "piscina": false,
+  "area_lazer": false,
+  "salao_festas": false,
+  "portaria_24h": false,
+  "mobiliado": false,
+  "condominio_mensal": 0,
+  "andar": null,
+  "banheiros": 0
 }
 
 ${imovelContexto ? `
@@ -189,6 +198,17 @@ CALIBRAÇÃO DE SCORES (escala 0-10):
 - score_desconto: 60%+→9.5, 50%→8.5, 40%→7.5, 30%→6.0, 20%→4.5, sem desconto→2.0
 - score_juridico: sem processos+matricula ok→8.5, 1 processo leve→6.5, risco grave→3.0
 - score_ocupacao: desocupado confirmado→8.5, incerto→5.5, ocupado→3.0
+
+ATRIBUTOS DO PRÉDIO — REGRAS DE IDENTIFICAÇÃO:
+- elevador: true se texto menciona elevador, prédio >4 andares, ou alto padrão. false se explicitamente sem elevador ou walk-up
+- piscina: true se texto menciona piscina, "área de lazer completa", fotos com piscina. Se condomínio com portaria + piscina → ambos true
+- area_lazer: true se menciona playground, academia, churrasqueira, salão de jogos, quadra, área gourmet
+- salao_festas: true se menciona salão de festas, espaço gourmet, churrasqueira do condomínio
+- portaria_24h: true se menciona porteiro, portaria 24h, segurança
+- condominio_mensal: extrair valor se mencionado (em R$/mês). Se não encontrar, estimar: Popular 200-400, Médio 400-700, Alto 700-1200, Luxo 1200+
+- mobiliado: true/false/"semi" — verificar se imóvel vem com móveis planejados, armários embutidos etc.
+- REGRA: Se imóvel tem piscina, quase certamente tem elevador também (condomínio vertical com piscina = tem elevador)
+- REGRA: Presença de porteiro/portaria implica condomínio organizado → área_lazer provável
 - score_liquidez: alta demanda→8.5, média→6.5, baixa→4.0
 - score_mercado: classe Luxo BH→8.5, Alto→7.0, Médio→5.5, Popular→4.0`
 }
@@ -388,6 +408,15 @@ export async function analisarComGemini(url, geminiKey, parametros, onProgress, 
     quartos: camposBasicos.quartos || analiseGemini.quartos,
     vagas: camposBasicos.vagas || analiseGemini.vagas,
     processo_numero: camposBasicos.processo_numero || analiseGemini.processo_numero,
+    // Atributos do prédio: Gemini prioritário, regex fallback
+    elevador: analiseGemini.elevador ?? camposBasicos.elevador ?? null,
+    piscina: analiseGemini.piscina ?? camposBasicos.piscina ?? null,
+    area_lazer: analiseGemini.area_lazer ?? camposBasicos.area_lazer ?? null,
+    salao_festas: analiseGemini.salao_festas ?? camposBasicos.salao_festas ?? null,
+    portaria_24h: analiseGemini.portaria_24h ?? camposBasicos.portaria_24h ?? null,
+    condominio_mensal: analiseGemini.condominio_mensal || camposBasicos.condominio_mensal || null,
+    banheiros: analiseGemini.banheiros || camposBasicos.banheiros || null,
+    andar: analiseGemini.andar || camposBasicos.andar || null,
     fonte_url: url,
     analise_dupla_ia: false,
     _erros_extracao: erros,
