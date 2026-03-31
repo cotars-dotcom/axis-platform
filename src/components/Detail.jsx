@@ -315,6 +315,7 @@ function GaleriaFotos({ fotos = [], foto_principal = null, url = null, imovelId 
           <img
             src={fotoAtiva}
             alt="Foto principal"
+            referrerPolicy="no-referrer"
             style={{
               maxWidth: '100%',
               maxHeight: 420,
@@ -337,6 +338,7 @@ function GaleriaFotos({ fotos = [], foto_principal = null, url = null, imovelId 
               key={i}
               src={foto}
               alt={`Foto ${i + 1}`}
+              referrerPolicy="no-referrer"
               onClick={() => setFotoAtiva(foto)}
               style={{
                 width: 80, height: 58, flexShrink: 0,
@@ -1368,7 +1370,7 @@ for (const s of SCORES) {
             <div style={{fontSize:12,color:'#78350F',lineHeight:1.7}}>
               Fator aplicado: <strong>{(p.fator_homogenizacao * 100).toFixed(0)}%</strong><br/>
               {p.valor_mercado_homogenizado && <>Valor homogeneizado: <strong>R$ {Math.round(p.valor_mercado_homogenizado).toLocaleString('pt-BR')}</strong><br/></>}
-              {p.elevador===false && <span>• Sem elevador: ×0.87 (-13%)<br/></span>}
+              {p.elevador===false && <span>• Sem elevador: ×0.85 (-15%)<br/></span>}
               {p.piscina===false && <span>• Sem piscina: ×0.97 (-3%)<br/></span>}
               {p.area_lazer===false && <span>• Sem área lazer: ×0.95 (-5%)<br/></span>}
               {(p.vagas||0)===0 && <span>• Sem vaga: ×0.90 (-10%)<br/></span>}
@@ -1380,7 +1382,7 @@ for (const s of SCORES) {
       {abaDetalhe==='resumo'&&<>
       {p.foto_principal&&(
         <div style={{width:'100%',height:220,borderRadius:12,overflow:'hidden',marginBottom:16,background:'#f0f0f0'}}>
-          <img src={p.foto_principal} alt={p.titulo||'Foto'} 
+          <img src={p.foto_principal} alt={p.titulo||'Foto'} referrerPolicy="no-referrer"
             style={{width:'100%',height:'100%',objectFit:'cover'}}
             onError={e=>{e.target.parentElement.style.display='none'}}/>
         </div>

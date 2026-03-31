@@ -126,7 +126,7 @@ body{font-family:'Segoe UI','Inter',system-ui,sans-serif;font-size:13px;color:#1
 <div class="wrap">
 
 <!-- Header -->
-${p.foto_principal ? `<img src="${p.foto_principal}" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-bottom:12px" onerror="this.style.display='none'" />` : ''}
+${p.foto_principal ? `<img src="${p.foto_principal}" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-bottom:12px" referrerpolicy="no-referrer" onerror="this.style.display='none'" />` : ''}
 <div class="hdr">
   <div>
     <h1>${p.titulo || 'Imóvel'}</h1>
