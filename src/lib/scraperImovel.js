@@ -19,8 +19,13 @@ const SPA_ERROR_INDICATORS = [
 
 // Domínios que são SPAs conhecidos (React/Next) e falham com scraping simples
 const SPA_DOMAINS = [
+  // Portais de mercado direto SPA
   'quintoandar.com.br', 'loft.com.br', '123i.com.br',
   'chavesnamao.com.br', 'lugarcerto.com.br',
+  // Sites de leiloeiros com frontend SPA (Jina retorna só menu)
+  'marcoantonioleiloeiro.com.br', 'leiloeiro.com.br',
+  'zukerman.com.br', 'santanderimentoleiloes.com.br',
+  'superbid.net', 'biditalia.com.br', 'leiloesjudicial.com.br',
 ]
 
 /**
@@ -61,6 +66,66 @@ export function verificarQualidadeScrape(texto, url = '') {
 
 export async function scrapeUrlJina(url) {
   const jinaUrl = `https://r.jina.ai/${url}`
+  
+  // ── EXTRATOR NATIVO: plataforma suporteleiloes.com.br ──────────────────────
+  // Usada por: marcoantonioleiloeiro, zukerman e outros. Retorna "var lote = {...}" no HTML.
+  const isSuporteLeiloes = [
+    'marcoantonioleiloeiro.com.br', 'zukerman.com.br', 'leiloeiro.com.br',
+    'superbid.net', 'biditalia.com.br',
+  ].some(d => url.toLowerCase().includes(d))
+
+  if (isSuporteLeiloes) {
+    try {
+      const res = await fetch(jinaUrl, {
+        headers: { 'Accept': 'text/html', 'X-Return-Format': 'html' },
+        signal: AbortSignal.timeout(30000)
+      })
+      if (res.ok) {
+        const html = await res.text()
+        // Extrair o objeto JSON "var lote = {...}" do HTML
+        const loteMatch = html.match(/var\s+lote\s*=\s*(\{[\s\S]*?\});\s*(?:var|<|\n)/)
+        if (loteMatch) {
+          try {
+            const lote = JSON.parse(loteMatch[1])
+            // Construir texto estruturado com os dados do lote para o motor IA
+            const descricao = lote.descricao || ''
+            const avaliacao = lote.valorAvaliacao || 0
+            const lanceMin = lote.valorInicial || lote.valorInicial2 || 0
+            const leilao = lote.leilao || {}
+            const data1 = leilao.data1?.date?.substring(0, 10) || ''
+            const praca = leilao.praca || 1
+            const leiloeiro = leilao.leiloeiro?.nome || 'Marco Antônio Leiloeiro'
+            const judicial = leilao.judicial ? 'judicial' : 'extrajudicial'
+            const codigo = leilao.codigo || ''
+            // Extrair fotos do objeto
+            const bem = leilao.stats?.lote?.bem || lote.bem || {}
+            const fotos = []
+            if (bem.image?.full?.url) fotos.push(bem.image.full.url)
+            if (bem.image?.min?.url) fotos.push(bem.image.min.url)
+            lote._fotos_extraidas = fotos // para uso posterior
+            // Montar texto estruturado
+            const textoLote = [
+              `Título: ${descricao}`,
+              `Valor de avaliação: R$ ${avaliacao.toLocaleString('pt-BR')}`,
+              `Lance mínimo (${praca}ª praça): R$ ${lanceMin.toLocaleString('pt-BR')}`,
+              `Data do leilão: ${data1}`,
+              `Leiloeiro: ${leiloeiro}`,
+              `Processo: ${judicial} — código ${codigo}`,
+              `Lote: ${lote.numero || ''} | Total de lotes: ${leilao.totalLotes || ''}`,
+              fotos.length ? `Foto: ${fotos[0]}` : '',
+              `URL: ${url}`,
+            ].filter(Boolean).join('\n')
+            // Preservar dados estruturados no campo auxiliar
+            lote._textoRaw = textoLote
+            // Salvar globalmente para o motor usar
+            if (typeof globalThis !== 'undefined') globalThis._suporteLeiloesData = lote
+            return textoLote
+          } catch (_) { /* JSON parse falhou, continuar com fallback */ }
+        }
+      }
+    } catch (_) { /* timeout, continuar */ }
+  }
+  // ── FIM EXTRATOR SUPORTE LEILOES ───────────────────────────────────────────
   
   // Tentar HTML primeiro para portais (melhor com SPAs renderizados)
   const isSPA = SPA_DOMAINS.some(d => url.toLowerCase().includes(d))
