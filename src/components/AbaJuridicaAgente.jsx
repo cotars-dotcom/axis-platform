@@ -435,7 +435,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
       await salvarDocumentoJuridico({
         imovel_id: imovel.id, nome: res.nome, tipo: res.tipo || 'outro',
         tamanho_bytes: 0,
-        analise_ia: res.analise.parecer || res.analise.resumo || res.analise.parecer_final || '',
+        analise_ia: res.analise.parecer || res.analise.parecer_resumido || res.analise.parecer_final || '',
         riscos_encontrados: res.analise.riscos_identificados || [],
         score_juridico_sugerido: res.analise.score_juridico_sugerido || null,
         score_viabilidade: res.analise.metricas_viabilidade?.score_geral || null,
@@ -456,9 +456,9 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
     const { novoScore, delta } = calcularNovoScoreJuridico(imovel.score_juridico || 7, todasAnalises)
     if (onReclassificado && delta !== 0) {
       try {
-        await reclassificarImovel(imovel.id, { score_juridico: novoScore, reclassificado_por_doc: true }, null)
-        onReclassificado({ ...imovel, score_juridico: novoScore })
-      } catch(e) {}
+        await reclassificarImovel(imovel.id, { novo_score_juridico: novoScore, nova_recomendacao: null, parecer_final: `Reclassificado por análise documental. Score: ${novoScore}` }, null)
+        onReclassificado({ ...imovel, score_juridico: novoScore, score_juridico_manual: novoScore })
+      } catch(e) { console.warn('[AXIS jurídico] reclassificar:', e.message) }
     }
     await carregarDocs()
     const com = resultados.filter(r => r.analise).length
