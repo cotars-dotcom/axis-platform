@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { C, K, btn, fmtC, fmtD, card, recColor, scoreColor, scoreLabel } from "../appConstants.js"
-import { ArrowUpRight, Bell, TrendingUp, AlertTriangle, Package } from "lucide-react"
+import { ArrowUpRight, Bell, TrendingUp, AlertTriangle, Package, Clock } from "lucide-react"
 import { supabase } from '../lib/supabase.js'
 
 // Inline ScoreRing (used by PropCard)
@@ -120,6 +120,32 @@ function AxisHeader({profile:prof, imoveis=[], onNav, isPhone=false, isMobile=fa
   const alertas = imoveis.filter(p => (p.score_juridico||10) < 4)
   const recentes = [...imoveis].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0,3)
 
+  // Alertas D-7 e D-1 de leilão (inseridos no topo)
+  const hoje = new Date(); hoje.setHours(0,0,0,0)
+  const em7 = new Date(hoje); em7.setDate(em7.getDate() + 7)
+  const leiloesProximos = imoveis
+    .filter(p => {
+      if (!p.data_leilao || p.status_operacional === 'arquivado') return false
+      const dl = new Date(p.data_leilao); dl.setHours(0,0,0,0)
+      return dl >= hoje && dl <= em7
+    })
+    .sort((a,b) => new Date(a.data_leilao) - new Date(b.data_leilao))
+  for (const p of leiloesProximos) {
+    const dl = new Date(p.data_leilao); dl.setHours(0,0,0,0)
+    const diff = Math.round((dl - hoje) / 86400000)
+    const urgente = diff <= 1
+    notifs.unshift({
+      tipo: 'leilao_proximo',
+      cor: urgente ? C.red : C.mustard,
+      icon: 'clock',
+      texto: urgente
+        ? `Leilão AMANHÃ: ${p.titulo || p.codigo_axis || 'Imóvel'}`
+        : `Leilão em ${diff} dia${diff !== 1 ? 's' : ''}: ${p.titulo || p.codigo_axis || 'Imóvel'}`,
+      sub: `${p.modalidade_leilao || 'Leilão'} · ${new Date(p.data_leilao).toLocaleDateString('pt-BR')}${p.recomendacao ? ` · ${p.recomendacao}` : ''}`,
+      id: p.id,
+    })
+  }
+
   if (comprar.length > 0) notifs.push({ tipo: "comprar", cor: C.emerald, icon: "arrow", texto: `${comprar.length} imóvel(is) com recomendação COMPRAR`, sub: comprar[0]?.titulo || "Ver oportunidades" })
   if (forte.length > 0) notifs.push({ tipo: "forte", cor: C.emerald, icon: "star", texto: `${forte.length} imóvel(is) com score forte (≥ 7.5)`, sub: "Melhores oportunidades da carteira" })
   if (alertas.length > 0) notifs.push({ tipo: "alerta", cor: C.mustard, icon: "alert", texto: `${alertas.length} imóvel(is) com risco jurídico alto`, sub: "Score jurídico < 4 — atenção redobrada" })
@@ -217,6 +243,7 @@ function AxisHeader({profile:prof, imoveis=[], onNav, isPhone=false, isMobile=fa
                         {n.icon === "star" && <TrendingUp size={15} color={n.cor} />}
                         {n.icon === "alert" && <AlertTriangle size={15} color={n.cor} />}
                         {n.icon === "new" && <Package size={15} color={n.cor} />}
+                        {n.icon === "clock" && <Clock size={15} color={n.cor} />}
                       </div>
                       <div style={{flex:1,minWidth:0}}>
                         <p style={{margin:0,fontSize:12.5,fontWeight:600,color:C.navy}}>{n.texto}</p>

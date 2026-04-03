@@ -881,6 +881,23 @@ export async function desarquivarImovel(imovelId) {
   if (error) throw error
 }
 
+// Registrar resultado após o leilão (arrematado ou não)
+export async function registrarResultadoLeilao(imovelId, resultado, userId) {
+  // resultado: 'arrematado' | 'nao_arrematado'
+  const updates = {
+    status_operacional: 'arquivado',
+    motivo_arquivamento: resultado === 'arrematado'
+      ? 'Imóvel arrematado em leilão'
+      : 'Leilão encerrado — imóvel não arrematado',
+    arquivado_por: userId || null,
+    arquivado_em: new Date().toISOString(),
+    status: resultado === 'arrematado' ? 'arrematado' : 'leilao_encerrado',
+    atualizado_em: new Date().toISOString()
+  }
+  const { error } = await supabase.from('imoveis').update(updates).eq('id', imovelId)
+  if (error) throw error
+}
+
 export async function getImoveisAtivos() {
   const { data, error } = await supabase
     .from('imoveis')

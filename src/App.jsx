@@ -1256,7 +1256,29 @@ function Comparativo({props}) {
   const top=[...props].sort((a,b)=>(b.score_total||0)-(a.score_total||0)).slice(0,8)
   const cmp=props.filter(p=>sel.includes(p.id))
   const toggle=id=>setSel(s=>s.includes(id)?s.filter(x=>x!==id):s.length<3?[...s,id]:s)
-  const dims=[["Score Total",p=>(p.score_total||0).toFixed(1),p=>scoreColor(p.score_total)],["Recomendação",p=>p.recomendacao,p=>recColor(p.recomendacao)],["Valor Mínimo",p=>fmtC(p.valor_minimo),()=>K.t2],["Desconto",p=>p.desconto_percentual?`${p.desconto_percentual}%`:"—",()=>K.grn],["Área",p=>p.area_m2?`${p.area_m2}m²`:"—",()=>K.t2],["Preço/m²",p=>p.preco_m2_imovel?`R$ ${p.preco_m2_imovel}`:"—",()=>K.t2],["Ocupação",p=>p.ocupacao,p=>p.ocupacao==="Desocupado"?K.grn:K.red],["Processos",p=>p.processos_ativos,p=>p.processos_ativos==="Nenhum"?K.grn:K.red],["Financiável",p=>p.financiavel?"Sim":"Não",p=>p.financiavel?K.grn:K.t3],["Retorno revenda",p=>p.retorno_venda_pct?`+${p.retorno_venda_pct}%`:"—",()=>K.grn]]
+  const dims=[
+    ["Score Total",p=>(p.score_total||0).toFixed(1),p=>scoreColor(p.score_total)],
+    ["Recomendação",p=>p.recomendacao,p=>recColor(p.recomendacao)],
+    ["Score Jurídico",p=>p.score_juridico!=null?`${p.score_juridico}/10`:"—",p=>scoreColor(p.score_juridico)],
+    ["Score Localização",p=>p.score_localizacao!=null?`${p.score_localizacao}/10`:"—",p=>scoreColor(p.score_localizacao)],
+    ["Score Desconto",p=>p.score_desconto!=null?`${p.score_desconto}/10`:"—",p=>scoreColor(p.score_desconto)],
+    ["Valor Mínimo",p=>fmtC(p.valor_minimo),()=>K.t2],
+    ["Desconto",p=>p.desconto_percentual?`${p.desconto_percentual}%`:"—",()=>K.grn],
+    ["Área",p=>p.area_m2?`${p.area_m2}m²`:"—",()=>K.t2],
+    ["Quartos",p=>p.quartos||"—",()=>K.t2],
+    ["Preço/m²",p=>p.preco_m2_imovel?`R$ ${p.preco_m2_imovel}`:"—",()=>K.t2],
+    ["MAO Flip",p=>fmtC(p.mao_flip),()=>K.teal],
+    ["MAO Locação",p=>fmtC(p.mao_locacao),()=>K.pur],
+    ["Aluguel est.",p=>p.aluguel_mensal_estimado?`${fmtC(p.aluguel_mensal_estimado)}/mês`:"—",()=>K.pur],
+    ["Custo Reforma",p=>fmtC(p.custo_reforma_calculado),()=>K.amb],
+    ["Prazo Lib.",p=>p.prazo_liberacao_estimado_meses?`${p.prazo_liberacao_estimado_meses} meses`:"—",p=>(p.prazo_liberacao_estimado_meses||0)>6?K.red:K.grn],
+    ["Ocupação",p=>p.ocupacao,p=>p.ocupacao==="Desocupado"?K.grn:K.red],
+    ["Processos",p=>p.processos_ativos,p=>p.processos_ativos==="Nenhum"?K.grn:K.red],
+    ["Financiável",p=>p.financiavel?"Sim":"Não",p=>p.financiavel?K.grn:K.t3],
+    ["Retorno revenda",p=>p.retorno_venda_pct?`+${p.retorno_venda_pct}%`:"—",()=>K.grn],
+    ["Retorno locação",p=>p.retorno_locacao_anual_pct?`${p.retorno_locacao_anual_pct}%a.a.`:"—",()=>K.pur],
+    ["Data Leilão",p=>p.data_leilao?new Date(p.data_leilao).toLocaleDateString('pt-BR'):"—",()=>K.t2],
+  ]
   return <div>
     <Hdr title="Comparativo" sub="Selecione até 3 imóveis"/>
     <div style={{padding:"20px 28px"}}>
