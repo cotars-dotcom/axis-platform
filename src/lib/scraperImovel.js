@@ -98,11 +98,9 @@ export async function scrapeUrlJina(url) {
             const judicial = leilao.judicial ? 'judicial' : 'extrajudicial'
             const codigo = leilao.codigo || ''
             // Extrair fotos do objeto
-            const bem = leilao.stats?.lote?.bem || lote.bem || {}
+            // NOTA: leilao.stats.lote.bem é o lote de DESTAQUE do leilão, não o lote atual.
+            // As fotos reais do lote são carregadas via JS dinâmico — não extrair aqui.
             const fotos = []
-            if (bem.image?.full?.url) fotos.push(bem.image.full.url)
-            if (bem.image?.min?.url) fotos.push(bem.image.min.url)
-            lote._fotos_extraidas = fotos // para uso posterior
             // Montar texto estruturado
             const textoLote = [
               `Título: ${descricao}`,
