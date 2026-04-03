@@ -119,7 +119,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
         nome: res.nome,
         tipo: res.tipo || 'outro',
         tamanho_bytes: 0,
-        analise_ia: res.analise.parecer || res.analise.resumo,
+        analise_ia: res.analise.parecer || res.analise.parecer_resumido || res.analise.parecer_final,
         riscos_encontrados: res.analise.riscos_identificados || [],
         score_juridico_sugerido: res.analise.score_juridico_sugerido,
         reclassificado: false,
@@ -138,7 +138,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
     // Reclassificar imóvel
     if (onReclassificado && delta !== 0) {
       try {
-        await reclassificarImovel(imovel.id, { score_juridico: novoScore, reclassificado_por_doc: true }, null)
+        await reclassificarImovel(imovel.id, { novo_score_juridico: novoScore, nova_recomendacao: null, parecer_final: `Reclassificado por análise documental. Score: ${novoScore}` }, null)
         onReclassificado({ ...imovel, score_juridico: novoScore, score_juridico_manual: novoScore })
       } catch(e) { console.warn('[AXIS jurídico] reclassificar:', e.message) }
     }
