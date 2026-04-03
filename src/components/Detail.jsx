@@ -1310,6 +1310,62 @@ for (const s of SCORES) {
         {isAdmin&&onArchive&&<button style={{...btn("s"),background:`${C.mustardL}`,color:C.mustard,border:`1px solid ${C.mustard}40`}} onClick={()=>onArchive(p.id)}>📦 Arquivar</button>}
         {isAdmin&&<button style={{...btn("d"),padding:"5px 12px",fontSize:"12px"}} onClick={()=>{if(confirm("Excluir?"))onDelete(p.id)}}>🗑</button>}
       </>}/>
+    {/* Banner pós-leilão — aparece quando data passou e imóvel ainda está ativo */}
+    {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && p.data_leilao && (() => {
+      const dl = new Date(p.data_leilao); dl.setHours(0,0,0,0)
+      const hoje = new Date(); hoje.setHours(0,0,0,0)
+      const diff = Math.round((dl - hoje) / 86400000)
+      if (diff > 1) return null // ainda não é urgente
+      const passou = diff < 0
+      const amanha = diff === 0 // data_leilao é hoje (D-0) ou amanhã (D-1) — leilao_proximo
+      if (!passou && diff > 0) return null
+      return (
+        <div style={{
+          margin:'0 28px', marginTop:12,
+          background: passou ? '#FEF3C7' : '#FEE2E2',
+          border: `1px solid ${passou ? '#FCD34D' : '#FCA5A5'}`,
+          borderRadius:10, padding:'12px 16px',
+          display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap'
+        }}>
+          <div>
+            <div style={{fontWeight:700, fontSize:13, color: passou ? '#92400E' : '#991B1B'}}>
+              {amanha ? '🚨 Leilão hoje!' : `⏰ Leilão foi em ${new Date(p.data_leilao).toLocaleDateString('pt-BR')} — qual foi o resultado?`}
+            </div>
+            <div style={{fontSize:11.5, color:'#78350F', marginTop:2}}>
+              {amanha ? `Leilão agendado para hoje · ${p.modalidade_leilao||''}` : 'Registre o resultado para manter a carteira atualizada.'}
+            </div>
+          </div>
+          {passou && isAdmin && (
+            <div style={{display:'flex',gap:8,flexShrink:0}}>
+              <button
+                style={{...btn("s"),background:'#D1FAE5',color:'#065F46',border:'1px solid #6EE7B7',fontSize:12,fontWeight:700}}
+                onClick={async () => {
+                  if (!confirm('Confirmar: imóvel NÃO foi arrematado?')) return
+                  try {
+                    const { registrarResultadoLeilao } = await import('../lib/supabase.js')
+                    const { data:{session} } = await supabase.auth.getSession()
+                    await registrarResultadoLeilao(p.id, 'nao_arrematado', session?.user?.id)
+                    if (onArchive) onArchive(p.id)
+                  } catch(e) { alert('Erro: ' + e.message) }
+                }}
+              >Não arrematado</button>
+              <button
+                style={{...btn("s"),background:'#FEE2E2',color:'#991B1B',border:'1px solid #FCA5A5',fontSize:12,fontWeight:700}}
+                onClick={async () => {
+                  if (!confirm('Confirmar: imóvel foi ARREMATADO?')) return
+                  try {
+                    const { registrarResultadoLeilao } = await import('../lib/supabase.js')
+                    const { data:{session} } = await supabase.auth.getSession()
+                    await registrarResultadoLeilao(p.id, 'arrematado', session?.user?.id)
+                    if (onArchive) onArchive(p.id)
+                  } catch(e) { alert('Erro: ' + e.message) }
+                }}
+              >Arrematado</button>
+            </div>
+          )}
+        </div>
+      )
+    })()}
     {/* Tabs */}
     <div style={{display:"flex",gap:isPhone?4:0,borderBottom:`1px solid ${K.bd}`,padding:isPhone?"0 16px":"0 28px",background:K.s1,overflowX:isPhone?'auto':'visible',scrollbarWidth:'none',WebkitOverflowScrolling:'touch',msOverflowStyle:'none'}}>
       {[{id:'resumo',label:'📊 Resumo',labelMobile:'📊'},{id:'juridico',label:'⚖️ Jurídico',labelMobile:'⚖️'},{id:'fotos',label:'📸 Fotos',labelMobile:'📸'},{id:'mercado',label:'🏙️ Mercado',labelMobile:'🏙️'},...(isAdmin&&!isMercadoDireto(p.fonte_url,p.tipo_transacao)?[{id:'arremates',label:'🔨 Arremates',labelMobile:'🔨 Arr.'}]:[])].map(tab=>(
