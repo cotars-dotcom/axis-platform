@@ -143,7 +143,7 @@ function formatTitulo(p) {
   const area = p?.area_privativa_m2 || p?.area_m2
   const parts = [tipo]
   if (p?.quartos) parts.push(`${p.quartos}q`)
-  if (area) parts.push(`${area}m²`)
+  if (area) parts.push(`${Math.round(parseFloat(area))}m²`)
   const local = [p?.bairro, p?.cidade].filter(Boolean).join(', ')
   return local ? `${parts.join(' ')} — ${local}` : parts.join(' ')
 }
@@ -1406,6 +1406,11 @@ for (const s of SCORES) {
             </div>
           </div>
         )}
+      {/* Comparáveis — também na aba mercado */}
+      {p.comparaveis?.length>0&&<div style={{...card(),marginTop:14,marginBottom:0}}>
+        <div style={{fontWeight:"600",color:K.wh,marginBottom:"10px",fontSize:"13px"}}>🏘️ Comparáveis de Mercado ({p.comparaveis.length})</div>
+        {p.comparaveis.map((c,i)=><CardComparavel key={i} item={c} K={K} isPhone={isPhone}/>)}
+      </div>}
       </div>}
 
       {abaDetalhe==='resumo'&&<>

@@ -745,10 +745,20 @@ export async function salvarDocumentoJuridico(doc) {
   // CAUSA RAIZ FIX (v3): .single() após upsert falha quando INSERT retorna 0 rows 
   // por campos extras não reconhecidos pelo cliente Supabase JS
   // Solução: whitelist de colunas + .select() sem .single() + verificar array
+  // Sanitizar strings — remove null bytes e unicode inválido que quebra o Postgres
+  const sanitizeStr = (v) => {
+    if (typeof v !== 'string') return v
+    return v
+      .replace(/\u0000/g, '')           // null bytes
+      .replace(/\\u[0-9a-fA-F]{4}/g, '') // unicode escapes literais tipo \uXXXX
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '') // control chars exceto \n \r \t
+  }
   try {
     // 1. Filtrar payload só com colunas válidas
     const payload = {}
     Object.keys(doc).forEach(k => { if (DOC_COLS.has(k) && doc[k] !== undefined) payload[k] = doc[k] })
+    // Sanitizar todos os campos string do payload
+    Object.keys(payload).forEach(k => { if (typeof payload[k] === 'string') payload[k] = sanitizeStr(payload[k]) })
     // 2. Normalizar campos obrigatórios
     payload.url = doc.url_origem || doc.url || null
     payload.url_origem = doc.url_origem || doc.url || null
