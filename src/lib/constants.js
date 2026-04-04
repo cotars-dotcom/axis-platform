@@ -88,7 +88,11 @@ export function calcularScoreTotal(scores) {
 // ─── HELPER: calcular custos de aquisição ────────────────────────
 export function calcularCustosAquisicao(precoBase, isMercado, overrides = {}) {
   const tabela = isMercado ? CUSTOS_MERCADO : CUSTOS_LEILAO
-  const custos = { ...tabela, ...overrides }
+  // Filtrar overrides nulos/undefined para não sobrescrever defaults com NaN
+  const cleanOverrides = Object.fromEntries(
+    Object.entries(overrides).filter(([, v]) => v != null && v !== undefined)
+  )
+  const custos = { ...tabela, ...cleanOverrides }
   
   const comissao = precoBase * (custos.comissao_leiloeiro_pct / 100)
   const itbi     = precoBase * (custos.itbi_pct / 100)

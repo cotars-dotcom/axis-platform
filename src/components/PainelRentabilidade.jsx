@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { C, card } from '../appConstants.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
+import { CUSTOS_LEILAO, CUSTOS_MERCADO } from '../lib/constants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -32,19 +33,20 @@ function probArrematacao(desconto, leilao) {
   return { prob: 0.10, label: '10%', cor: RED }
 }
 
-// Calcular custos fixos de arrematação
-function custoArrematacao(lance) {
-  const comissao    = lance * 0.05   // leiloeiro 5%
-  const itbi        = lance * 0.03   // ITBI BH ~3%
-  const doc         = lance * 0.005  // doc/escritura 0.5%
-  const adv         = lance * 0.02   // honorário advogado 2%
-  const registro    = 1500           // cartório
+// Calcular custos fixos de aquisição (leilão ou mercado)
+function custoArrematacao(lance, eMercado = false, overrides = {}) {
+  const tab = eMercado ? CUSTOS_MERCADO : CUSTOS_LEILAO
+  const comissao    = lance * ((overrides.comissao_leiloeiro_pct ?? tab.comissao_leiloeiro_pct) / 100)
+  const itbi        = lance * (tab.itbi_pct / 100)
+  const doc         = lance * (tab.documentacao_pct / 100)
+  const adv         = lance * (tab.advogado_pct / 100)
+  const registro    = tab.registro_fixo
   return { comissao, itbi, doc, adv, registro, total: comissao + itbi + doc + adv + registro }
 }
 
 // Calcular cenário FLIP
-function calcFlip(lance, vmercado, reforma, juridico = 0) {
-  const c = custoArrematacao(lance)
+function calcFlip(lance, vmercado, reforma, juridico = 0, eMercado = false, overrides = {}) {
+  const c = custoArrematacao(lance, eMercado, overrides)
   const custoTotal = lance + c.total + reforma + juridico
   const corretagem = vmercado * 0.06
   const precoVendaLiq = vmercado - corretagem  // valor líquido de venda
@@ -59,8 +61,8 @@ function calcFlip(lance, vmercado, reforma, juridico = 0) {
 }
 
 // Calcular cenário LOCAÇÃO
-function calcLocacao(lance, aluguelMensal, reforma, vmercado, prazoMeses = 120) {
-  const c = custoArrematacao(lance)
+function calcLocacao(lance, aluguelMensal, reforma, vmercado, prazoMeses = 120, eMercado = false, overrides = {}) {
+  const c = custoArrematacao(lance, eMercado, overrides)
   const investimento = lance + c.total + reforma
   const vacancia     = aluguelMensal * 0.06 * 12  // 6% vacância ao ano
   const receita12m   = aluguelMensal * 12 - vacancia - (investimento * 0.005) // 0.5% manutenção
@@ -258,10 +260,11 @@ export default function PainelRentabilidade({ imovel }) {
 
   const melhoresCenarios = cenarios.map(c => {
     const desc = ((avaliacao - c.lance) / avaliacao * 100)
-    const f = calcFlip(c.lance, vmercado, reformaValor)
+    const _overrides = { comissao_leiloeiro_pct: imovel.comissao_leiloeiro_pct }
+    const f = calcFlip(c.lance, vmercado, reformaValor, 0, eMercado, _overrides)
     // Injetar vmercadoLiq diretamente no flip para evitar stale prop no CardLance
     f.vmercadoLiq = Math.round(vmercado * 0.94)
-    const l = calcLocacao(c.lance, aluguelAtual, reformaValor, vmercado)
+    const l = calcLocacao(c.lance, aluguelAtual, reformaValor, vmercado, 120, eMercado, _overrides)
     const p = c.isMercado ? { prob: 1.0, label: '—', cor: GREEN } : probArrematacao(desc, c.leilao)
     return { ...c, desc, flip: f, loc: l, prob: p }
   })

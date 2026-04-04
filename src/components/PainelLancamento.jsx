@@ -7,20 +7,22 @@ import { useState, useMemo } from 'react'
 import { C, K, fmtC, card } from '../appConstants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 
+import { CUSTOS_LEILAO } from '../lib/constants.js'
+
 const fmt  = v => v != null && v > 0 ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 const pct  = v => v != null ? `${parseFloat(v).toFixed(1)}%` : '—'
 const cor  = (roi) => roi >= 30 ? C.emerald : roi >= 20 ? C.mustard : roi >= 10 ? '#E06A00' : '#E5484D'
 
-// Custos de transação como % do lance
+// Custos de transação — fonte: constants.js (leilão only — este painel só aparece para leilões)
 const TX = {
-  comissao: 0.05,  // 5% comissão leiloeiro
-  itbi:     0.02,  // 2% ITBI BH
-  doc:      0.005, // 0.5% documentação
-  adv:      0.02,  // 2% honorário advogado
-  reg:      1500,  // registro imóvel (fixo)
+  comissao: CUSTOS_LEILAO.comissao_leiloeiro_pct / 100,
+  itbi:     CUSTOS_LEILAO.itbi_pct / 100,
+  doc:      CUSTOS_LEILAO.documentacao_pct / 100,
+  adv:      CUSTOS_LEILAO.advogado_pct / 100,
+  reg:      CUSTOS_LEILAO.registro_fixo,
   corretagem_venda: 0.06,
-  irpf_pct: 0.15,
-  isencao_irpf: 440000, // isento até R$440k (único imóvel PF)
+  irpf_pct: CUSTOS_LEILAO.irpf_ganho_capital_pct / 100,
+  isencao_irpf: 440000,
 }
 
 function calcularCenario(lance, vmercado, reforma, juridico = 0) {

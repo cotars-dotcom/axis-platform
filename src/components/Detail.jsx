@@ -12,6 +12,7 @@ import { buscarArrematesSimilares, carregarCacheArremates } from '../lib/buscaAr
 import PainelLancamento from './PainelLancamento.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
+import { calcularCustosAquisicao } from '../lib/constants.js'
 import CenariosReforma from './CenariosReforma.jsx'
 import { ReformaProvider } from '../hooks/useReforma.jsx'
 import CustosReaisEditor from './CustosReaisEditor.jsx'
@@ -1007,7 +1008,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
           else if (['belo horizonte','contagem','betim','nova lima','santa luzia','sabará','ribeirão das neves'].some(c => cidadeIm.includes(c))) sim += 1
           // Preço menor? (+2 se leilão, +1 se mercado)
           if (precoIm < precoRef) {
-            sim += (im.tipo_transacao !== 'mercado_direto') ? 2 : 1
+            sim += !isMercadoDireto(im.fonte_url, im.tipo_transacao) ? 2 : 1
           }
           // Score alto? (+1)
           if ((im.score_total || 0) >= 7) sim += 1
@@ -1818,10 +1819,13 @@ for (const s of SCORES) {
           {(()=>{
             const eMerc=isMercadoDireto(p.fonte_url,p.tipo_transacao)
             const precoBase=parseFloat(eMerc?(p.preco_pedido||p.valor_minimo):p.valor_minimo)||0
-            const custoCalc=p.custo_total_aquisicao||(precoBase>0?Math.round(precoBase*(1+(eMerc?0.035:0.105))+1500):0)
+            // Usar calcularCustosAquisicao centralizado (constants.js)
+            const _overrides = { comissao_leiloeiro_pct: p.comissao_leiloeiro_pct, itbi_pct: p.itbi_pct }
+            const _custos = calcularCustosAquisicao(precoBase, eMerc, _overrides)
+            const custoCalc = p.custo_total_aquisicao || (_custos?.total || 0)
             return custoCalc>0?<>
             <div style={{fontWeight:"600",color:K.amb,marginBottom:"10px",fontSize:"13px"}}>🧾 Custo total {p.custo_total_aquisicao?'real':'estimado'}</div>
-            {[[eMerc?"Preço pedido":"Lance mínimo",fmtC(precoBase)],...(!eMerc?[["Comissão leiloeiro",fmtC(precoBase*(p.comissao_leiloeiro_pct||5)/100)]]:[]),["ITBI",fmtC(precoBase*(p.itbi_pct||(eMerc?3:2))/100)],["Doc + Registro",fmtC(precoBase*0.005+1500)],...(!eMerc?[["Advogado (2%)",fmtC(precoBase*0.02)]]:[]),["Regularização",fmtC(p.custo_regularizacao)]].filter(([,v])=>v&&v!=="R$ 0"&&v!=="R$ NaN").map(([l,v])=>(
+            {[[eMerc?"Preço pedido":"Lance mínimo",fmtC(precoBase)],...(!eMerc&&_custos?.comissao>0?[["Comissão leiloeiro",fmtC(_custos.comissao)]]:[]),["ITBI",fmtC(_custos?.itbi||0)],["Doc + Registro",fmtC((_custos?.documentacao||0)+(_custos?.registro||0))],...(!eMerc&&_custos?.advogado>0?[["Advogado",fmtC(_custos.advogado)]]:[]),["Regularização",fmtC(p.custo_regularizacao)]].filter(([,v])=>v&&v!=="R$ 0"&&v!=="R$ NaN").map(([l,v])=>(
               <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:"12px"}}>
                 <span style={{color:K.t3}}>{l}</span><span style={{color:K.tx}}>{v}</span>
               </div>

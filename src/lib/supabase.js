@@ -180,6 +180,7 @@ export async function saveImovelCompleto(imovel, userId) {
   if (userId) payload.criado_por = userId
   payload.atualizado_em = new Date().toISOString()
   if (!payload.status_operacional) payload.status_operacional = 'ativo'
+  if (payload.status_operacional) payload.status_operacional = payload.status_operacional.toLowerCase()
 
   // ─── PROTEÇÃO DEFINITIVA NO SERVIDOR ────────────────────────────────────────
   // Buscar dados atuais do banco antes de salvar (evita sobrescrever com null)
