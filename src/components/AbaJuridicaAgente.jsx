@@ -254,10 +254,10 @@ function CardDoc({ doc, onAnalisarDoc }) {
                 🔗 Original
               </a>
             )}
-            {(!doc.processado || !doc.analise_ia) && onAnalisarDoc && (
+            {(!doc.processado || !doc.analise_ia || (doc.analise_ia && doc.analise_ia.includes('heurística'))) && onAnalisarDoc && (
               <button onClick={() => onAnalisarDoc(doc)}
                 style={{ fontSize:11, padding:'5px 12px', borderRadius:7, background:'#7C3AED', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>
-                🤖 Analisar com IA
+                🤖 {doc.analise_ia?.includes('heurística') ? 'Reanalisar com IA' : 'Analisar com IA'}
               </button>
             )}
           </div>
@@ -727,6 +727,22 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
           )}
 
           {/* Lista de documentos */}
+          {(() => {
+            const heuristicos = docs.filter(d => d.analise_ia?.includes('heurística'))
+            if (heuristicos.length > 0) return (
+              <div style={{ display:'flex', justifyContent:'center', marginBottom:12 }}>
+                <button onClick={async () => {
+                  for (const d of heuristicos) await handleAnalisarDoc(d)
+                }} disabled={analisando}
+                  style={{ padding:'8px 20px', borderRadius:8, background:'#7C3AED', color:'#fff',
+                    border:'none', cursor:analisando?'wait':'pointer', fontWeight:700, fontSize:12,
+                    display:'flex', alignItems:'center', gap:6, opacity:analisando?0.6:1 }}>
+                  🤖 Reanalisar {heuristicos.length} doc(s) com IA completa
+                </button>
+              </div>
+            )
+            return null
+          })()}
           {docs.length > 0
             ? docs.map(doc => <CardDoc key={doc.id} doc={doc} onAnalisarDoc={handleAnalisarDoc}/>)
             : !analisando && !buscandoAuto && (
