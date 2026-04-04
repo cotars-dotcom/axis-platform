@@ -11,6 +11,8 @@
  * Resolve o conflito de valores entre painéis — todos usam SINAPI como fallback.
  */
 
+import { MULT_CUSTO_RAPIDO } from './constants.js'
+
 // Custo/m² por escopo e classe (SINAPI-MG 2026) — tabela única
 export const CUSTO_M2_SINAPI = {
   sem_reforma:              { A_prime: 0,    B_medio_alto: 0,    C_intermediario: 0,    D_popular: 0 },
@@ -176,7 +178,7 @@ export function fatorValorizacao(cenarioOuEscopo) {
  * @param {object} valoresBanco - Valores de reforma já salvos no banco
  * @returns {Object} 3 cenários com ROI e recomendação
  */
-export function avaliarViabilidadeReforma(valorMercado, precoCompra, area, precoM2Mercado, valoresBanco = {}) {
+export function avaliarViabilidadeReforma(valorMercado, precoCompra, area, precoM2Mercado, valoresBanco = {}, eMercado = false) {
   if (!valorMercado || !precoCompra || !area) return null
 
   const cenarios = ['basica', 'media', 'completa']
@@ -193,8 +195,8 @@ export function avaliarViabilidadeReforma(valorMercado, precoCompra, area, preco
     const valorPosReforma = Math.round(valorMercado * fv)
     const valorizacaoAbsoluta = valorPosReforma - valorMercado
 
-    // Custos totais (compra + reforma + taxas ~10%)
-    const taxas = Math.round(precoCompra * 0.10)
+    // Custos totais (compra + reforma + taxas centralizadas via constants.js)
+    const taxas = Math.round(precoCompra * (eMercado ? MULT_CUSTO_RAPIDO.mercado : MULT_CUSTO_RAPIDO.leilao))
     const custoTotal = precoCompra + custoReforma + taxas
 
     // Lucro e ROI
