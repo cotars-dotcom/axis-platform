@@ -14,6 +14,7 @@ const LazySharedViewer = lazy(() => import('./components/SharedViewer.jsx'))
 // trelloService carregado dinamicamente para reduzir bundle inicial
 import { LayoutDashboard, TrendingUp, Package, ShieldCheck, FileText, BarChart3, Settings, Search, Bell, AlertTriangle, ArrowUpRight, Plus, MessageSquare, Scale, CheckSquare, LogOut } from "lucide-react"
 import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, recColor, mapDisplay, normalizarTextoAlerta, ESTRATEGIA_CONFIG, ESTRUTURA_MAP, LIQUIDEZ_MAP, TENDENCIA_MAP, DEMANDA_MAP } from "./appConstants.js"
+import { MULT_CUSTO_RAPIDO } from "./lib/constants.js"
 
 const LazyDashboard = lazy(() => import("./components/Dashboard.jsx"))
 const LazyDetail = lazy(() => import("./components/Detail.jsx"))
@@ -1058,7 +1059,7 @@ function PropCard({p,onNav}) {
             // Calcular on-the-fly: mercado × 0.80 - custos fixos
             const vm=parseFloat(p.valor_mercado_estimado)||0
             const pp=parseFloat(eMercado?(p.preco_pedido||p.valor_minimo):p.valor_minimo)||0
-            if(vm>0){const taxas=eMercado?0.035:0.105;const mao=Math.round(vm*0.80-(pp*taxas+1500));return mao>0?`R$ ${mao.toLocaleString('pt-BR')}`:"—"}
+            if(vm>0){const taxas=eMercado?MULT_CUSTO_RAPIDO.mercado:MULT_CUSTO_RAPIDO.leilao;const mao=Math.round(vm*0.80-(pp*taxas+1500));return mao>0?`R$ ${mao.toLocaleString('pt-BR')}`:"—"}
             return "—"
           })()}</div>
         </div>

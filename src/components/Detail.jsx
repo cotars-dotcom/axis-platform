@@ -1895,7 +1895,7 @@ for (const s of SCORES) {
                 💡 <strong>Melhor cenário: {viab._melhor.charAt(0).toUpperCase() + viab._melhor.slice(1)}</strong> — ROI {viab._melhorROI > 0 ? '+' : ''}{viab._melhorROI}%
               </div>
             )}
-            <div style={{fontSize:9,color:C.hint,marginTop:6,borderTop:`1px solid ${C.borderW}`,paddingTop:6}}>SINAPI-MG 2026 · Eficiência = valorização ÷ custo reforma (>1.5x = bom)</div>
+            <div style={{fontSize:9,color:C.hint,marginTop:6,borderTop:`1px solid ${C.borderW}`,paddingTop:6}}>SINAPI-MG 2026 · Eficiência = valorização ÷ custo reforma (&gt;1.5x = bom)</div>
           </div>
         )
       })()}
