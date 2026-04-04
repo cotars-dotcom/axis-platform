@@ -164,7 +164,7 @@ const IMOVEIS_COLS = new Set([
   'mobiliado','_correcoes_vision','_vision_observacoes','_vision_estado',
   '_dados_bairro_axis','_score_axis_patrimonial','_gap_asking_closing_pct',
   '_preco_asking_m2','_preco_closing_m2','_axis_yield','_axis_tendencia','_axis_demanda',
-  '_modelo_usado',
+  '_modelo_usado','_shared_link',
 ])
 
 export async function saveImovelCompleto(imovel, userId) {
@@ -1212,4 +1212,125 @@ export async function seedRiscosJuridicos() {
     .upsert(entradas, { onConflict: 'risco_id', ignoreDuplicates: false })
   if (error) console.error('[AXIS seed] riscos_juridicos:', error.message)
   else console.log(`[AXIS seed] ${entradas.length} riscos inseridos em riscos_juridicos`)
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SPRINT 10 — Verificação automática pós-leilão
+// ══════════════════════════════════════════════════════════════════════════
+export async function getImoveisLeilaoPendente() {
+  // Retorna imóveis de leilão cuja data já passou e ainda estão ativos (sem resultado registrado)
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  const { data, error } = await supabase
+    .from('imoveis')
+    .select('id,titulo,codigo_axis,data_leilao,modalidade_leilao,valor_minimo,score_total,recomendacao,bairro,cidade,status_operacional,foto_principal,num_leilao')
+    .or('status_operacional.eq.ativo,status_operacional.is.null')
+    .not('data_leilao', 'is', null)
+    .lt('data_leilao', hoje.toISOString())
+    .order('data_leilao', { ascending: false })
+  if (error) { console.error('[AXIS] getImoveisLeilaoPendente:', error.message); return [] }
+  return data || []
+}
+
+export async function getImoveisLeilaoProximo(diasAfrente = 7) {
+  // Retorna imóveis com leilão nos próximos N dias
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0)
+  const limite = new Date(hoje); limite.setDate(limite.getDate() + diasAfrente)
+  const { data, error } = await supabase
+    .from('imoveis')
+    .select('id,titulo,codigo_axis,data_leilao,modalidade_leilao,valor_minimo,score_total,recomendacao,bairro,cidade,num_leilao,num_documentos,score_viabilidade_docs')
+    .or('status_operacional.eq.ativo,status_operacional.is.null')
+    .gte('data_leilao', hoje.toISOString())
+    .lte('data_leilao', limite.toISOString())
+    .order('data_leilao', { ascending: true })
+  if (error) { console.error('[AXIS] getImoveisLeilaoProximo:', error.message); return [] }
+  return data || []
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SPRINT 10 — Link público de compartilhamento
+// ══════════════════════════════════════════════════════════════════════════
+export async function criarLinkPublico(imovelId, userId, diasValidade = 30) {
+  // Gerar token único para compartilhamento
+  const token = crypto.randomUUID().replace(/-/g, '').substring(0, 16)
+  const expiraEm = new Date()
+  expiraEm.setDate(expiraEm.getDate() + diasValidade)
+
+  // Tentar salvar na tabela shared_links (se existir)
+  try {
+    const { data, error } = await supabase
+      .from('shared_links')
+      .upsert({
+        imovel_id: imovelId,
+        token,
+        criado_por: userId,
+        expira_em: expiraEm.toISOString(),
+        ativo: true,
+        criado_em: new Date().toISOString(),
+      }, { onConflict: 'imovel_id' })
+      .select()
+    if (error) throw error
+    return { token: data?.[0]?.token || token, expira_em: expiraEm }
+  } catch (e) {
+    // Fallback: armazenar no campo do imóvel como JSON
+    console.warn('[AXIS] shared_links table não existe, usando fallback:', e.message)
+    const linkData = { token, expira_em: expiraEm.toISOString(), criado_por: userId }
+    await supabase.from('imoveis').update({
+      _shared_link: JSON.stringify(linkData),
+      atualizado_em: new Date().toISOString()
+    }).eq('id', imovelId)
+    return { token, expira_em: expiraEm, fallback: true }
+  }
+}
+
+export async function getImovelPorToken(token) {
+  // Buscar imóvel pelo token de compartilhamento
+  // Primeiro tentar tabela shared_links
+  try {
+    const { data: link } = await supabase
+      .from('shared_links')
+      .select('imovel_id, expira_em, ativo')
+      .eq('token', token)
+      .eq('ativo', true)
+      .single()
+    if (link) {
+      if (new Date(link.expira_em) < new Date()) return { expirado: true }
+      const { data: imovel } = await supabase
+        .from('imoveis').select('*').eq('id', link.imovel_id).single()
+      return imovel
+    }
+  } catch (e) {
+    // Tabela pode não existir — fallback abaixo
+  }
+
+  // Fallback: buscar no campo _shared_link de todos os imóveis
+  const { data: imoveis } = await supabase
+    .from('imoveis')
+    .select('*')
+    .not('_shared_link', 'is', null)
+  if (imoveis) {
+    for (const im of imoveis) {
+      try {
+        const linkData = JSON.parse(im._shared_link)
+        if (linkData.token === token) {
+          if (new Date(linkData.expira_em) < new Date()) return { expirado: true }
+          return im
+        }
+      } catch {}
+    }
+  }
+  return null
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SPRINT 10 — Export carteira
+// ══════════════════════════════════════════════════════════════════════════
+export async function getImoveisParaExport() {
+  const { data, error } = await supabase
+    .from('imoveis')
+    .select('*')
+    .or('status_operacional.eq.ativo,status_operacional.is.null')
+    .order('score_total', { ascending: false })
+  if (error) throw error
+  return data || []
 }

@@ -9,6 +9,7 @@ import Login from "./pages/Login.jsx"
 import { supabase, getImoveis, deleteImovel } from "./lib/supabase.js"
 import { detectarTipoTransacao, isMercadoDireto } from "./lib/detectarFonte.js"
 const LazyTarefas = lazy(() => import('./pages/Tarefas.jsx'))
+const LazySharedViewer = lazy(() => import('./components/SharedViewer.jsx'))
 // motorIA carregado dinamicamente no momento do uso para reduzir bundle inicial
 // trelloService carregado dinamicamente para reduzir bundle inicial
 import { LayoutDashboard, TrendingUp, Package, ShieldCheck, FileText, BarChart3, Settings, Search, Bell, AlertTriangle, ArrowUpRight, Plus, MessageSquare, Scale, CheckSquare, LogOut } from "lucide-react"
@@ -1203,10 +1204,74 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
   const [q,setQ]=useState(""), [filter,setFilter]=useState("todos"), [sort,setSort]=useState("score")
   const [syncingTrello,setSyncingTrello]=useState(false)
   const [syncMsg,setSyncMsg]=useState("")
+  // Sprint 10: Multi-select para análise em lote
+  const [selIds, setSelIds] = useState(new Set())
+  const [loteProcessando, setLoteProcessando] = useState(false)
+  const [loteProgresso, setLoteProgresso] = useState('')
   let list=[...props]
   if(q) list=list.filter(p=>`${p.titulo} ${p.cidade} ${p.tipo}`.toLowerCase().includes(q.toLowerCase()))
   if(filter!=="todos") list=list.filter(p=>p.recomendacao===filter.toUpperCase())
   list.sort((a,b)=>sort==="score"?(b.score_total||0)-(a.score_total||0):sort==="desconto"?(b.desconto_percentual||0)-(a.desconto_percentual||0):sort==="valor"?(a.valor_minimo||0)-(b.valor_minimo||0):new Date(b.createdAt)-new Date(a.createdAt))
+
+  const toggleSel = (id) => setSelIds(prev => {
+    const n = new Set(prev)
+    n.has(id) ? n.delete(id) : n.add(id)
+    return n
+  })
+  const toggleAll = () => setSelIds(prev => prev.size === list.length ? new Set() : new Set(list.map(p => p.id)))
+
+  // Análise em lote: re-analisar docs de todos os imóveis selecionados
+  const analisarLote = async () => {
+    const selecionados = props.filter(p => selIds.has(p.id))
+    if (!selecionados.length) return
+    if (!confirm(`Analisar documentos de ${selecionados.length} imóvel(is)? Isso pode levar alguns minutos.`)) return
+    setLoteProcessando(true)
+    const gKey = localStorage.getItem('axis-gemini-key') || ''
+    const cKey = localStorage.getItem('axis-api-key') || ''
+    if (!gKey && !cKey) { setLoteProgresso('⚠️ Configure Gemini ou Claude em Admin → API Keys'); setLoteProcessando(false); return }
+
+    let ok = 0, errs = 0, docsTotal = 0
+    const { getDocumentosJuridicos, salvarDocumentoJuridico } = await import('./lib/supabase.js')
+    const { analisarTextoJuridicoGemini, baixarViaJina } = await import('./lib/agenteJuridico.js')
+
+    for (const imovel of selecionados) {
+      setLoteProgresso(`📋 ${ok + errs + 1}/${selecionados.length} — ${imovel.codigo_axis || imovel.titulo || 'Imóvel'}...`)
+      try {
+        const docs = await getDocumentosJuridicos(imovel.id)
+        const pendentes = docs.filter(d => !d.analise_ia && (d.conteudo_texto || d.url_origem || d.url))
+        for (const doc of pendentes) {
+          let texto = doc.conteudo_texto
+          if (!texto || texto.length < 100) {
+            const urlDoc = doc.url_origem || doc.url
+            if (urlDoc) texto = await baixarViaJina(urlDoc, () => {}).catch(() => null)
+          }
+          if (!texto || texto.length < 100) continue
+          const analise = await analisarTextoJuridicoGemini(texto, doc.nome || doc.tipo, imovel, gKey || cKey)
+          if (analise) {
+            await salvarDocumentoJuridico({
+              id: doc.id, imovel_id: imovel.id, tipo: doc.tipo,
+              conteudo_texto: texto.substring(0, 5000),
+              analise_ia: analise.parecer || analise.resumo || '',
+              analise_estruturada: analise,
+              riscos_encontrados: analise.riscos_identificados || [],
+              score_juridico_sugerido: analise.score_juridico_sugerido,
+              recomendacao_juridica: analise.recomendacao_juridica,
+              pontos_positivos: analise.pontos_positivos || [],
+              alertas_criticos: analise.alertas_criticos || [],
+              processado: true, status: 'analisado',
+              analisado_em: new Date().toISOString(),
+            }).catch(() => {})
+            docsTotal++
+          }
+        }
+        ok++
+      } catch (e) { errs++; console.warn('[AXIS lote]', imovel.id, e.message) }
+    }
+    setLoteProgresso(`✅ ${ok} imóvel(is) processado(s), ${docsTotal} doc(s) analisado(s)${errs ? ` · ${errs} erro(s)` : ''}`)
+    setLoteProcessando(false)
+    setSelIds(new Set())
+    setTimeout(() => setLoteProgresso(''), 8000)
+  }
 
   const syncTrello=async()=>{
     if(!trello?.listId||!trello?.boardId){setSyncMsg("⚠️ Configure o Trello primeiro (ícone ⚙️)");setTimeout(()=>setSyncMsg(""),4000);return}
@@ -1233,7 +1298,11 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
     </>}/>
     <div style={{padding:isPhoneL?"16px":"20px 28px"}}>
       {syncMsg&&<div style={{background:`${K.teal}10`,border:`1px solid ${K.teal}30`,borderRadius:"6px",padding:"10px",marginBottom:"14px",fontSize:"12px",color:K.teal}}>{syncMsg}</div>}
-      <div style={{display:"flex",gap:"10px",marginBottom:"16px",flexWrap:"wrap"}}>
+      {loteProgresso&&<div style={{background:loteProcessando?'#FEF3C7':'#ECFDF5',border:`1px solid ${loteProcessando?'#FCD34D':'#A7F3D0'}`,borderRadius:8,padding:'10px 14px',marginBottom:14,fontSize:12,fontWeight:600,color:loteProcessando?'#92400E':'#065F46',display:'flex',alignItems:'center',gap:8}}>
+        {loteProcessando&&<span style={{display:'inline-block',width:14,height:14,border:'2px solid #D4A017',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite'}}/>}
+        {loteProgresso}
+      </div>}
+      <div style={{display:"flex",gap:"10px",marginBottom:"16px",flexWrap:"wrap",alignItems:"center"}}>
         <input style={{...inp(),maxWidth:isPhoneL?"100%":"260px",fontSize:isPhoneL?16:13}} placeholder="🔍 Buscar..." value={q} onChange={e=>setQ(e.target.value)}/>
         <select style={{...inp(),width:"auto",cursor:"pointer"}} value={filter} onChange={e=>setFilter(e.target.value)}>
           <option value="todos">Todos</option><option value="comprar">Comprar</option><option value="aguardar">Aguardar</option><option value="evitar">Evitar</option>
@@ -1241,10 +1310,33 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
         <select style={{...inp(),width:"auto",cursor:"pointer"}} value={sort} onChange={e=>setSort(e.target.value)}>
           <option value="score">Maior Score</option><option value="desconto">Maior Desconto</option><option value="valor">Menor Valor</option><option value="data">Mais Recente</option>
         </select>
+        {/* Sprint 10: Toggle seleção e ações em lote */}
+        <button style={{...btn("s"),fontSize:11,padding:'5px 10px',background:selIds.size?'#002B8015':'transparent',color:'#002B80',border:'1px solid #002B8030'}}
+          onClick={toggleAll}>
+          {selIds.size === list.length ? '☑ Deselecionar' : '☐ Selecionar'}
+        </button>
+        {selIds.size > 0 && (
+          <button style={{...btn("s"),fontSize:11,padding:'5px 12px',background:'#002B80',color:'#fff',border:'none',fontWeight:700}}
+            onClick={analisarLote} disabled={loteProcessando}>
+            {loteProcessando ? '⏳ Processando...' : `🤖 Analisar Docs (${selIds.size})`}
+          </button>
+        )}
       </div>
       {list.length===0?<div style={{textAlign:"center",padding:"40px",color:K.t3}}><div style={{fontSize:"32px",marginBottom:"10px"}}>🔍</div><div>Nenhum imóvel encontrado</div></div>
       :<div style={{display:"grid",gridTemplateColumns:isPhoneL?"1fr":"repeat(auto-fill,minmax(300px,1fr))",gap:"12px"}}>
-        {list.map(p=><PropCard key={p.id} p={p} onNav={onNav}/>)}
+        {list.map(p=><div key={p.id} style={{position:'relative'}}>
+          {/* Checkbox de seleção */}
+          <div onClick={(e)=>{e.stopPropagation();toggleSel(p.id)}} style={{
+            position:'absolute',top:8,left:8,zIndex:2,width:22,height:22,borderRadius:5,
+            background:selIds.has(p.id)?'#002B80':'rgba(255,255,255,0.9)',
+            border:selIds.has(p.id)?'none':'1.5px solid #ccc',
+            display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',
+            boxShadow:'0 1px 3px rgba(0,0,0,0.1)',transition:'all .15s',
+          }}>
+            {selIds.has(p.id) && <span style={{color:'#fff',fontSize:13,fontWeight:700}}>✓</span>}
+          </div>
+          <PropCard p={p} onNav={onNav}/>
+        </div>)}
       </div>}
     </div>
   </div>
@@ -1550,6 +1642,24 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
+  // Sprint 10: Rota pública /#/share/:token — SEM autenticação
+  const [shareToken, setShareToken] = useState(null)
+  useEffect(() => {
+    function checkHash() {
+      const hash = window.location.hash
+      const match = hash.match(/^#\/share\/([a-zA-Z0-9]+)$/)
+      setShareToken(match ? match[1] : null)
+    }
+    checkHash()
+    window.addEventListener('hashchange', checkHash)
+    return () => window.removeEventListener('hashchange', checkHash)
+  }, [])
+  if (shareToken) {
+    return <Suspense fallback={<div style={{display:'flex',height:'100dvh',justifyContent:'center',alignItems:'center',color:'#002B80',fontSize:14}}>Carregando...</div>}>
+      <LazySharedViewer token={shareToken} />
+    </Suspense>
+  }
+
   const { session, profile, loading: authLoading, isAdmin } = useAuth()
   const isViewer = !isAdmin && profile?.role === 'viewer'
   const podeEditar = isAdmin

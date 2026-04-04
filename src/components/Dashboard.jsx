@@ -3,6 +3,8 @@ import { C, K, btn, fmtC, fmtD, card, recColor, scoreColor, scoreLabel } from ".
 import { ArrowUpRight, Bell, TrendingUp, AlertTriangle, Package, Clock } from "lucide-react"
 import { supabase } from '../lib/supabase.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
+import ExportCarteira from './ExportCarteira.jsx'
+import PainelPosLeilao from './PainelPosLeilao.jsx'
 
 // Inline ScoreRing (used by PropCard)
 function ScoreRing({score,size=80}) {
@@ -431,13 +433,16 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
             <text x="40" y="50" textAnchor="middle" fontSize="10" fill={C.hint}>/10</text>
           </svg>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            <button onClick={()=>onNav("novo")} style={{
-              padding:"8px 18px",borderRadius:7,
-              background:C.emerald,color:"#fff",
-              border:"none",fontSize:12.5,fontWeight:600,cursor:"pointer",
-            }}>
-              + Nova Análise
-            </button>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>onNav("novo")} style={{
+                padding:"8px 18px",borderRadius:7,
+                background:C.emerald,color:"#fff",
+                border:"none",fontSize:12.5,fontWeight:600,cursor:"pointer",
+              }}>
+                + Nova Análise
+              </button>
+              <ExportCarteira imoveis={props} isPhone={isPhone}/>
+            </div>
             <div style={{display:"flex",gap:6}}>
               <span style={{fontSize:11,padding:"3px 8px",borderRadius:5,background:C.navyAlfa,color:C.navy,fontWeight:600}}>{comprar} comprar</span>
               <span style={{fontSize:11,padding:"3px 8px",borderRadius:5,background:C.emeraldL,color:C.emerald,fontWeight:600}}>{forte} forte</span>
@@ -445,6 +450,9 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
           </div>
         </div>
       </div>
+
+      {/* Sprint 10: Painel Pós-Leilão — alertas e controle */}
+      <PainelPosLeilao onNav={onNav} isPhone={isPhone}/>
 
       {/* Linha 3: Análises Recentes */}
       {total===0

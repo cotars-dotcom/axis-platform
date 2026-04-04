@@ -428,24 +428,33 @@ function AbaJuridica({ imovel, onReclassificado }) {
       setErro('Configure Gemini ou Claude no painel Admin → API Keys')
       return
     }
-    const urlDoc = doc.url_origem || doc.url
-    if (!urlDoc) {
-      setErro('Documento sem URL — faça upload manual do PDF')
-      return
-    }
     setAnalisando(true)
     setErro('')
     setResultado(null)
     try {
-      setProgresso(`📥 Baixando ${doc.nome || doc.tipo} via Jina...`)
-      const { baixarViaJina, analisarTextoJuridicoGemini } = await import('../lib/agenteJuridico.js')
-      const texto = await baixarViaJina(urlDoc, setProgresso)
+      const { analisarTextoJuridicoGemini } = await import('../lib/agenteJuridico.js')
+      let texto = null
+      let urlDoc = doc.url_origem || doc.url
+
+      // CAMINHO 1: Se já tem texto salvo, analisar direto (sem re-download)
+      if (doc.conteudo_texto && doc.conteudo_texto.length > 100) {
+        texto = doc.conteudo_texto
+        setProgresso(`📄 Usando texto salvo (${(texto.length / 1000).toFixed(0)}k chars) — sem re-download`)
+      }
+      // CAMINHO 2: Download via Jina se tem URL
+      else if (urlDoc) {
+        setProgresso(`📥 Baixando ${doc.nome || doc.tipo} via Jina...`)
+        const { baixarViaJina } = await import('../lib/agenteJuridico.js')
+        texto = await baixarViaJina(urlDoc, setProgresso)
+      }
+
       if (!texto || texto.length < 100) {
-        setErro(`Não foi possível ler o PDF — tente download manual e upload aqui`)
+        setErro('Sem texto e sem URL — faça upload manual do PDF')
         setAnalisando(false)
         setProgresso('')
         return
       }
+
       setProgresso(`🤖 Analisando ${doc.nome || doc.tipo} com IA (~30s)...`)
       const analise = await analisarTextoJuridicoGemini(texto, doc.nome || doc.tipo, imovel, geminiKey || claudeKey)
       if (!analise) {
@@ -468,12 +477,14 @@ function AbaJuridica({ imovel, onReclassificado }) {
         riscos_encontrados: analise.riscos_identificados || [],
         score_juridico_sugerido: analise.score_juridico_sugerido || null,
         impacto_score: analise.score_juridico_delta || 0,
+        score_viabilidade: analise.score_juridico_sugerido || null,
         recomendacao_juridica: analise.recomendacao_juridica || null,
         pontos_positivos: analise.pontos_positivos || [],
         alertas_criticos: analise.alertas_criticos || [],
         responsabilidade_debitos: analise.responsabilidade_debitos || null,
         ocupacao_confirmada: analise.ocupacao_confirmada || null,
         prazo_liberacao_meses: analise.prazo_liberacao_meses || null,
+        metricas_viabilidade: analise.metricas_viabilidade || null,
         processado: true,
         status: 'analisado',
         analisado_em: new Date().toISOString(),
@@ -1442,6 +1453,17 @@ for (const s of SCORES) {
           Ao Vivo
         </button>
         {isAdmin&&onArchive&&<button style={{...btn("s"),background:`${C.mustardL}`,color:C.mustard,border:`1px solid ${C.mustard}40`}} onClick={()=>onArchive(p.id)}>📦 Arquivar</button>}
+        {isAdmin&&<button style={{...btn("s"),background:'#EBF4FF',color:'#002B80',border:'1px solid #002B8030',fontSize:11.5,fontWeight:600}}
+          onClick={async()=>{
+            try {
+              const { criarLinkPublico } = await import('../lib/supabase.js')
+              const { data:{session} } = await supabase.auth.getSession()
+              const result = await criarLinkPublico(p.id, session?.user?.id)
+              const url = `${window.location.origin}/#/share/${result.token}`
+              await navigator.clipboard.writeText(url)
+              alert(`✅ Link copiado!\n\n${url}\n\nVálido por 30 dias.`)
+            } catch(e){ alert('Erro: '+e.message) }
+          }}>🔗 Compartilhar</button>}
         {isAdmin&&<button style={{...btn("d"),padding:"5px 12px",fontSize:"12px"}} onClick={()=>{if(confirm("Excluir?"))onDelete(p.id)}}>🗑</button>}
       </>}/>
     {/* Banner pós-leilão — aparece quando data passou e imóvel ainda está ativo */}
