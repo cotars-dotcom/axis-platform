@@ -477,21 +477,54 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
 
   // Analisar documento existente via IA
   async function handleAnalisarDoc(doc) {
-    if (!doc?.url_origem && !doc?.url) return
     setProgresso(`🤖 Analisando ${doc.nome || doc.tipo}...`)
     try {
       const { gKey, cKey } = await syncChaves()
       const { oKey: openaiKeyDoc } = await syncChaves()
-      const res = await processarDocumentoCompleto({
-        url: doc.url_origem || doc.url,
-        nome: doc.nome || doc.tipo,
-        tipo: doc.tipo || 'outro',
-        imovel,
-        geminiKey: gKey,
-        claudeKey: cKey,
-        openaiKey: openaiKeyDoc,
-        onProgress: setProgresso
-      })
+      let res = null
+
+      // CAMINHO 1: Se já tem texto salvo, analisar direto (sem re-download)
+      if (doc.conteudo_texto && doc.conteudo_texto.length > 100) {
+        setProgresso(`📄 Usando texto salvo (${(doc.conteudo_texto.length / 1000).toFixed(0)}k chars)...`)
+        const { analisarTextoJuridicoGemini } = await import('../lib/agenteJuridico.js')
+        const analise = await analisarTextoJuridicoGemini(doc.conteudo_texto, doc.nome || doc.tipo, imovel, gKey)
+        if (analise) {
+          res = {
+            analise_ia: analise.parecer || analise.resumo,
+            resumo_executivo: analise.resumo,
+            riscos_encontrados: analise.riscos_identificados || [],
+            score_juridico_sugerido: analise.score_juridico_sugerido,
+            score_viabilidade: analise.score_juridico_sugerido,
+            responsabilidade_debitos: analise.responsabilidade_debitos,
+            ocupacao_confirmada: analise.ocupacao_confirmada,
+            recomendacao_juridica: analise.recomendacao_juridica,
+            pontos_positivos: analise.pontos_positivos || [],
+            alertas_criticos: analise.alertas_criticos || [],
+            analise_estruturada: analise,
+            conteudo_texto: doc.conteudo_texto,
+          }
+        }
+      }
+      
+      // CAMINHO 2: Re-download e análise completa (se tem URL e não conseguiu pelo texto)
+      if (!res && (doc.url_origem || doc.url)) {
+        res = await processarDocumentoCompleto({
+          url: doc.url_origem || doc.url,
+          nome: doc.nome || doc.tipo,
+          tipo: doc.tipo || 'outro',
+          imovel,
+          geminiKey: gKey,
+          claudeKey: cKey,
+          openaiKey: openaiKeyDoc,
+          onProgress: setProgresso
+        })
+      }
+
+      if (!res) {
+        setProgresso(`⚠️ Sem URL e sem texto salvo — faça upload manual do PDF`)
+        return
+      }
+
       if (res?.analise_ia || res?.analise_estruturada) {
         await salvarDocumentoJuridico({
           id: doc.id,

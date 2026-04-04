@@ -18,7 +18,7 @@ import {
 import { calcularCustoReforma, verificarSobrecapitalizacao } from '../data/custos_reforma.js'
 import { calcularCustoJuridico } from '../data/riscos_juridicos.js'
 
-import { SCORE_PESOS, CLAUDE_MODEL, ANTHROPIC_VERSION, calcularScoreTotal } from './constants.js'
+import { SCORE_PESOS, CLAUDE_MODEL, ANTHROPIC_VERSION, calcularScoreTotal, calcularCustosAquisicao } from './constants.js'
 
 const GPT_MODEL_MARKET  = 'gpt-4o-mini'   // comparáveis e pesquisa de mercado (~16x mais barato)
 const GPT_MODEL_COMPLEX = 'gpt-4o'        // fallback se mini falhar ou retornar sem dados
@@ -853,13 +853,14 @@ export function validarECorrigirAnalise(analise) {
     })
   }
 
-  // 5. Custo total deve incluir comissão
+  // 5. Custo total deve incluir comissão (fonte: constants.js)
   if (analise.valor_minimo && !analise.custo_total_aquisicao) {
-    const comissao = analise.valor_minimo * ((analise.comissao_leiloeiro_pct || 5) / 100)
-    const itbi = analise.valor_minimo * ((analise.itbi_pct || 2) / 100)
-    analise.custo_total_aquisicao = Math.round(
-      analise.valor_minimo + comissao + itbi + (analise.custo_regularizacao || 15000)
-    )
+    const _eMerc = isMercadoDireto(analise.fonte_url || '', analise.tipo_transacao)
+    const _custos = calcularCustosAquisicao(analise.valor_minimo, _eMerc, {
+      comissao_leiloeiro_pct: analise.comissao_leiloeiro_pct,
+      itbi_pct: analise.itbi_pct,
+    })
+    analise.custo_total_aquisicao = _custos.total + (analise.custo_regularizacao || 0)
   }
 
   // 6. Score de ocupação — "nunca habitado" ou desocupado deve ter score alto
