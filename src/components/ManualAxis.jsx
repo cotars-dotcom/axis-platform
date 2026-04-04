@@ -345,6 +345,7 @@ export default function ManualAxis({ isMobile }) {
 
   const ABAS = [
     ['guia','📖 O AXIS'],['score','🎯 Score'],['fluxo','⚙️ Fluxo'],
+    ['mercado','📈 Mercado BH'],['juridico','⚖️ Jurisprudência'],['financiamento','🏦 Financiamento'],
     ['banco','🗄️ Base de Dados'],['glossario','📚 Glossário'],['diretrizes','📋 Diretrizes'],
   ]
   const glossFilt = GLOSS.filter(g =>
@@ -549,6 +550,204 @@ export default function ManualAxis({ isMobile }) {
               </div>
               <div style={{ fontSize:24, fontWeight:800, color:P.emerald }}>~R$ 0,01</div>
             </div>
+          </Box>
+        </div>
+      )}
+
+      {/* ─── ABA: MERCADO BH (NOVA) ─────────────────────────────────── */}
+      {aba === 'mercado' && (
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:P.navy, marginBottom:8 }}>📊 Panorama do Mercado Imobiliário BH — Q1/2026</div>
+          <div style={{ fontSize:11.5, color:P.text, lineHeight:1.7, marginBottom:14 }}>
+            Preços de venda recuaram <strong>-0,41%</strong> no 1º trimestre, mas aluguéis acumulam <strong>+10,52%</strong> em 12 meses.
+            Vendas de imóveis prontos avançaram <strong>35%</strong> — maior resultado já catalogado pelo Secovi-MG.
+            Vacância em mínima histórica: estoque de apenas <strong>7 meses</strong> de demanda.
+          </div>
+
+          {/* Cards indicadores */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:8, marginBottom:14 }}>
+            {[
+              { v:'R$ 10.595', sub:'Preço m²/venda', fonte:'FipeZAP fev/26', cor:P.navy },
+              { v:'R$ 48,28', sub:'Preço m²/aluguel', fonte:'FipeZAP fev/26', cor:P.blue },
+              { v:'5,96%', sub:'Yield bruto nacional', fonte:'FipeZAP dez/25', cor:P.emerald },
+              { v:'7 meses', sub:'Estoque BH+NL', fonte:'Sinduscon-MG', cor:P.mustard },
+              { v:'+35%', sub:'Vendas prontos 1T/26', fonte:'Secovi-MG', cor:P.emerald },
+              { v:'200 mil', sub:'Déficit habitacional', fonte:'FJP', cor:P.red },
+            ].map(({ v, sub, fonte, cor }) => (
+              <div key={sub} style={{ background:P.white, border:`1px solid ${P.border}`, borderRadius:10, padding:'10px 12px', textAlign:'center' }}>
+                <div style={{ fontSize:18, fontWeight:800, color:cor }}>{v}</div>
+                <div style={{ fontSize:9.5, color:P.gray, marginTop:2 }}>{sub}</div>
+                <div style={{ fontSize:8, color:P.border, marginTop:1 }}>{fonte}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Aluguel por bairro */}
+          <Box style={{ marginBottom:12 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:P.navy, marginBottom:8 }}>🔥 Top 10 valorização aluguel (QuintoAndar 2025)</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'3px 12px' }}>
+              {[['Barro Preto','+47,7%'],['São Pedro','+46,8%'],['Santa Efigênia','+41,8%'],
+                ['Centro','+39,9%'],['Anchieta','+33,7%'],['Serra','+33,1%'],
+                ['Santo Agostinho','+31,7%'],['Sagrada Família','+28,5%'],
+                ['Santa Mônica','+27,3%'],['Prado','+26,3%']
+              ].map(([b,v]) => (
+                <div key={b} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0', borderBottom:`1px solid ${P.border}`, fontSize:10.5 }}>
+                  <span style={{ color:P.text }}>{b}</span>
+                  <span style={{ color:P.emerald, fontWeight:700 }}>{v}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize:9, color:P.gray, marginTop:6 }}>
+              Apenas 3 bairros com queda: Funcionários (-6,9%), Luxemburgo (-4,2%), Camargos (-1,7%).
+              Aluguel por tipologia: 1q <strong>R$ 65,60/m²</strong> · 2q <strong>R$ 42,49/m²</strong> · 3q <strong>R$ 39,77/m²</strong>
+            </div>
+          </Box>
+
+          {/* Custos de construção */}
+          <Box style={{ marginBottom:12 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:P.navy, marginBottom:6 }}>🏗️ Custos de Construção MG</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+              {[['CUB R8-N','R$ 2.504,80/m²','Sinduscon-MG jan/26'],['SINAPI MG','R$ 1.811,56/m²','IBGE/Caixa dez/25']].map(([t,v,f]) => (
+                <div key={t} style={{ background:`${P.navyL}`, borderRadius:8, padding:'8px 10px' }}>
+                  <div style={{ fontSize:9, color:P.gray }}>{t}</div>
+                  <div style={{ fontSize:14, fontWeight:800, color:P.navy }}>{v}</div>
+                  <div style={{ fontSize:8, color:P.gray }}>{f}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize:9.5, color:P.text, marginTop:6, lineHeight:1.5 }}>
+              O CUB R8-N serve como <strong>piso de custo de reposição</strong> — se o preço arrematado está abaixo do CUB, o imóvel custa menos que construir novo.
+              MG teve a <strong>maior variação estadual</strong> em dez/2025 (+3,34%), por acordo coletivo de mão de obra.
+            </div>
+          </Box>
+
+          {/* Leilões */}
+          <Box>
+            <div style={{ fontSize:11, fontWeight:700, color:P.navy, marginBottom:6 }}>🔨 Mercado de Leilões</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
+              {[['📈 +86%','Crescimento leilões 2023→2024'],['💰 59%','Deságio médio residencial'],['🏠 47 mil','Retomados Caixa 2024']].map(([v,l]) => (
+                <div key={l} style={{ background:P.mustardL, borderRadius:8, padding:'8px', textAlign:'center' }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:P.mustard }}>{v}</div>
+                  <div style={{ fontSize:8, color:P.gray, marginTop:2 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize:9.5, color:P.text, marginTop:8, lineHeight:1.5 }}>
+              Deságio médio: <strong>59%</strong> (geral) · <strong>44%</strong> (ocupados). 92,6% dos compradores são PF, 47% para moradia.
+              Piso legal: <strong>50%</strong> da avaliação (abaixo = preço vil, art. 891 CPC).
+            </div>
+          </Box>
+        </div>
+      )}
+
+      {/* ─── ABA: JURISPRUDÊNCIA (NOVA) ──────────────────────────────── */}
+      {aba === 'juridico' && (
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:P.navy, marginBottom:10 }}>⚖️ Jurisprudência Atualizada — STJ e TJMG</div>
+          <div style={{ fontSize:11, color:P.text, lineHeight:1.6, marginBottom:14 }}>
+            Decisões que impactam diretamente o score AXIS e a viabilidade de leilões.
+          </div>
+
+          {[
+            { tema:'Tema 1.134', titulo:'Arrematante NÃO responde por tributos anteriores',
+              corpo:'A 1ª Seção do STJ fixou tese vinculante: sub-rogação ocorre sobre o preço, não sobre o arrematante (art. 130, §único, CTN). Aplica-se a editais publicados após a ata de julgamento.',
+              processo:'REsp 1.914.902, 1.944.757, 1.961.835', data:'Out/2024', cor:P.emerald, impacto:'+1.5 score jurídico' },
+            { tema:'Preço Vil', titulo:'Vedação estendida a leilões extrajudiciais',
+              corpo:'A vedação ao preço vil (< 50% da avaliação) aplica-se também à execução extrajudicial em alienação fiduciária. Matéria de ordem pública.',
+              processo:'REsp 2.096.465/SP', data:'Mai/2024', cor:P.mustard, impacto:'Limita desconto a 50%' },
+            { tema:'Condominiais', titulo:'Arrematante responde SOMENTE se constar no edital',
+              corpo:'Obrigação propter rem, mas STJ definiu que débitos anteriores são responsabilidade do arrematante apenas se expressamente declarados no edital.',
+              processo:'REsp 1.672.508/SP', data:'2024', cor:P.blue, impacto:'Verificar edital' },
+            { tema:'Tema 1.113', titulo:'Base de cálculo do ITBI = valor de mercado',
+              corpo:'Valor declarado pelo contribuinte goza de presunção de veracidade. Prefeitura não pode arbitrar base unilateralmente. Em BH: ITBI 3% sobre valor venal ou transação (o maior).',
+              processo:'Repetitivos — 1ª Seção STJ', data:'2023', cor:P.navy, impacto:'ITBI pode ser > lance' },
+            { tema:'Tema 1.266', titulo:'Penhora por dívida condominial em alienação fiduciária',
+              corpo:'PENDENTE DE JULGAMENTO. Impacto potencial em imóveis financiados com débitos condominiais.',
+              processo:'Pendente', data:'—', cor:P.red, impacto:'⚠️ Monitorar' },
+          ].map(j => (
+            <Box key={j.tema} style={{ marginBottom:10, borderLeft:`3px solid ${j.cor}` }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
+                <div>
+                  <span style={{ fontSize:9, fontWeight:700, padding:'2px 6px', borderRadius:4, background:`${j.cor}15`, color:j.cor }}>{j.tema}</span>
+                  <span style={{ fontSize:9, color:P.gray, marginLeft:6 }}>{j.data}</span>
+                </div>
+                <span style={{ fontSize:8, fontWeight:600, color:j.cor }}>{j.impacto}</span>
+              </div>
+              <div style={{ fontSize:11.5, fontWeight:700, color:P.text, marginBottom:3 }}>{j.titulo}</div>
+              <div style={{ fontSize:10.5, color:P.gray, lineHeight:1.6 }}>{j.corpo}</div>
+              <div style={{ fontSize:8.5, color:P.border, marginTop:4 }}>{j.processo}</div>
+            </Box>
+          ))}
+        </div>
+      )}
+
+      {/* ─── ABA: FINANCIAMENTO (NOVA) ───────────────────────────────── */}
+      {aba === 'financiamento' && (
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:P.navy, marginBottom:10 }}>🏦 Financiamento Pós-Arrematação — Taxas 2026</div>
+
+          {/* Tabela de bancos */}
+          <Box style={{ marginBottom:12, padding:0, overflow:'hidden' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 60px 60px', gap:0, fontSize:10 }}>
+              <div style={{ padding:'6px 10px', background:P.navy, color:'#fff', fontWeight:700 }}>Banco</div>
+              <div style={{ padding:'6px 8px', background:P.navy, color:'#fff', fontWeight:700, textAlign:'center' }}>Taxa mín.</div>
+              <div style={{ padding:'6px 8px', background:P.navy, color:'#fff', fontWeight:700, textAlign:'center' }}>LTV</div>
+              <div style={{ padding:'6px 8px', background:P.navy, color:'#fff', fontWeight:700, textAlign:'center' }}>Prazo</div>
+              {[
+                ['🏦 Caixa','10,26%','80%','420m'],['🏦 BRB','11,36%','80%','360m'],
+                ['🏦 Itaú','11,60%','80%','360m'],['🏦 Santander','11,69%','80%','420m'],
+                ['🏦 Bradesco','11,70%','80%','360m'],['🏦 BB (Pró-Cotista)','9,00%','80%','360m'],
+              ].map(([b,t,l,p], i) => (
+                [b,t,l,p].map((cell, ci) => (
+                  <div key={`${i}-${ci}`} style={{ padding:'5px 10px', background:i%2===0?P.surface:P.white, borderBottom:`1px solid ${P.border}`,
+                    textAlign:ci>0?'center':'left', fontWeight:ci===1?700:400, color:ci===1?P.emerald:P.text }}>
+                    {cell}
+                  </div>
+                ))
+              ))}
+            </div>
+          </Box>
+
+          {/* Destaques */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:12 }}>
+            <Box style={{ background:P.emeraldL, border:`1px solid ${P.emerald}30` }}>
+              <div style={{ fontSize:10, fontWeight:700, color:P.emerald, marginBottom:4 }}>✅ Caixa — leilões próprios</div>
+              <div style={{ fontSize:24, fontWeight:800, color:P.emerald }}>95%</div>
+              <div style={{ fontSize:9, color:P.gray }}>LTV máximo em extrajudicial próprio</div>
+            </Box>
+            <Box style={{ background:P.redL, border:`1px solid ${P.red}30` }}>
+              <div style={{ fontSize:10, fontWeight:700, color:P.red, marginBottom:4 }}>❌ Leilão judicial</div>
+              <div style={{ fontSize:11, fontWeight:700, color:P.red, marginTop:8 }}>Pagamento à vista</div>
+              <div style={{ fontSize:9, color:P.gray }}>Bancos não financiam hasta pública judicial</div>
+            </Box>
+          </div>
+
+          {/* FGTS */}
+          <Box style={{ marginBottom:12 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:P.navy, marginBottom:6 }}>💳 FGTS em Leilão</div>
+            <div style={{ fontSize:10.5, color:P.text, lineHeight:1.7 }}>
+              <strong>Extrajudicial:</strong> pode usar para entrada se edital autorizar. Requisitos: 3+ anos contribuição, imóvel urbano residencial até <strong>R$ 2,25 mi</strong> (teto SFH out/2025), cidade onde reside há 1+ ano, sem outro SFH ativo.
+            </div>
+            <div style={{ fontSize:10.5, color:P.gray, lineHeight:1.7, marginTop:4 }}>
+              <strong>Judicial:</strong> só para amortizar financiamento posterior, não na arrematação.
+            </div>
+          </Box>
+
+          {/* Emolumentos */}
+          <Box>
+            <div style={{ fontSize:11, fontWeight:700, color:P.navy, marginBottom:6 }}>📋 Emolumentos Cartoriais MG 2026</div>
+            <div style={{ fontSize:10, color:P.gray, marginBottom:6 }}>Portaria 8.664/CGJ/2025 · UFEMG R$ 5,7899</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'2px 10px', fontSize:10 }}>
+              {[['Até R$ 105k','R$ 2.928'],['R$ 175-280k','R$ 4.772'],['R$ 350-420k','R$ 5.035'],
+                ['R$ 560-700k','R$ 5.826'],['R$ 840k-1,12M','R$ 6.866'],['R$ 1,68-3,2M','R$ 8.582']
+              ].map(([f,v]) => (
+                <div key={f} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0', borderBottom:`1px solid ${P.border}` }}>
+                  <span style={{ color:P.gray }}>{f}</span>
+                  <span style={{ color:P.text, fontWeight:600 }}>{v}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize:9, color:P.gray, marginTop:6 }}>SFH/SFI: desconto de 80% · Promessa/compromisso: 50% · Simulador: simulador.corimg.org</div>
           </Box>
         </div>
       )}
