@@ -396,7 +396,7 @@ export default function ManualAxis({ isMobile }) {
               relatório exportável com fotos — tudo com base em dados reais de BH e região.
             </div>
             <div style={{ display:'flex', gap:6, marginTop:10, flexWrap:'wrap' }}>
-              {['Score 6D','Gemini 2.0 + Grounding','SINAPI reforma','MAO automático','Mercado direto','Leilão judicial','Export WhatsApp','Custo ~R$0,03'].map(f => (
+              {['Score 6D','Gemini 2.0 + Grounding','SINAPI reforma','MAO automático','Mercado direto','Leilão judicial','Export WhatsApp','Export Excel/PDF','Link público','Análise em lote','Pós-leilão auto','Custo ~R$0,03'].map(f => (
                 <Tag key={f} text={f} cor={P.navy}/>
               ))}
             </div>
@@ -408,6 +408,10 @@ export default function ManualAxis({ isMobile }) {
               {icon:'💰',t:'Custo ~R$0,03',cor:P.emerald,txt:'Gemini 2.0 Flash como motor principal. Fallback: DeepSeek → GPT-4o-mini → Claude. Para sites SPA (QuintoAndar): Gemini Grounding busca via Google.'},
               {icon:'🔄',t:'Cascata de IA',cor:P.purple,txt:'Gemini 2.0-flash → DeepSeek V3 → GPT-4o-mini → Claude Sonnet. Detecção automática de SPA com Google Search Grounding.'},
               {icon:'📄',t:'Export completo',cor:P.blue,txt:'Relatório HTML com fotos base64 embutidas — funciona no WhatsApp, email e offline. Abas interativas no browser, flat mode sem JS.'},
+              {icon:'📊',t:'Export Carteira (Sprint 10)',cor:P.blue,txt:'Exporta toda a carteira ativa em Excel (.xlsx, 2 abas, 35+ colunas) ou PDF (HTML A4 paisagem com KPIs). Botões no Dashboard.'},
+              {icon:'⏰',t:'Pós-Leilão Auto (Sprint 10)',cor:P.red,txt:'PainelPosLeilao no Dashboard detecta leilões vencidos e próximos (D-14). Botões Arrematado/Não Arrematado direto, sem abrir o imóvel.'},
+              {icon:'🔗',t:'Link Público (Sprint 10)',cor:P.purple,txt:'Compartilhe análise via link sem login — token de 16 chars, validade 30 dias. Viewer completo com Score 6D, KPIs, síntese. Rota: /#/share/:token.'},
+              {icon:'🤖',t:'Análise em Lote (Sprint 10)',cor:P.emerald,txt:'Multi-select na lista de imóveis + botão "Analisar Docs". Loop automático: texto salvo → Jina fallback → Gemini. Progresso em tempo real.'},
             ].map(({icon,t,cor,txt}) => (
               <Box key={t} style={{ borderLeft:`3px solid ${cor}` }}>
                 <div style={{ fontSize:18, marginBottom:4 }}>{icon}</div>
