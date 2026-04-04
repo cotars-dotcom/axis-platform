@@ -1655,16 +1655,17 @@ export default function App() {
     window.addEventListener('hashchange', checkHash)
     return () => window.removeEventListener('hashchange', checkHash)
   }, [])
-  if (shareToken) {
-    return <Suspense fallback={<div style={{display:'flex',height:'100dvh',justifyContent:'center',alignItems:'center',color:'#002B80',fontSize:14}}>Carregando...</div>}>
-      <LazySharedViewer token={shareToken} />
-    </Suspense>
-  }
 
   const { session, profile, loading: authLoading, isAdmin } = useAuth()
   const isViewer = !isAdmin && profile?.role === 'viewer'
   const podeEditar = isAdmin
   const podeSoVer = !isAdmin
+  // Sprint 10: Rota pública — renderizar SharedViewer SEM autenticação
+  if (shareToken) {
+    return <Suspense fallback={<div style={{display:'flex',height:'100dvh',justifyContent:'center',alignItems:'center',color:'#002B80',fontSize:14}}>Carregando...</div>}>
+      <LazySharedViewer token={shareToken} />
+    </Suspense>
+  }
   if (authLoading) return <div style={{display:'flex',flexDirection:'column',height:'100dvh',background:C.offwhite,justifyContent:'center',alignItems:'center',color:C.navy,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'16px',fontWeight:'700'}}>Carregando...</div>
   if (!session) return <Login />
   if (profile && !profile.ativo) return <div style={{display:'flex',height:'100dvh',background:C.offwhite,justifyContent:'center',alignItems:'center',color:'#E5484D',fontFamily:"'Inter',system-ui,sans-serif",flexDirection:'column',gap:'12px'}}><div style={{fontSize:'16px',fontWeight:'700'}}>Acesso desativado</div><div style={{fontSize:'13px',color:C.muted}}>Contate o administrador</div></div>
