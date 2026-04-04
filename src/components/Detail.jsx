@@ -687,9 +687,11 @@ function AbaJuridica({ imovel, onReclassificado }) {
   )
 }
 
-function CardComparavel({item:c, K, isPhone}) {
+function CardComparavel({item:c, K, isPhone, imovel}) {
   const [aberto, setAberto] = useState(false)
   const fmtV = v => v ? `R$ ${Number(v).toLocaleString('pt-BR')}` : '—'
+  // Helper: gerar slug para URLs de portais imobiliários
+  const toSlug = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-')
   return <div style={{marginBottom:6,borderRadius:8,overflow:"hidden",border:`1px solid ${K.bd}`}}>
     <div onClick={()=>setAberto(!aberto)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",cursor:"pointer",background:K.s2}}>
       <div style={{flex:1,minWidth:0}}>
@@ -728,18 +730,33 @@ function CardComparavel({item:c, K, isPhone}) {
       {c.link && !c._link_gerado
         ? <a href={c.link} target="_blank" rel="noreferrer" style={{gridColumn:"1/-1",fontSize:11,color:K.teal,textDecoration:"none"}}>🔗 Ver anúncio →</a>
         : (() => {
-            // Extrair bairro da descrição do comparável
-            const descParts = (c.descricao || '').split(',').map(s => s.trim())
-            const bairro = descParts.length >= 2 ? descParts[descParts.length - 2] : descParts[0] || ''
-            const bairroSlug = bairro.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-')
+            // Usar c.bairro (preenchido pelo motor IA) → fallback: extrair da descrição → fallback: bairro do imóvel
+            const bairro = c.bairro || (() => {
+              const descParts = (c.descricao || '').split(',').map(s => s.trim())
+              return descParts.length >= 2 ? descParts[descParts.length - 2] : ''
+            })() || (imovel?.bairro || '')
+            const bairroSlug = toSlug(bairro)
             const area = c.area_m2 || ''
             const q = c.quartos || ''
-            const cid = c.cidade || 'Contagem'
-            const cidSlug = cid.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-')
+            const cid = c.cidade || imovel?.cidade || 'Belo Horizonte'
+            const cidSlug = toSlug(cid)
             const aMin = area>0?`&areaMin=${Math.round(area*0.8)}&areaMax=${Math.round(area*1.2)}`:''
-            const zapUrl = `https://www.zapimoveis.com.br/venda/apartamentos/mg+${cidSlug}/${bairroSlug ? bairroSlug + '/' : ''}?quartos=${q}${aMin}`
-            const vivaUrl = `https://www.vivareal.com.br/venda/minas-gerais/${cidSlug}/${bairroSlug ? bairroSlug + '/' : ''}apartamento_residencial/?quartos=${q}${aMin}`
-            const olxUrl = `https://mg.olx.com.br/belo-horizonte-e-regiao/imoveis?q=apartamento+${q}+quartos+${bairro.replace(/\s+/g,'+')}`
+            // Detectar tipo para URLs
+            const tipoComp = (c.tipo || imovel?.tipo || 'apartamento').toLowerCase()
+            const tipoZap = tipoComp.includes('casa') ? 'casas' : tipoComp.includes('terreno') || tipoComp.includes('lote') ? 'terrenos' : 'apartamentos'
+            const tipoViva = tipoComp.includes('terreno') || tipoComp.includes('lote') ? 'terreno_residencial'
+              : tipoComp.includes('cobertura') ? 'cobertura_residencial'
+              : tipoComp.includes('casa') ? 'casa_residencial'
+              : 'apartamento_residencial'
+            // ZAP: mg+cidade++bairro/N-quartos/ (bairro com duplo +)
+            const zapBairro = bairroSlug ? `++${bairroSlug}` : ''
+            const zapQuartos = q ? `/${q}-quartos/` : '/'
+            const zapUrl = `https://www.zapimoveis.com.br/venda/${tipoZap}/mg+${cidSlug}${zapBairro}${zapQuartos}${aMin ? '?' + aMin.substring(1) : ''}`
+            // VivaReal: /venda/minas-gerais/cidade/bairros/bairro/tipo/ (segmento /bairros/ obrigatório)
+            const vivaBairro = bairroSlug ? `bairros/${bairroSlug}/` : ''
+            const vivaUrl = `https://www.vivareal.com.br/venda/minas-gerais/${cidSlug}/${vivaBairro}${tipoViva}/${q ? `?quartos=${q}` : ''}${q && aMin ? aMin : (!q && aMin ? '?' + aMin.substring(1) : '')}`
+            // OLX: busca textual
+            const olxUrl = `https://mg.olx.com.br/belo-horizonte-e-regiao/imoveis?q=${tipoZap.slice(0,-1)}+${q ? q+'+quartos+' : ''}${bairro.replace(/\s+/g,'+')}`
             return <div style={{gridColumn:'1/-1',display:'flex',gap:6,flexWrap:'wrap',marginTop:4}}>
               <a href={zapUrl} target="_blank" rel="noreferrer" style={{fontSize:10,color:'#F97316',textDecoration:'none',padding:'3px 8px',background:'#FFF7ED',borderRadius:4,border:'1px solid #FED7AA'}}>🔍 ZAP</a>
               <a href={vivaUrl} target="_blank" rel="noreferrer" style={{fontSize:10,color:'#7C3AED',textDecoration:'none',padding:'3px 8px',background:'#F5F3FF',borderRadius:4,border:'1px solid #DDD6FE'}}>🔍 Viva Real</a>
@@ -962,11 +979,12 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
     const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
     import('../lib/supabase.js').then(async ({ supabase: sb }) => {
       try {
-        // Buscar todos os imóveis (não filtrar por cidade — buscar regional MG)
+        // Buscar todos os imóveis ativos (não filtrar por cidade — buscar regional MG)
         const { data } = await sb.from('imoveis')
-          .select('id,titulo,bairro,cidade,area_m2,area_privativa_m2,quartos,vagas,valor_minimo,valor_avaliacao,preco_m2_imovel,score_total,recomendacao,foto_principal,fonte_url,tipo_transacao,num_leilao,data_leilao,desconto_percentual,preco_pedido')
+          .select('id,titulo,bairro,cidade,area_m2,area_privativa_m2,quartos,vagas,valor_minimo,valor_avaliacao,preco_m2_imovel,score_total,recomendacao,foto_principal,fonte_url,tipo_transacao,num_leilao,data_leilao,desconto_percentual,preco_pedido,status_operacional')
           .neq('id', p.id)
           .gt('valor_minimo', 0)
+          .not('status_operacional', 'in', '("arquivado","arrematado","vendido")')
           .order('score_total', { ascending: false })
           .limit(50)
         if (!data?.length) return
@@ -995,8 +1013,8 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
           if ((im.score_total || 0) >= 7) sim += 1
           // Economia
           const economia = precoRef - precoIm
-          // Tag: leilão ou mercado
-          const isLeilao = im.tipo_transacao !== 'mercado_direto'
+          // Tag: leilão ou mercado (usar isMercadoDireto para consistência)
+          const isLeilao = !isMercadoDireto(im.fonte_url, im.tipo_transacao)
           return { ...im, _similaridade: sim, _economia: economia, _area: areaIm, _isLeilao: isLeilao }
         })
         .filter(im => im._similaridade >= 4 && im._economia > 0) // mínimo 4 pontos e mais barato
@@ -1465,7 +1483,7 @@ for (const s of SCORES) {
       {/* Comparáveis — também na aba mercado */}
       {p.comparaveis?.length>0&&<div style={{...card(),marginTop:14,marginBottom:0}}>
         <div style={{fontWeight:"600",color:K.wh,marginBottom:"10px",fontSize:"13px"}}>🏘️ Comparáveis de Mercado ({p.comparaveis.length})</div>
-        {p.comparaveis.map((c,i)=><CardComparavel key={i} item={c} K={K} isPhone={isPhone}/>)}
+        {p.comparaveis.map((c,i)=><CardComparavel key={i} item={c} K={K} isPhone={isPhone} imovel={p}/>)}
       </div>}
       </div>}
 
@@ -1657,7 +1675,7 @@ for (const s of SCORES) {
                       {op.fonte_url && (
                         <a href={op.fonte_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                           style={{fontSize:9,color:'#0D9488',textDecoration:'none',marginTop:2,display:'block'}}>
-                          🔗 Ver anúncio original →
+                          {op._isLeilao ? '🔗 Ver lote no leiloeiro →' : '🔗 Ver anúncio original →'}
                         </a>
                       )}
                     </div>
@@ -1819,7 +1837,7 @@ for (const s of SCORES) {
       {/* Comparáveis */}
       {p.comparaveis?.length>0&&<div style={{...card(),marginBottom:"14px"}}>
         <div style={{fontWeight:"600",color:K.wh,marginBottom:"10px",fontSize:"13px"}}>🏘️ Comparáveis encontrados ({p.comparaveis.length})</div>
-        {p.comparaveis.map((c,i)=><CardComparavel key={i} item={c} K={K} isPhone={isPhone}/>)}
+        {p.comparaveis.map((c,i)=><CardComparavel key={i} item={c} K={K} isPhone={isPhone} imovel={p}/>)}
       </div>}
       {/* Responsabilidade passivos */}
       {p.responsabilidade_debitos&&<div style={{...card(),marginBottom:"14px",background:p.responsabilidade_debitos==='exonerado'?`${K.grn}15`:p.responsabilidade_debitos==='sub_rogado'?`${K.teal}15`:`${K.red}15`,border:`1px solid ${p.responsabilidade_debitos==='exonerado'?K.grn:p.responsabilidade_debitos==='sub_rogado'?K.teal:K.red}30`}}>

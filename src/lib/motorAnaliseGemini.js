@@ -642,8 +642,8 @@ export async function analisarComGemini(url, geminiKey, parametros, onProgress, 
         : tipoComp.includes('casa') ? 'casa_residencial'
         : tipoComp.includes('sala') || tipoComp.includes('comercial') ? 'sala_comercial'
         : 'apartamento_residencial'
-      // Gerar link VivaReal como principal
-      c.link = `https://www.vivareal.com.br/venda/minas-gerais/${cid}/${bairro ? bairro + '/' : ''}${tipoSlug}/?quartos=${q}${areaParam}`
+      // Gerar link VivaReal como principal (formato: /venda/minas-gerais/cidade/bairros/bairro/tipo/)
+      c.link = `https://www.vivareal.com.br/venda/minas-gerais/${cid}/${bairro ? 'bairros/' + bairro + '/' : ''}${tipoSlug}/${q ? '?quartos=' + q : ''}${q && areaParam ? areaParam : (!q && areaParam ? '?' + areaParam.substring(1) : '')}`
       c._link_gerado = true // flag para UI saber que não é link direto
       // Garantir bairro e cidade
       if (!c.bairro) c.bairro = analise.bairro
@@ -776,7 +776,7 @@ export async function analisarComDeepSeek(url, deepseekKey, parametros, onProgre
         const aParam = c.area_m2 > 0 ? `&areaMin=${Math.round(c.area_m2 * 0.8)}&areaMax=${Math.round(c.area_m2 * 1.2)}` : ''
         const _tipo1 = (c.tipo || analise.tipo || '').toLowerCase()
         const _slug1 = _tipo1.includes('terreno')||_tipo1.includes('lote') ? 'terreno_residencial' : _tipo1.includes('cobertura') ? 'cobertura_residencial' : _tipo1.includes('casa') ? 'casa_residencial' : 'apartamento_residencial'
-        c.link = `https://www.vivareal.com.br/venda/minas-gerais/${cid}/${bairro ? bairro + '/' : ''}${_slug1}/?quartos=${q}${aParam}`
+        c.link = `https://www.vivareal.com.br/venda/minas-gerais/${cid}/${bairro ? 'bairros/' + bairro + '/' : ''}${_slug1}/${q ? '?quartos=' + q : ''}${q && aParam ? aParam : (!q && aParam ? '?' + aParam.substring(1) : '')}`
         c._link_gerado = true
         if (!c.bairro) c.bairro = analise.bairro
         if (!c.cidade) c.cidade = analise.cidade
@@ -873,10 +873,12 @@ export async function analisarComGPT(url, openaiKey, parametros, onProgress) {
     analise.comparaveis = analise.comparaveis.map(c => {
       if (c.link) return c
       const bairro = (c.bairro || analise.bairro || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')
-      const cid = (c.cidade || analise.cidade || 'contagem').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')
+      const cid = (c.cidade || analise.cidade || 'belo-horizonte').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')
       const _tipo2 = (c.tipo || analise.tipo || '').toLowerCase()
       const _slug2 = _tipo2.includes('terreno')||_tipo2.includes('lote') ? 'terreno_residencial' : _tipo2.includes('cobertura') ? 'cobertura_residencial' : _tipo2.includes('casa') ? 'casa_residencial' : 'apartamento_residencial'
-      c.link = `https://www.vivareal.com.br/venda/minas-gerais/${cid}/${bairro ? bairro + '/' : ''}${_slug2}/?quartos=${c.quartos || ''}`
+      const _q2 = c.quartos || ''
+      const _aParam2 = c.area_m2 > 0 ? `&areaMin=${Math.round(c.area_m2 * 0.8)}&areaMax=${Math.round(c.area_m2 * 1.2)}` : ''
+      c.link = `https://www.vivareal.com.br/venda/minas-gerais/${cid}/${bairro ? 'bairros/' + bairro + '/' : ''}${_slug2}/${_q2 ? '?quartos=' + _q2 : ''}${_q2 && _aParam2 ? _aParam2 : (!_q2 && _aParam2 ? '?' + _aParam2.substring(1) : '')}`
       c._link_gerado = true
       if (!c.bairro) c.bairro = analise.bairro
       if (!c.cidade) c.cidade = analise.cidade
