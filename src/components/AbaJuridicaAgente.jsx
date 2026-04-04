@@ -319,7 +319,32 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
       if (links?.length > 0) setLinksEncontrados(links)
       if (!links?.length) { setProgresso('Nenhum documento encontrado na página. Tente upload manual.'); setBuscandoAuto(false); return }
       const linksNovos = links.filter(l => !urlsExist.includes(l.url))
-      if (!linksNovos.length) { setProgresso(`✅ Todos os ${links.length} documento(s) já estão no banco`); setBuscandoAuto(false); setSubAba('documentos'); return }
+      // FIX: Docs com heurística sem URL — atualizar com URLs descobertas antes de prosseguir
+      const docsHeuristicos = docs.filter(d => d.analise_ia?.includes('heurística') && !(d.url_origem || d.url))
+      if (docsHeuristicos.length > 0 && links.length > 0) {
+        setProgresso(`🔗 Vinculando ${docsHeuristicos.length} doc(s) sem URL a PDFs encontrados...`)
+        for (const dh of docsHeuristicos) {
+          const tipoDoc = (dh.tipo || dh.nome || '').toLowerCase()
+          const linkMatch = links.find(l => l.tipo === tipoDoc)
+            || links.find(l => tipoDoc.includes('matri') && (l.tipo === 'matricula' || l.nome?.toLowerCase().includes('rgi')))
+            || links.find(l => tipoDoc.includes('edital') && l.tipo === 'edital')
+          if (linkMatch) {
+            try {
+              await salvarDocumentoJuridico({
+                id: dh.id, imovel_id: imovel.id, tipo: dh.tipo,
+                url: linkMatch.url, url_origem: linkMatch.url
+              })
+              // Remover da lista de "novos" pra não duplicar
+              const idx = linksNovos.findIndex(l => l.url === linkMatch.url)
+              if (idx >= 0) linksNovos.splice(idx, 1)
+              setProgresso(`✅ ${dh.nome || dh.tipo} → URL vinculada`)
+            } catch(e) { console.warn('[AXIS] vincular URL:', e.message) }
+          }
+        }
+        // Recarregar docs com URLs atualizadas
+        await carregarDocs()
+      }
+      if (!linksNovos.length && docsHeuristicos.length === 0) { setProgresso(`✅ Todos os ${links.length} documento(s) já estão no banco`); setBuscandoAuto(false); setSubAba('documentos'); return }
       if (linksNovos.length < links.length) setProgresso(`ℹ️ ${links.length-linksNovos.length} já existe(m) — baixando ${linksNovos.length} novo(s)...`)
       // PASSO 2: Pipeline completo — download + Gemini Vision para PDFs escaneados
       const sb = supabase
@@ -520,6 +545,45 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
         })
       }
 
+      // CAMINHO 3: Sem URL no doc — re-scrape a página fonte para descobrir URL do PDF
+      if (!res && !(doc.url_origem || doc.url) && imovel.fonte_url) {
+        setProgresso(`🔍 Buscando URL do ${doc.tipo || 'documento'} na página do leilão...`)
+        try {
+          const { buscarDocumentosAuto } = await import('../lib/agenteJuridico.js')
+          const { links } = await buscarDocumentosAuto(imovel, gKey, setProgresso)
+          // Tentar casar tipo do doc com tipo do link encontrado
+          const tipoDoc = (doc.tipo || doc.nome || '').toLowerCase()
+          let linkMatch = links.find(l => l.tipo === tipoDoc)
+            || links.find(l => tipoDoc.includes('matri') && (l.tipo === 'matricula' || l.nome?.toLowerCase().includes('matri') || l.nome?.toLowerCase().includes('rgi')))
+            || links.find(l => tipoDoc.includes('edital') && l.tipo === 'edital')
+            || links.find(l => tipoDoc.includes('pdf') && l.tipo !== 'outro')
+          // Se não achou por tipo, pegar pela ordem de prioridade
+          if (!linkMatch && links.length > 0) {
+            const docsJaSalvos = docs.filter(d => d.id !== doc.id).map(d => d.url_origem || d.url).filter(Boolean)
+            linkMatch = links.find(l => !docsJaSalvos.includes(l.url))
+          }
+          if (linkMatch) {
+            setProgresso(`✅ URL encontrada: ${linkMatch.nome || linkMatch.tipo} — processando...`)
+            res = await processarDocumentoCompleto({
+              url: linkMatch.url,
+              nome: doc.nome || linkMatch.nome || doc.tipo,
+              tipo: doc.tipo || linkMatch.tipo || 'outro',
+              imovel,
+              geminiKey: gKey,
+              claudeKey: cKey,
+              openaiKey: openaiKeyDoc,
+              onProgress: setProgresso
+            })
+            // Salvar URL descoberta no doc para próximas vezes
+            if (res) res.url_origem_descoberta = linkMatch.url
+          } else {
+            setProgresso(`⚠️ Nenhum PDF de ${doc.tipo} encontrado na página do leilão`)
+          }
+        } catch(e) {
+          setProgresso(`⚠️ Busca automática falhou: ${e.message?.substring(0,60)}`)
+        }
+      }
+
       if (!res) {
         setProgresso(`⚠️ Sem URL e sem texto salvo — faça upload manual do PDF`)
         return
@@ -530,6 +594,9 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
           id: doc.id,
           imovel_id: imovel.id,
           tipo: doc.tipo,
+          // Gravar URL descoberta pelo CAMINHO 3 (se não tinha antes)
+          ...(res.url_origem_descoberta ? { url: res.url_origem_descoberta, url_origem: res.url_origem_descoberta } : {}),
+          ...(res.url_origem ? { url: res.url_origem, url_origem: res.url_origem } : {}),
           analise_ia: res.analise_ia,
           resumo_executivo: res.resumo_executivo,
           pontos_positivos: res.pontos_positivos,
