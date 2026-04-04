@@ -4,23 +4,23 @@
  * e faixas de lance competitivo — custo zero (sem API)
  */
 import { useState, useMemo } from 'react'
-import { C, K, fmtC, card } from '../appConstants.js'
+import { C, K, fmtC, card, AXIS_CUSTOS } from '../appConstants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 
 const fmt  = v => v != null && v > 0 ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 const pct  = v => v != null ? `${parseFloat(v).toFixed(1)}%` : '—'
 const cor  = (roi) => roi >= 30 ? C.emerald : roi >= 20 ? C.mustard : roi >= 10 ? '#E06A00' : '#E5484D'
 
-// Custos de transação como % do lance
+// Custos de transação — referência centralizada em appConstants.js > AXIS_CUSTOS
 const TX = {
-  comissao: 0.05,  // 5% comissão leiloeiro
-  itbi:     0.02,  // 2% ITBI BH
-  doc:      0.005, // 0.5% documentação
-  adv:      0.02,  // 2% honorário advogado
-  reg:      1500,  // registro imóvel (fixo)
-  corretagem_venda: 0.06,
-  irpf_pct: 0.15,
-  isencao_irpf: 440000, // isento até R$440k (único imóvel PF)
+  comissao: AXIS_CUSTOS.comissao_leiloeiro, // 5% comissão leiloeiro
+  itbi:     AXIS_CUSTOS.itbi_leilao,        // 3% ITBI BH (corrigido de 2%)
+  doc:      AXIS_CUSTOS.doc,                // 0.5% documentação
+  adv:      AXIS_CUSTOS.adv,               // 2% honorário advogado
+  reg:      AXIS_CUSTOS.registro,           // R$1.500 registro (fixo)
+  corretagem_venda: AXIS_CUSTOS.corretagem_venda,
+  irpf_pct: AXIS_CUSTOS.irpf_pct,
+  isencao_irpf: AXIS_CUSTOS.isencao_irpf,
 }
 
 function calcularCenario(lance, vmercado, reforma, juridico = 0) {
@@ -418,7 +418,7 @@ export default function PainelLancamento({ imovel }) {
 
       {/* Nota de custos */}
       <div style={{ marginTop: 10, fontSize: 9.5, color: C.hint, lineHeight: 1.5 }}>
-        Premissas: comissão 5% · ITBI 2% · doc 0,5% · honorário adv 2% · registro R$1.500 · IRPF 15% (isenção ≤ R$440k) · corretagem venda 6%
+        Premissas: comissão 5% · ITBI 3% · doc 0,5% · honorário adv 2% · registro R$1.500 · IRPF 15% (isenção ≤ R$440k) · corretagem venda 6%
       </div>
     </div>
   )

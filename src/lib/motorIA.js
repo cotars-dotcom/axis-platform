@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { detectarRegiao, getMercado } from '../data/mercado_regional.js'
+import { SCORE_PESOS } from '../appConstants.js'
 import { analisarComGemini, logUsoGemini } from './motorAnaliseGemini.js'
 import {
   BAIRROS_BH,
@@ -687,12 +688,12 @@ export function calcularScore(analise, parametros) {
   }
 
   const p = {
-    localizacao: pesos.localizacao ?? 0.20,
-    desconto:    pesos.desconto    ?? 0.18,
-    juridico:    pesos.juridico    ?? 0.18,
-    ocupacao:    pesos.ocupacao    ?? 0.15,
-    liquidez:    pesos.liquidez    ?? 0.15,
-    mercado:     pesos.mercado     ?? 0.14
+    localizacao: pesos.localizacao ?? SCORE_PESOS.localizacao,
+    desconto:    pesos.desconto    ?? SCORE_PESOS.desconto,
+    juridico:    pesos.juridico    ?? SCORE_PESOS.juridico,
+    ocupacao:    pesos.ocupacao    ?? SCORE_PESOS.ocupacao,
+    liquidez:    pesos.liquidez    ?? SCORE_PESOS.liquidez,
+    mercado:     pesos.mercado     ?? SCORE_PESOS.mercado,
   }
 
   let score =
@@ -874,14 +875,13 @@ export function validarECorrigirAnalise(analise) {
 
   // 7. Recalcular score total se houve correções
   if (erros.length > 0 || avisos.length > 0) {
-    const pesos = { localizacao: 0.20, desconto: 0.18, juridico: 0.18, ocupacao: 0.15, liquidez: 0.15, mercado: 0.14 }
     const scoreBase =
-      (analise.score_localizacao || 0) * pesos.localizacao +
-      (analise.score_desconto    || 0) * pesos.desconto +
-      (analise.score_juridico    || 0) * pesos.juridico +
-      (analise.score_ocupacao    || 0) * pesos.ocupacao +
-      (analise.score_liquidez    || 0) * pesos.liquidez +
-      (analise.score_mercado     || 0) * pesos.mercado
+      (analise.score_localizacao || 0) * SCORE_PESOS.localizacao +
+      (analise.score_desconto    || 0) * SCORE_PESOS.desconto +
+      (analise.score_juridico    || 0) * SCORE_PESOS.juridico +
+      (analise.score_ocupacao    || 0) * SCORE_PESOS.ocupacao +
+      (analise.score_liquidez    || 0) * SCORE_PESOS.liquidez +
+      (analise.score_mercado     || 0) * SCORE_PESOS.mercado
     // Penalidades removidas — score_juridico e score_ocupacao já refletem esses riscos nas dimensões
     // let fator = 1
     // if ((analise.score_juridico || 0) < 4) fator *= 0.75

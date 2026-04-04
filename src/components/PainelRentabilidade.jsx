@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { C, card } from '../appConstants.js'
+import { C, card, AXIS_CUSTOS } from '../appConstants.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 
@@ -32,13 +32,13 @@ function probArrematacao(desconto, leilao) {
   return { prob: 0.10, label: '10%', cor: RED }
 }
 
-// Calcular custos fixos de arrematação
+// Calcular custos fixos de arrematação — valores centralizados em AXIS_CUSTOS (appConstants.js)
 function custoArrematacao(lance) {
-  const comissao    = lance * 0.05   // leiloeiro 5%
-  const itbi        = lance * 0.03   // ITBI BH ~3%
-  const doc         = lance * 0.005  // doc/escritura 0.5%
-  const adv         = lance * 0.02   // honorário advogado 2%
-  const registro    = 1500           // cartório
+  const comissao = lance * AXIS_CUSTOS.comissao_leiloeiro
+  const itbi     = lance * AXIS_CUSTOS.itbi_leilao
+  const doc      = lance * AXIS_CUSTOS.doc
+  const adv      = lance * AXIS_CUSTOS.adv
+  const registro = AXIS_CUSTOS.registro
   return { comissao, itbi, doc, adv, registro, total: comissao + itbi + doc + adv + registro }
 }
 
@@ -50,11 +50,12 @@ function calcFlip(lance, vmercado, reforma, juridico = 0) {
   const precoVendaLiq = vmercado - corretagem  // valor líquido de venda
   // IRPF: 15% sobre ganho de capital = precoVendaLiq - custoAquisição
   const ganhoCapital = Math.max(0, precoVendaLiq - custoTotal)
-  const irpf = vmercado <= 440000 ? 0 : ganhoCapital * 0.15
+  const irpf = vmercado <= AXIS_CUSTOS.isencao_irpf ? 0 : ganhoCapital * AXIS_CUSTOS.irpf_pct
   const lucro = precoVendaLiq - custoTotal - irpf
   const roi   = custoTotal > 0 ? (lucro / custoTotal * 100) : 0
   // MAO: preço máximo para ROI ≥ 20% | vm*0.80 = MAO * (1+tx) + fixos + reforma
-  const mao = (vmercado * 0.80 - 1500 - reforma - juridico) / (1 + 0.095)
+  const txProp = AXIS_CUSTOS.comissao_leiloeiro + AXIS_CUSTOS.itbi_leilao + AXIS_CUSTOS.doc + AXIS_CUSTOS.adv
+  const mao = (vmercado * 0.80 - AXIS_CUSTOS.registro - reforma - juridico) / (1 + txProp)
   return { custoTotal, corretagem, irpf, lucro, roi, mao, viavel: roi >= 20 }
 }
 
@@ -62,14 +63,14 @@ function calcFlip(lance, vmercado, reforma, juridico = 0) {
 function calcLocacao(lance, aluguelMensal, reforma, vmercado, prazoMeses = 120) {
   const c = custoArrematacao(lance)
   const investimento = lance + c.total + reforma
-  const vacancia     = aluguelMensal * 0.06 * 12  // 6% vacância ao ano
-  const receita12m   = aluguelMensal * 12 - vacancia - (investimento * 0.005) // 0.5% manutenção
+  const vacancia     = aluguelMensal * AXIS_CUSTOS.vacancia_anual * 12
+  const receita12m   = aluguelMensal * 12 - vacancia - (investimento * AXIS_CUSTOS.manutencao_anual)
   const yieldBruto   = investimento > 0 ? (aluguelMensal * 12 / investimento * 100) : 0
   const yieldLiq     = investimento > 0 ? (receita12m / investimento * 100) : 0
   const payback      = receita12m > 0 ? Math.ceil(investimento / receita12m * 12) : 999
   // Valorização estimada (3% a.a. BH)
   const vf           = vmercado * Math.pow(1.03, prazoMeses / 12)
-  const patrimonioFinal = vf * 0.94 // -6% corretagem na venda futura
+  const patrimonioFinal = vf * (1 - AXIS_CUSTOS.corretagem_venda) // corretagem na venda futura
   return { investimento, receita12m, yieldBruto, yieldLiq, payback, patrimonioFinal, viavel: yieldLiq >= 5 }
 }
 

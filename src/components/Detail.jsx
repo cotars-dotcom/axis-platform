@@ -755,8 +755,9 @@ function CardComparavel({item:c, K, isPhone, imovel}) {
             // VivaReal: /venda/minas-gerais/cidade/bairros/bairro/tipo/ (segmento /bairros/ obrigatório)
             const vivaBairro = bairroSlug ? `bairros/${bairroSlug}/` : ''
             const vivaUrl = `https://www.vivareal.com.br/venda/minas-gerais/${cidSlug}/${vivaBairro}${tipoViva}/${q ? `?quartos=${q}` : ''}${q && aMin ? aMin : (!q && aMin ? '?' + aMin.substring(1) : '')}`
-            // OLX: busca textual
-            const olxUrl = `https://mg.olx.com.br/belo-horizonte-e-regiao/imoveis?q=${tipoZap.slice(0,-1)}+${q ? q+'+quartos+' : ''}${bairro.replace(/\s+/g,'+')}`
+            // OLX: busca textual — usa slug da cidade para evitar hardcode de BH
+            const olxCidSlug = cidSlug.includes('belo-horizonte') ? 'belo-horizonte-e-regiao' : cidSlug
+            const olxUrl = `https://mg.olx.com.br/${olxCidSlug}/imoveis?q=${tipoZap.slice(0,-1)}+${q ? q+'+quartos+' : ''}${bairro.replace(/\s+/g,'+')}`
             return <div style={{gridColumn:'1/-1',display:'flex',gap:6,flexWrap:'wrap',marginTop:4}}>
               <a href={zapUrl} target="_blank" rel="noreferrer" style={{fontSize:10,color:'#F97316',textDecoration:'none',padding:'3px 8px',background:'#FFF7ED',borderRadius:4,border:'1px solid #FED7AA'}}>🔍 ZAP</a>
               <a href={vivaUrl} target="_blank" rel="noreferrer" style={{fontSize:10,color:'#7C3AED',textDecoration:'none',padding:'3px 8px',background:'#F5F3FF',borderRadius:4,border:'1px solid #DDD6FE'}}>🔍 Viva Real</a>

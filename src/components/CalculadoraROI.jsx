@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { C, RED, ESTRATEGIA_CONFIG } from "../appConstants.js"
+import { C, RED, ESTRATEGIA_CONFIG, AXIS_CUSTOS } from "../appConstants.js"
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 
 export default function CalculadoraROI({ imovel }) {
@@ -12,12 +12,14 @@ export default function CalculadoraROI({ imovel }) {
   const precoAquisicao = eMercado
     ? (parseFloat(imovel.preco_pedido) || parseFloat(imovel.valor_minimo) || 0)
     : (parseFloat(imovel.valor_minimo) || 0)
-  const comissao    = eMercado ? 0 : precoAquisicao * 0.05
-  const itbi        = precoAquisicao * ((imovel.itbi_pct || (eMercado ? 3 : 2)) / 100)
-  const doc         = precoAquisicao * 0.005
+  // itbi_pct pode não estar na listagem (IMOVEIS_LIST_COLS); usa AXIS_CUSTOS como fallback
+  const comissao    = eMercado ? 0 : precoAquisicao * AXIS_CUSTOS.comissao_leiloeiro
+  const itbiFallback = eMercado ? AXIS_CUSTOS.itbi_mercado : AXIS_CUSTOS.itbi_leilao
+  const itbi        = precoAquisicao * ((imovel.itbi_pct || (itbiFallback * 100)) / 100)
+  const doc         = precoAquisicao * AXIS_CUSTOS.doc
   const reforma     = imovel.custo_reforma_calculado || imovel.custo_reforma_previsto || 0
-  const advogado      = eMercado ? 0 : precoAquisicao * 0.02
-  const registro      = 1500
+  const advogado      = eMercado ? 0 : precoAquisicao * AXIS_CUSTOS.adv
+  const registro      = AXIS_CUSTOS.registro
   const custoJuridico = imovel.custo_juridico_estimado || 0
   const custoTotal    = precoAquisicao + comissao + itbi + doc + advogado + registro + reforma + custoJuridico
   const vmercado = imovel.valor_mercado_estimado || imovel.valor_pos_reforma_estimado
@@ -25,8 +27,8 @@ export default function CalculadoraROI({ imovel }) {
     || precoAquisicao * 1.4
   // IRPF: isento até R$440k (imóvel único PF - Lei 11.196/2005); 15% acima
   const ganhoCapital = Math.max(0, vmercado - custoTotal)
-  const irpfGanho = vmercado <= 440000 ? 0 : ganhoCapital * 0.15
-  const corretagemVenda = vmercado * 0.06
+  const irpfGanho = vmercado <= AXIS_CUSTOS.isencao_irpf ? 0 : ganhoCapital * AXIS_CUSTOS.irpf_pct
+  const corretagemVenda = vmercado * AXIS_CUSTOS.corretagem_venda
   const lucroFlip    = vmercado - custoTotal - irpfGanho - corretagemVenda
   const roiFlip      = custoTotal > 0 ? (lucroFlip / custoTotal) * 100 : 0
   const aluguelMensal = imovel.aluguel_mensal_estimado

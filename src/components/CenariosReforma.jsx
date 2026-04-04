@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { C, K, fmtC, btn, card } from '../appConstants.js'
+import { C, K, fmtC, btn, card, AXIS_CUSTOS } from '../appConstants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 import {
@@ -29,12 +29,12 @@ export default function CenariosReforma({ imovel, isAdmin }) {
 
   const classeLabel = { A_prime:'A — Prime', B_medio_alto:'B — Médio-Alto', C_intermediario:'C — Intermediário', D_popular:'D — Popular' }[classe]
 
-  // Parâmetros de transação — mercado direto: sem comissão de leiloeiro
-  const comissao = eMercado ? 0 : precoAquisicao * 0.05
-  const itbi = precoAquisicao * 0.03
-  const doc = precoAquisicao * 0.005
-  const adv = eMercado ? 0 : precoAquisicao * 0.02
-  const reg = 1500
+  // Parâmetros de transação — valores centralizados em AXIS_CUSTOS (appConstants.js)
+  const comissao = eMercado ? 0 : precoAquisicao * AXIS_CUSTOS.comissao_leiloeiro
+  const itbi = precoAquisicao * (eMercado ? AXIS_CUSTOS.itbi_mercado : AXIS_CUSTOS.itbi_leilao)
+  const doc = precoAquisicao * AXIS_CUSTOS.doc
+  const adv = eMercado ? 0 : precoAquisicao * AXIS_CUSTOS.adv
+  const reg = AXIS_CUSTOS.registro
 
   const cenarios = useMemo(() => {
     return ESCOPOS.map(esc => {
@@ -49,8 +49,8 @@ export default function CenariosReforma({ imovel, isAdmin }) {
 
       // ROI Flip
       const ganhoCapital = Math.max(0, valorVendaReal - custoTotal)
-      const irpf = valorVendaReal <= 440000 ? 0 : Math.max(0, ganhoCapital * 0.15)
-      const corretagem = valorVendaReal * 0.06
+      const irpf = valorVendaReal <= AXIS_CUSTOS.isencao_irpf ? 0 : Math.max(0, ganhoCapital * AXIS_CUSTOS.irpf_pct)
+      const corretagem = valorVendaReal * AXIS_CUSTOS.corretagem_venda
       const lucro = valorVendaReal - custoTotal - irpf - corretagem
       const roi = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0
 
@@ -182,7 +182,7 @@ export default function CenariosReforma({ imovel, isAdmin }) {
           {[
             ['Valor pós-reforma', fmt(sel.valorPosReforma)],
             ['Valorização', `+${sel.valororiacao}%`],
-            [sel.valorPosReforma <= 440000 ? 'IRPF (isento)' : 'IRPF 15%', fmt(sel.irpf), sel.valorPosReforma > 440000 && sel.irpf > 0 ? 'irpf' : 'ok'],
+            [sel.valorPosReforma <= AXIS_CUSTOS.isencao_irpf ? 'IRPF (isento)' : `IRPF ${AXIS_CUSTOS.irpf_pct * 100}%`, fmt(sel.irpf), sel.valorPosReforma > AXIS_CUSTOS.isencao_irpf && sel.irpf > 0 ? 'irpf' : 'ok'],
             ['Corretagem 6%', fmt(sel.corretagem)],
             ['Lucro líquido', fmt(sel.lucro), 'lucro'],
             ['ROI', pct(sel.roi), 'roi'],
