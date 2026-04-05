@@ -146,9 +146,9 @@ const IMOVEIS_COLS = new Set([
   'analise_dupla_ia','comparaveis','sintese_executiva',
   // Tipo de transação (leilão vs mercado)
   'tipo_transacao','preco_pedido','desconto_sobre_mercado_pct_calculado','oportunidade_score',
-  // Atributos físicos do imóvel
+  // Atributos físicos do imóvel (suites, banheiros, andar, condominio_mensal já declarados acima)
   'piscina','salao_festas','area_lazer','churrasqueira','academia','portaria_24h','playground',
-  'suites','banheiros','andar','total_andares','ano_construcao','condominio_mensal',
+  'total_andares','ano_construcao',
   // Métricas de mercado homogeneizadas
   'fator_homogenizacao','valor_mercado_homogenizado','aluguel_ajustado',
   'aluguel_sem_reforma','aluguel_com_reforma','aluguel_m2_estimado',
@@ -159,7 +159,7 @@ const IMOVEIS_COLS = new Set([
   'vara_judicial','tipo_justica',
   'jurimetria_vara','jurimetria_taxa_embargo',
   'mao_flip','mao_locacao','analise_leilao',
-  'num_documentos','score_viabilidade_docs','resumo_documentos','recomendacao_juridica_docs',
+  // num_documentos, score_viabilidade_docs, resumo_documentos, recomendacao_juridica_docs já declarados acima
   // Campos Vision e AXIS calibrados
   'mobiliado','_correcoes_vision','_vision_observacoes','_vision_estado',
   '_dados_bairro_axis','_score_axis_patrimonial','_gap_asking_closing_pct',

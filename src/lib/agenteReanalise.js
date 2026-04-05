@@ -7,6 +7,7 @@
  */
 
 import { calcularScore, validarECorrigirAnalise } from './motorIA.js'
+import { MODELOS_GEMINI } from './constants.js'
 
 async function _getJurimetria() {
   try {
@@ -152,11 +153,10 @@ Retorne APENAS JSON com os campos atualizados:
   "mercado_demanda": "alta|media_alta|media|media_baixa|baixa"
 }`
 
-  // Cascata de modelos: 2.0-flash → 1.5-flash → 1.5-pro
-  const MODELOS_GEMINI = ['gemini-1.5-flash', 'gemini-1.5-pro']  // 2.0-flash: 404 em contas novas
+  // Cascata centralizada de constants.js
   let data = null
   let ultimoErro = null
-  let modeloUsado = 'gemini-2.0-flash'
+  let modeloUsado = MODELOS_GEMINI[0]
 
   for (const modelo of MODELOS_GEMINI) {
     progress(`Gemini revalidando análise (${modelo})...`)

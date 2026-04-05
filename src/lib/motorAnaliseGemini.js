@@ -13,6 +13,7 @@
 import { scrapeUrlJina, extrairCamposTexto, verificarQualidadeScrape } from './scraperImovel.js'
 import { calcularScore, validarECorrigirAnalise } from './motorIA.js'
 import { getMercadoComFallback, getJurimetriaVara, getMetricasBairro } from './supabase.js'
+import { MODELOS_GEMINI } from './constants.js'
 import { detectarRegiao, getMercado } from '../data/mercado_regional.js'
 import { calcularCustoReforma, detectarClasseMercado } from '../data/custos_reforma.js'
 import { isMercadoDireto } from './detectarFonte.js'
@@ -265,13 +266,8 @@ async function chamarGeminiModelo(prompt, geminiKey, modelo) {
 // Cascata de modelos Gemini: 2.0-flash → 1.5-flash → 1.5-pro
 async function chamarGemini(prompt, geminiKey) {
   // Cascade expandida: tenta variantes de nome do modelo
-  const MODELOS = [
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-exp',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-latest',
-    'gemini-1.5-pro',
-  ]
+  // Cascata centralizada de constants.js
+  const MODELOS = [...MODELOS_GEMINI, 'gemini-1.5-flash-latest', 'gemini-1.5-pro']
   let ultimoErro = null
   let tentativas = 0
   for (const modelo of MODELOS) {
