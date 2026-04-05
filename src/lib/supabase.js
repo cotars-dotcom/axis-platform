@@ -182,6 +182,32 @@ export async function saveImovelCompleto(imovel, userId) {
   if (!payload.status_operacional) payload.status_operacional = 'ativo'
   if (payload.status_operacional) payload.status_operacional = payload.status_operacional.toLowerCase()
 
+  // ─── NORMALIZAÇÃO data_leilao → ISO YYYY-MM-DD ───────────────────────────────
+  if (payload.data_leilao != null) {
+    let d = String(payload.data_leilao).trim()
+    if (d === '') { payload.data_leilao = null }
+    else if (/^\d{2}\/\d{2}\/\d{4}$/.test(d)) {
+      // BR dd/mm/yyyy → ISO
+      const [dd, mm, yyyy] = d.split('/')
+      payload.data_leilao = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
+    } else if (/^\d{2}-\d{2}-\d{4}$/.test(d)) {
+      // dd-mm-yyyy → ISO
+      const [dd, mm, yyyy] = d.split('-')
+      payload.data_leilao = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
+    } else if (/^\d{4}-\d{2}-\d{2}/.test(d)) {
+      payload.data_leilao = d.substring(0, 10) // já ISO, truncar se tiver horário
+    } else {
+      // Tentar Date.parse como último recurso
+      const parsed = new Date(d)
+      if (!isNaN(parsed.getTime())) {
+        payload.data_leilao = parsed.toISOString().split('T')[0]
+      } else {
+        console.warn('[AXIS] data_leilao inválida, setando null:', d)
+        payload.data_leilao = null
+      }
+    }
+  }
+
   // ─── PROTEÇÃO DEFINITIVA NO SERVIDOR ────────────────────────────────────────
   // Buscar dados atuais do banco antes de salvar (evita sobrescrever com null)
   if (imovel.id) {

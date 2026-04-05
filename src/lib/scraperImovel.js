@@ -248,6 +248,16 @@ export function extrairCamposTexto(texto, url = '') {
   ]
   let data_leilao = null
   for (const p of dataPats) { const m = t.match(p); if (m) { data_leilao = m[0]; break } }
+  // Normalizar para ISO YYYY-MM-DD
+  if (data_leilao) {
+    const brMatch = data_leilao.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
+    if (brMatch) {
+      data_leilao = `${brMatch[3]}-${brMatch[2].padStart(2,'0')}-${brMatch[1].padStart(2,'0')}`
+    } else {
+      const parsed = new Date(data_leilao)
+      if (!isNaN(parsed.getTime())) data_leilao = parsed.toISOString().split('T')[0]
+    }
+  }
 
   // Ocupação
   let ocupacao = 'incerto'
