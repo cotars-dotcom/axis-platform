@@ -79,14 +79,14 @@ export async function salvarPDFNoStorage(blob, imovelId, nomeArquivo, contentTyp
   
   if (error) throw new Error(`Storage: ${error.message}`)
   
-  // URL pública assinada (24h)
-  const { data: urlData } = await supabase.storage
+  // URL pública permanente (bucket é público)
+  const { data: urlData } = supabase.storage
     .from('documentos-juridicos')
-    .createSignedUrl(caminho, 86400)
+    .getPublicUrl(caminho)
   
   return {
     caminho,
-    url_storage: urlData?.signedUrl || null,
+    url_storage: urlData?.publicUrl || `https://vovkfhyjjoruiljfjrxy.supabase.co/storage/v1/object/public/documentos-juridicos/${caminho}`,
     tamanho: blob.size
   }
 }

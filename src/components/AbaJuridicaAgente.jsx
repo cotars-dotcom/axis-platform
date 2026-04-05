@@ -243,7 +243,10 @@ function CardDoc({ doc, onAnalisarDoc }) {
           {/* Links e ações */}
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
             {doc.url_storage && (
-              <a href={`https://vovkfhyjjoruiljfjrxy.supabase.co/storage/v1/object/public/documentos-juridicos/${doc.url_storage}`} target="_blank" rel="noreferrer"
+              <a href={doc.url_storage.startsWith('http') 
+                ? doc.url_storage.replace('/object/sign/', '/object/public/').split('?token=')[0]
+                : `https://vovkfhyjjoruiljfjrxy.supabase.co/storage/v1/object/public/documentos-juridicos/${doc.url_storage}`
+              } target="_blank" rel="noreferrer"
                 style={{ fontSize:11, padding:'5px 12px', borderRadius:7, textDecoration:'none', background:P.navy, color:'#fff', fontWeight:600 }}>
                 📄 Abrir PDF
               </a>
