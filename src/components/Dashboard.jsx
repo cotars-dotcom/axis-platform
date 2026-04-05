@@ -34,7 +34,7 @@ function PropCard({p,onNav,isPhone=false}) {
   const tipFmt=(p.tipologia||p.tipo||'—').replace('_padrao','').replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase())
   const fmtM = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
   const fmtM2 = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}/m²` : '—'
-  const dataLeilao = p.data_leilao ? new Date(p.data_leilao).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null
+  const dataLeilao = p.data_leilao ? new Date(p.data_leilao+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null
   const numLeilao = p.num_leilao ? `${p.num_leilao}º LEILÃO` : null
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
   const scoreDelta = p.preco_m2_imovel && p.preco_m2_mercado
@@ -129,12 +129,14 @@ function AxisHeader({profile:prof, imoveis=[], onNav, isPhone=false, isMobile=fa
   const leiloesProximos = imoveis
     .filter(p => {
       if (!p.data_leilao || p.status_operacional === 'arquivado') return false
-      const dl = new Date(p.data_leilao); dl.setHours(0,0,0,0)
+      const [y,m,d] = p.data_leilao.split('-').map(Number)
+      const dl = new Date(y, m-1, d); dl.setHours(0,0,0,0)
       return dl >= hoje && dl <= em7
     })
-    .sort((a,b) => new Date(a.data_leilao) - new Date(b.data_leilao))
+    .sort((a,b) => new Date(a.data_leilao+'T12:00') - new Date(b.data_leilao+'T12:00'))
   for (const p of leiloesProximos) {
-    const dl = new Date(p.data_leilao); dl.setHours(0,0,0,0)
+    const [y,m,d] = p.data_leilao.split('-').map(Number)
+    const dl = new Date(y, m-1, d); dl.setHours(0,0,0,0)
     const diff = Math.round((dl - hoje) / 86400000)
     const urgente = diff <= 1
     notifs.unshift({
@@ -144,7 +146,7 @@ function AxisHeader({profile:prof, imoveis=[], onNav, isPhone=false, isMobile=fa
       texto: urgente
         ? `Leilão AMANHÃ: ${p.titulo || p.codigo_axis || 'Imóvel'}`
         : `Leilão em ${diff} dia${diff !== 1 ? 's' : ''}: ${p.titulo || p.codigo_axis || 'Imóvel'}`,
-      sub: `${p.modalidade_leilao || 'Leilão'} · ${new Date(p.data_leilao).toLocaleDateString('pt-BR')}${p.recomendacao ? ` · ${p.recomendacao}` : ''}`,
+      sub: `${p.modalidade_leilao || 'Leilão'} · ${new Date(p.data_leilao+'T12:00').toLocaleDateString('pt-BR')}${p.recomendacao ? ` · ${p.recomendacao}` : ''}`,
       id: p.id,
     })
   }

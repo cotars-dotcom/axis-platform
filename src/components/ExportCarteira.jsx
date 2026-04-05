@@ -41,7 +41,7 @@ async function exportarExcel(imoveis) {
     'Aluguel Estimado': p.aluguel_mensal_estimado || '',
     'Yield Bruto (%)': p.yield_bruto_pct || '',
     'Tipo Transação': isMercadoDireto(p.fonte_url, p.tipo_transacao) ? 'Mercado' : 'Leilão',
-    'Data Leilão': p.data_leilao ? new Date(p.data_leilao).toLocaleDateString('pt-BR') : '',
+    'Data Leilão': p.data_leilao ? new Date(p.data_leilao+'T12:00').toLocaleDateString('pt-BR') : '',
     'Nº Leilão': p.num_leilao || '',
     'Modalidade': p.modalidade_leilao || '',
     'Ocupação': p.ocupacao || '',
@@ -123,7 +123,7 @@ function exportarPDF(imoveis) {
         <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:${recBg(p.recomendacao)};color:${recCor(p.recomendacao)}">${p.recomendacao || '—'}</span>
       </td>
       <td style="padding:8px 6px;font-size:10.5px;color:#666">${p.desconto_percentual ? `-${p.desconto_percentual}%` : '—'}</td>
-      <td style="padding:8px 6px;font-size:10.5px;color:#666">${p.data_leilao ? new Date(p.data_leilao).toLocaleDateString('pt-BR') : '—'}</td>
+      <td style="padding:8px 6px;font-size:10.5px;color:#666">${p.data_leilao ? new Date(p.data_leilao+'T12:00').toLocaleDateString('pt-BR') : '—'}</td>
     </tr>
   `).join('')
 

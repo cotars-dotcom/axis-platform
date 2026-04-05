@@ -11,7 +11,9 @@ import { supabase } from '../lib/supabase.js'
 const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 
 function diffDias(dataLeilao) {
-  const dl = new Date(dataLeilao); dl.setHours(0,0,0,0)
+  // Parse manual para evitar bug de timezone: new Date('2026-04-08') em UTC-3 vira dia 7
+  const [y, m, d] = dataLeilao.split('-').map(Number)
+  const dl = new Date(y, m - 1, d); dl.setHours(0,0,0,0)
   const hoje = new Date(); hoje.setHours(0,0,0,0)
   return Math.round((dl - hoje) / 86400000)
 }

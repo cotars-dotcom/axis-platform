@@ -983,7 +983,8 @@ for (const s of SCORES) {
       </>}/>
     {/* Banner pós-leilão — aparece quando data passou e imóvel ainda está ativo */}
     {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && p.data_leilao && (() => {
-      const dl = new Date(p.data_leilao); dl.setHours(0,0,0,0)
+      const [y,m,d] = p.data_leilao.split('-').map(Number)
+      const dl = new Date(y, m-1, d); dl.setHours(0,0,0,0)
       const hoje = new Date(); hoje.setHours(0,0,0,0)
       const diff = Math.round((dl - hoje) / 86400000)
       if (diff > 1) return null // ainda não é urgente
@@ -1000,7 +1001,7 @@ for (const s of SCORES) {
         }}>
           <div>
             <div style={{fontWeight:700, fontSize:13, color: passou ? '#92400E' : '#991B1B'}}>
-              {amanha ? '🚨 Leilão hoje!' : `⏰ Leilão foi em ${new Date(p.data_leilao).toLocaleDateString('pt-BR')} — qual foi o resultado?`}
+              {amanha ? '🚨 Leilão hoje!' : `⏰ Leilão foi em ${new Date(p.data_leilao+'T12:00').toLocaleDateString('pt-BR')} — qual foi o resultado?`}
             </div>
             <div style={{fontSize:11.5, color:'#78350F', marginTop:2}}>
               {amanha ? `Leilão agendado para hoje · ${p.modalidade_leilao||''}` : 'Registre o resultado para manter a carteira atualizada.'}
