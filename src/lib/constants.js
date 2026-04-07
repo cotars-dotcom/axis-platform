@@ -169,3 +169,84 @@ export function parseJSONResposta(texto) {
   if (!match) throw new Error('JSON não encontrado na resposta')
   return JSON.parse(match[0])
 }
+
+// ─── SPRINT 11: Breakdown Financeiro e ROI ─────────────────────────
+
+/** Calcula breakdown completo dos custos de aquisição */
+export function calcularBreakdownFinanceiro(lance, imovel = {}, eMercado = false) {
+  const custos = eMercado ? CUSTOS_MERCADO : CUSTOS_LEILAO
+  const comissaoPct = imovel.comissao_leiloeiro_pct || custos.comissao
+  const itbiPct = imovel.itbi_pct || custos.itbi
+  const docPct = custos.documentacao + custos.registro
+  const advPct = custos.advogado || 0
+  
+  const comissao = lance * comissaoPct
+  const itbi = lance * itbiPct
+  const doc = lance * docPct
+  const advogado = lance * advPct
+  const reforma = parseFloat(imovel.custo_reforma_estimado || imovel.custo_reforma_calculado || 0)
+  const totalCustos = comissao + itbi + doc + advogado
+  const investimentoTotal = lance + totalCustos + reforma
+  
+  return {
+    lance,
+    comissao: { pct: comissaoPct, valor: Math.round(comissao) },
+    itbi: { pct: itbiPct, valor: Math.round(itbi) },
+    documentacao: { pct: docPct, valor: Math.round(doc) },
+    advogado: { pct: advPct, valor: Math.round(advogado) },
+    reforma: Math.round(reforma),
+    totalCustos: Math.round(totalCustos),
+    investimentoTotal: Math.round(investimentoTotal),
+    pctCustosSobreLance: ((totalCustos / lance) * 100).toFixed(1),
+  }
+}
+
+/** Calcula ROI e cenários de saída */
+export function calcularROI(investimentoTotal, valorMercado, aluguelMensal = 0) {
+  const lucro = valorMercado - investimentoTotal
+  const roi = investimentoTotal > 0 ? (lucro / investimentoTotal) * 100 : 0
+  
+  return {
+    lucro: Math.round(lucro),
+    roi: Math.round(roi * 10) / 10,
+    cenarios: {
+      realista: { valor: Math.round(valorMercado), roi: Math.round(roi * 10) / 10 },
+      otimista: { valor: Math.round(valorMercado * 1.15), roi: Math.round(((valorMercado * 1.15 - investimentoTotal) / investimentoTotal) * 1000) / 10 },
+      vendaRapida: { valor: Math.round(valorMercado * 0.9), roi: Math.round(((valorMercado * 0.9 - investimentoTotal) / investimentoTotal) * 1000) / 10 },
+    },
+    locacao: aluguelMensal > 0 ? {
+      aluguelMensal: Math.round(aluguelMensal),
+      yieldAnual: Math.round((aluguelMensal * 12 / investimentoTotal) * 1000) / 10,
+      paybackMeses: Math.round(investimentoTotal / aluguelMensal),
+    } : null,
+  }
+}
+
+/** Calcula preditor de concorrência (inspirado no Ninja) */
+export function calcularPreditorConcorrencia(lanceMinimo, valorMercado, custos, incremento = 5000) {
+  const niveis = [
+    { label: '50% ROI', alvo: 0.50 },
+    { label: '30% ROI', alvo: 0.30 },
+    { label: '20% ROI', alvo: 0.20 },
+    { label: '10% ROI', alvo: 0.10 },
+    { label: 'Break-even', alvo: 0 },
+  ]
+  return niveis.map(n => {
+    const investMax = valorMercado / (1 + n.alvo)
+    const lanceMax = investMax - custos
+    const numLances = Math.max(0, Math.floor((lanceMax - lanceMinimo) / incremento))
+    const lanceAtual = lanceMinimo + (numLances * incremento)
+    const investAtual = lanceAtual + custos
+    const roiReal = investAtual > 0 ? ((valorMercado - investAtual) / investAtual) * 100 : 0
+    return {
+      ...n,
+      numLances,
+      lanceMax: Math.round(lanceMax),
+      lanceAtual: Math.round(lanceAtual),
+      investimento: Math.round(investAtual),
+      lucro: Math.round(valorMercado - investAtual),
+      roiReal: Math.round(roiReal * 10) / 10,
+      viavel: numLances > 0,
+    }
+  }).filter(n => n.viavel)
+}
