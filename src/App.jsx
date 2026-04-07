@@ -1760,11 +1760,11 @@ export default function App() {
             if(ok>0) localStorage.setItem('axis-migracao-concluida','true')
           } else { localStorage.setItem('axis-migracao-concluida','true') }
         }
-        const{getImoveisAtivos:gi}=await import('./lib/supabase.js')
-        const data=await gi()
+        const data=await getImoveis()
+        console.log('[AXIS] Loaded', data?.length, 'imóveis')
         if(data&&data.length>0){ setProps(data); stSave("axis-props",data) }
         else { const cache=JSON.parse(localStorage.getItem('axis-props')||'[]'); if(cache.length>0) setProps(cache) }
-      } catch(e) { const cache=JSON.parse(localStorage.getItem('axis-props')||'[]'); if(cache.length>0) setProps(cache) }
+      } catch(e) { console.error('[AXIS] Load error:', e.message); const cache=JSON.parse(localStorage.getItem('axis-props')||'[]'); if(cache.length>0) setProps(cache) }
     } else { const cache=await stLoad("axis-props"); if(cache) setProps(cache) }
   })()},[])
   useEffect(()=>{if(loaded&&props.length>0)stSave("axis-props",props)},[props,loaded])
