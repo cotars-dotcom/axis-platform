@@ -19,6 +19,7 @@ import CenariosReforma from './CenariosReforma.jsx'
 import { ReformaProvider } from '../hooks/useReforma.jsx'
 import CustosReaisEditor from './CustosReaisEditor.jsx'
 import ComparaveisComFiltros from './ComparaveisComFiltros.jsx'
+const LazyMapaLocais = lazy(() => import('./MapaLocaisProximos.jsx'))
 // ExportarPDF: loaded dynamically via import() in share menu
 
 const ESCOPOS_INFO = {
@@ -86,11 +87,27 @@ function Hdr({title,sub,actions}) {
 }
 
 function ScoreRing({score,size=80}) {
+  const [displayed, setDisplayed] = useState(0)
+  const animRef = useRef(null)
   const maxVal = size > 60 ? 10 : 100
-  const c = maxVal === 10 ? scoreColor(score||0) : ((score||0)>=70?C.emerald:(score||0)>=50?C.mustard:"#E5484D")
+  useEffect(() => {
+    const target = score || 0
+    const start = performance.now()
+    const duration = 800
+    if (animRef.current) cancelAnimationFrame(animRef.current)
+    const animate = (now) => {
+      const t = Math.min((now - start) / duration, 1)
+      const ease = 1 - Math.pow(1 - t, 3)
+      setDisplayed(target * ease)
+      if (t < 1) animRef.current = requestAnimationFrame(animate)
+    }
+    animRef.current = requestAnimationFrame(animate)
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current) }
+  }, [score])
+  const c = maxVal === 10 ? scoreColor(displayed) : (displayed>=70?C.emerald:displayed>=50?C.mustard:"#E5484D")
   const r = (size-10)/2
   const circ = 2*Math.PI*r
-  const dash = ((score||0)/maxVal)*circ
+  const dash = (displayed/maxVal)*circ
   return <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
     <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`${c}20`} strokeWidth={size>60?8:4}/>
@@ -98,10 +115,38 @@ function ScoreRing({score,size=80}) {
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"/>
     </svg>
     <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
-      <div style={{fontSize:size>70?"18px":"13px",fontWeight:"800",color:c,lineHeight:1}}>{(score||0).toFixed(1)}</div>
-      <div style={{fontSize:"8px",color:C.hint,textTransform:"uppercase",letterSpacing:".5px"}}>{scoreLabel(score||0)}</div>
+      <div style={{fontSize:size>70?"18px":"13px",fontWeight:"800",color:c,lineHeight:1}}>{displayed.toFixed(1)}</div>
+      <div style={{fontSize:"8px",color:C.hint,textTransform:"uppercase",letterSpacing:".5px"}}>{scoreLabel(displayed)}</div>
     </div>
   </div>
+}
+
+function NotasPrivadas({ imovelId }) {
+  const key = `axis_nota_${imovelId}`
+  const [nota, setNota] = useState(() => localStorage.getItem(key) || '')
+  const [saved, setSaved] = useState(false)
+  const save = (v) => { localStorage.setItem(key, v); setSaved(true); setTimeout(() => setSaved(false), 1500) }
+  return (
+    <div style={{...card(), marginBottom:'14px', border:'1px solid #FEF3C7', background:'#FFFBEB'}}>
+      <div style={{fontWeight:600,color:'#92400E',marginBottom:8,fontSize:13,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span>📝 Notas privadas</span>
+        <span style={{fontSize:10,color:'#A16207',fontWeight:400}}>🔒 Somente neste dispositivo</span>
+      </div>
+      <textarea
+        value={nota}
+        onChange={e => setNota(e.target.value)}
+        onBlur={e => save(e.target.value)}
+        placeholder="Suas anotações pessoais sobre este imóvel... (salvo automaticamente ao sair do campo)"
+        style={{width:'100%',minHeight:100,padding:'10px 12px',borderRadius:8,border:'1px solid #FDE68A',fontSize:12,color:'#1A1A2E',lineHeight:1.6,resize:'vertical',outline:'none',background:'#fff',boxSizing:'border-box',fontFamily:"'Inter',system-ui,sans-serif"}}
+      />
+      <div style={{marginTop:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span style={{fontSize:10,color:'#A16207'}}>{nota.length} caracteres</span>
+        <button onClick={() => save(nota)} style={{padding:'4px 14px',borderRadius:6,border:'1px solid #FDE68A',background:saved?'#05A86D':'#FFFBEB',color:saved?'#fff':'#92400E',fontSize:11,fontWeight:600,cursor:'pointer',transition:'all 0.2s'}}>
+          {saved ? '✓ Salvo' : 'Salvar'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // Trello helpers (used by Detail for legacy fallback)
@@ -1157,13 +1202,21 @@ for (const s of SCORES) {
         )}
       {/* Comparáveis — também na aba mercado */}
       {p.comparaveis?.length>0&&<ComparaveisComFiltros comparaveis={p.comparaveis} imovel={p} isPhone={isPhone} CardComparavel={CardComparavel}/>}
+      {/* Mapa de locais próximos — só quando coordenadas disponíveis */}
+      {p.coordenadas_lat && p.coordenadas_lng && (
+        <div style={{marginTop:16}}>
+          <Suspense fallback={<div style={{height:200,display:'flex',alignItems:'center',justifyContent:'center',color:'#999',fontSize:13}}>Carregando mapa...</div>}>
+            <LazyMapaLocais lat={p.coordenadas_lat} lng={p.coordenadas_lng} titulo={p.titulo||p.codigo_axis}/>
+          </Suspense>
+        </div>
+      )}
       </div>}
 
       {abaDetalhe==='resumo'&&<>
       {p.foto_principal&&(
-        <div style={{width:'100%',height:220,borderRadius:12,overflow:'hidden',marginBottom:16,background:'#f0f0f0'}}>
+        <div style={{width:'100%',minHeight:300,maxHeight:480,borderRadius:12,overflow:'hidden',marginBottom:16,background:'#f0f0f0'}}>
           <img src={p.foto_principal} alt={p.titulo||'Foto'} referrerPolicy="no-referrer"
-            style={{width:'100%',height:'100%',objectFit:'cover'}}
+            style={{width:'100%',height:'100%',minHeight:300,maxHeight:480,objectFit:'cover'}}
             onError={e=>{e.target.parentElement.style.display='none'}}/>
         </div>
       )}
@@ -1652,6 +1705,9 @@ for (const s of SCORES) {
         ))}
         {obs.length === 0 && <div style={{fontSize:11,color:K.t3}}>Nenhuma observação ainda</div>}
       </div>
+
+      {/* Anotações privadas — localStorage */}
+      <NotasPrivadas imovelId={p.id} />
       </>}
     </div>
     {modoAoVivo && <ModoAoVivo imovel={p} onClose={() => setModoAoVivo(false)} />}

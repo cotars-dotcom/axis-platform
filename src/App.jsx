@@ -81,11 +81,27 @@ function Hdr({title,sub,actions}) {
 }
 
 function ScoreRing({score,size=80}) {
+  const [displayed, setDisplayed] = useState(0)
+  const animRef = useRef(null)
   const maxVal = size > 60 ? 10 : 100
-  const c = maxVal === 10 ? scoreColor(score||0) : ((score||0)>=70?C.emerald:(score||0)>=50?C.mustard:"#E5484D")
+  useEffect(() => {
+    const target = score || 0
+    const start = performance.now()
+    const duration = 800
+    if (animRef.current) cancelAnimationFrame(animRef.current)
+    const animate = (now) => {
+      const t = Math.min((now - start) / duration, 1)
+      const ease = 1 - Math.pow(1 - t, 3)
+      setDisplayed(target * ease)
+      if (t < 1) animRef.current = requestAnimationFrame(animate)
+    }
+    animRef.current = requestAnimationFrame(animate)
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current) }
+  }, [score])
+  const c = maxVal === 10 ? scoreColor(displayed) : (displayed>=70?C.emerald:displayed>=50?C.mustard:"#E5484D")
   const r = (size-10)/2
   const circ = 2*Math.PI*r
-  const dash = ((score||0)/maxVal)*circ
+  const dash = (displayed/maxVal)*circ
   return <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
     <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`${c}20`} strokeWidth={size>60?8:4}/>
@@ -93,8 +109,8 @@ function ScoreRing({score,size=80}) {
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"/>
     </svg>
     <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
-      <div style={{fontSize:size>70?"18px":"13px",fontWeight:"800",color:c,lineHeight:1}}>{(score||0).toFixed(2)}</div>
-      <div style={{fontSize:"8px",color:C.hint,textTransform:"uppercase",letterSpacing:".5px"}}>{scoreLabel(score||0)}</div>
+      <div style={{fontSize:size>70?"18px":"13px",fontWeight:"800",color:c,lineHeight:1}}>{displayed.toFixed(2)}</div>
+      <div style={{fontSize:"8px",color:C.hint,textTransform:"uppercase",letterSpacing:".5px"}}>{scoreLabel(displayed)}</div>
     </div>
   </div>
 }
@@ -955,7 +971,8 @@ function PropCard({p,onNav}) {
   const fmtM = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
   const fmtPct = v => v ? `${parseFloat(v).toFixed(1)}%` : '—'
   const fmtM2 = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}/m²` : '—'
-  const dataLeilao = p.data_leilao ? new Date(p.data_leilao+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null
+  const dataLeilao = p.data_leilao ? (() => { const d = new Date(p.data_leilao.slice(0,10)+'T12:00:00'); return isNaN(d.getTime()) ? null : d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) })() : null
+  const diasParaLeilao = p.data_leilao && !eMercado ? (() => { const d = new Date(p.data_leilao.slice(0,10)+'T12:00:00'); if(isNaN(d.getTime())) return null; return Math.ceil((d - Date.now()) / 86400000) })() : null
   const numLeilao = p.praca ? `${p.praca}ª PRAÇA` : p.num_leilao ? `${p.num_leilao}º LEILÃO` : null
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
   const scoreDelta = p.preco_m2_imovel && p.preco_m2_mercado
@@ -1013,8 +1030,17 @@ function PropCard({p,onNav}) {
 
     {/* Data do leilão — oculto para mercado */}
     {dataLeilao && !eMercado && (
-      <div style={{fontSize:10,color:K.t3,marginBottom:6,display:'flex',gap:8,flexWrap:'wrap'}}>
+      <div style={{fontSize:10,color:K.t3,marginBottom:6,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
         <span>🗓️ Leilão: <strong style={{color:K.wh}}>{dataLeilao}</strong></span>
+        {diasParaLeilao !== null && (
+          <span style={{
+            padding:'1px 7px',borderRadius:4,fontSize:9,fontWeight:800,
+            background: diasParaLeilao < 0 ? '#6B728020' : diasParaLeilao <= 3 ? '#E5484D' : diasParaLeilao <= 7 ? '#D97706' : '#05A86D',
+            color: diasParaLeilao < 0 ? '#6B7280' : '#fff',
+          }}>
+            {diasParaLeilao < 0 ? `D+${Math.abs(diasParaLeilao)}` : diasParaLeilao === 0 ? 'HOJE' : `D-${diasParaLeilao}`}
+          </span>
+        )}
         {p.leiloeiro && <span>· {p.leiloeiro.split(' ').slice(0,2).join(' ')}</span>}
       </div>
     )}
@@ -1865,69 +1891,55 @@ export default function App() {
     {showApiKey&&<ApiKeyModal onClose={()=>setShowApiKey(false)} session={session}/>}
     {showTrelloModal&&<ModalAuditoriaTrello config={trello||JSON.parse(localStorage.getItem('axis-trello')||'{}')} imoveis={props} onClose={()=>setShowTrelloModal(false)}/>}
 
-{/* SIDEBAR — AXIS expandida 200px */}
+{/* SIDEBAR — 64px icon-only */}
 <aside className="axis-sidebar" style={{
-  width:200,minWidth:200,height:'100dvh',position:'sticky',top:0,
+  width:64,minWidth:64,height:'100dvh',position:'sticky',top:0,
   background:C.navy,display:'flex',flexDirection:'column',
   borderRight:`1px solid ${C.navy2}`,flexShrink:0,
 }}>
   {/* Logo */}
-  <div style={{padding:"24px 20px 20px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
-    <AxisLogo light />
+  <div style={{padding:"16px 0",borderBottom:"1px solid rgba(255,255,255,0.07)",display:'flex',justifyContent:'center'}}>
+    <AxisLogo collapsed light />
   </div>
   {/* Nav */}
-  <nav style={{flex:1,padding:'12px 10px',display:'flex',flexDirection:'column',gap:2}}>
+  <nav style={{flex:1,padding:'10px 8px',display:'flex',flexDirection:'column',gap:2}}>
     {NAV_ITEMS_DEF.map(item=>{
       const active=isAct(item.v)
-      return <button key={item.v} onClick={()=>nav(item.v)}
+      return <button key={item.v} onClick={()=>nav(item.v)} title={item.l}
         style={{
-          width:'100%',display:'flex',alignItems:'center',gap:10,
-          padding:'10px 12px',borderRadius:8,border:'none',cursor:'pointer',
+          width:'100%',display:'flex',alignItems:'center',justifyContent:'center',
+          padding:'10px',borderRadius:8,border:'none',cursor:'pointer',
           background:active?'rgba(5,168,109,0.15)':'transparent',
           color:active?C.emerald:'rgba(255,255,255,0.55)',
-          fontSize:13.5,fontWeight:active?600:400,
-          transition:'all 0.15s',position:'relative',textAlign:'left',
+          transition:'all 0.15s',position:'relative',
         }}
         onMouseEnter={e=>{if(!active)e.currentTarget.style.background='rgba(255,255,255,0.06)'}}
         onMouseLeave={e=>{if(!active)e.currentTarget.style.background='transparent'}}
       >
         {active&&<span style={{position:'absolute',left:0,top:'18%',bottom:'18%',width:3,borderRadius:'0 3px 3px 0',background:C.emerald}} />}
-        <item.icon size={17} strokeWidth={active?2.2:1.6} />
-        {item.l}
+        <item.icon size={18} strokeWidth={active?2.2:1.6} />
       </button>
     })}
   </nav>
   {/* Sidebar footer */}
-  <div style={{padding:'10px 10px',borderTop:'1px solid rgba(255,255,255,0.07)',display:'flex',flexDirection:'column',gap:4}}>
-    <button onClick={()=>trello?setShowTrelloModal(true):setShowTrello(true)} style={{
-      width:'100%',display:'flex',alignItems:'center',gap:10,
-      padding:'8px 12px',borderRadius:8,border:'none',cursor:'pointer',
+  <div style={{padding:'10px 8px',borderTop:'1px solid rgba(255,255,255,0.07)',display:'flex',flexDirection:'column',gap:4,alignItems:'center'}}>
+    <button title={trello?'Trello configurado':'Configurar Trello'} onClick={()=>trello?setShowTrelloModal(true):setShowTrello(true)} style={{
+      width:44,height:36,display:'flex',alignItems:'center',justifyContent:'center',
+      borderRadius:8,border:'none',cursor:'pointer',
       background:trello?'rgba(5,168,109,0.12)':'transparent',
-      color:trello?C.emerald:'rgba(255,255,255,0.45)',fontSize:13,fontWeight:400,textAlign:'left',
-    }}>
-      🔷 Trello
-    </button>
-    {isAdmin&&<button onClick={()=>setShowApiKey(true)} style={{
-      width:'100%',display:'flex',alignItems:'center',gap:10,
-      padding:'8px 12px',borderRadius:8,border:'none',cursor:'pointer',
-      background:'transparent',color:'rgba(255,255,255,0.45)',fontSize:13,fontWeight:400,textAlign:'left',
-    }}>
-      <Settings size={15} /> Config
-    </button>}
-    <div onClick={async()=>{if(confirm('Sair?')){const{signOut}=await import('./lib/supabase.js');await signOut()}}}
-      style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',cursor:'pointer',borderRadius:8,marginTop:4}}>
+      color:trello?C.emerald:'rgba(255,255,255,0.45)',fontSize:16,
+    }}>🔷</button>
+    {isAdmin&&<button title="Configurações API" onClick={()=>setShowApiKey(true)} style={{
+      width:44,height:36,display:'flex',alignItems:'center',justifyContent:'center',
+      borderRadius:8,border:'none',cursor:'pointer',
+      background:'transparent',color:'rgba(255,255,255,0.45)',
+    }}><Settings size={15} /></button>}
+    <div title={`Sair (${profile?.nome||'Usuário'})`} onClick={async()=>{if(confirm('Sair?')){const{signOut}=await import('./lib/supabase.js');await signOut()}}}
+      style={{width:44,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',borderRadius:8,marginTop:4}}>
       <div style={{width:30,height:30,borderRadius:'50%',background:`${C.emerald}25`,border:`1px solid ${C.emerald}50`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C.emerald}}>
         {(profile?.nome||'U')[0].toUpperCase()}
       </div>
-      <div style={{minWidth:0,overflow:"hidden"}}>
-        <p style={{margin:0,fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.8)',whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{profile?.nome||'Usuário'}</p>
-        <p style={{margin:0,fontSize:10,color:'rgba(255,255,255,0.35)',whiteSpace:"nowrap"}}>{profile?.role||'membro'}</p>
-      </div>
     </div>
-  </div>
-  <div style={{padding:'10px 16px',borderTop:'1px solid rgba(255,255,255,0.07)'}}>
-    <p style={{margin:0,fontSize:10.5,color:'rgba(255,255,255,0.35)',lineHeight:1.5}}>AXIS Inteligência v2.1</p>
-    <p style={{margin:0,fontSize:10,color:'rgba(255,255,255,0.2)'}}>Forma Patrimonial, MG</p>
   </div>
 </aside>
 {/* FIM SIDEBAR */}

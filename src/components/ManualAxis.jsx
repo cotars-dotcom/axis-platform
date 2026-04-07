@@ -344,6 +344,8 @@ export default function ManualAxis({ isMobile }) {
   }, [])
 
   const [faqAberto, setFaqAberto] = useState(null)
+  const [glossAbertos, setGlossAbertos] = useState(new Set())
+  const toggleGloss = (t) => setGlossAbertos(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n })
   const FAQ = [
     { q:'O que é o Score AXIS e como é calculado?', a:'O Score AXIS é uma nota de 0 a 10 que combina 6 dimensões: Localização (20%), Desconto (18%), Jurídico (18%), Ocupação (15%), Liquidez (15%) e Mercado (14%). Cada dimensão é avaliada de 0 a 10 e ponderada pelo peso correspondente.' },
     { q:'Qual a diferença entre "Desconto s/avaliação" e "Desconto s/mercado"?', a:'O desconto sobre avaliação compara o lance mínimo com o valor oficial da avaliação judicial. O desconto sobre mercado compara com o valor real estimado pelo motor IA. O segundo é mais confiável para decisão de investimento.' },
@@ -878,27 +880,41 @@ export default function ManualAxis({ isMobile }) {
             ))}
           </div>
 
-          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {glossFilt.map(g => (
-              <Box key={g.t} style={{ borderLeft:`3px solid ${g.cor}` }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                    <span style={{ fontSize:17 }}>{g.icon}</span>
-                    <span style={{ fontSize:14, fontWeight:700, color:g.cor }}>{g.t}</span>
-                  </div>
-                  <Tag text={g.cat} cor={g.cor}/>
-                </div>
-                <div style={{ fontSize:12, color:P.text, lineHeight:1.7, marginBottom:8 }}>{g.def}</div>
-                <div style={{ padding:'6px 10px', background:P.surface, borderRadius:7,
-                  fontSize:10.5, color:P.navy, fontFamily:'monospace', marginBottom:6 }}>
-                  <strong>Fórmula:</strong> {g.formula}
-                </div>
-                <div style={{ padding:'6px 10px', background:`${g.cor}08`, border:`1px solid ${g.cor}20`,
-                  borderRadius:7, fontSize:10.5, color:P.text, lineHeight:1.5 }}>
-                  <strong style={{ color:g.cor }}>Exemplo:</strong> {g.ex}
-                </div>
-              </Box>
-            ))}
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {glossFilt.map(g => {
+              const aberto = glossAbertos.has(g.t)
+              return (
+                <Box key={g.t} style={{ borderLeft:`3px solid ${g.cor}`, padding:'0', overflow:'hidden' }}>
+                  {/* Header clicável */}
+                  <button onClick={() => toggleGloss(g.t)}
+                    style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px',
+                      background:'none', border:'none', cursor:'pointer', textAlign:'left', gap:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                      <span style={{ fontSize:17 }}>{g.icon}</span>
+                      <span style={{ fontSize:13.5, fontWeight:700, color:g.cor }}>{g.t}</span>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                      <Tag text={g.cat} cor={g.cor}/>
+                      <span style={{ fontSize:12, color:P.gray, fontWeight:600 }}>{aberto ? '▲' : '▼'}</span>
+                    </div>
+                  </button>
+                  {/* Conteúdo colapsável */}
+                  {aberto && (
+                    <div style={{ padding:'0 14px 12px' }}>
+                      <div style={{ fontSize:12, color:P.text, lineHeight:1.7, marginBottom:8 }}>{g.def}</div>
+                      <div style={{ padding:'6px 10px', background:P.surface, borderRadius:7,
+                        fontSize:10.5, color:P.navy, fontFamily:'monospace', marginBottom:6 }}>
+                        <strong>Fórmula:</strong> {g.formula}
+                      </div>
+                      <div style={{ padding:'6px 10px', background:`${g.cor}08`, border:`1px solid ${g.cor}20`,
+                        borderRadius:7, fontSize:10.5, color:P.text, lineHeight:1.5 }}>
+                        <strong style={{ color:g.cor }}>Exemplo:</strong> {g.ex}
+                      </div>
+                    </div>
+                  )}
+                </Box>
+              )
+            })}
             {glossFilt.length===0 && (
               <div style={{ textAlign:'center', padding:30, color:P.gray, fontSize:12 }}>
                 Nenhum termo encontrado para "{busca}"
