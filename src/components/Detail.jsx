@@ -956,6 +956,24 @@ for (const s of SCORES) {
                 <span style={{fontSize:16}}>{'{ }'}</span>
                 <div><div>Dados JSON</div><div style={{fontSize:10,color:C.muted}}>Dados completos</div></div>
               </button>
+              {/* Sprint 11: Adicionar ao Calendário */}
+              {p.data_leilao && !isMercadoDireto(p.fonte_url, p.tipo_transacao) && (
+                <button onClick={() => {
+                  const [y,m,d] = p.data_leilao.split('-')
+                  const dtStart = `${y}${m}${d}T090000`
+                  const dtEnd = `${y}${m}${d}T170000`
+                  const titulo = encodeURIComponent(`🔨 Leilão ${p.codigo_axis || ''} — ${p.titulo?.substring(0,40) || 'Imóvel'}`)
+                  const desc = encodeURIComponent(`${p.praca ? p.praca+'ª Praça' : 'Leilão'} · Lance mín: R$ ${Math.round(p.valor_minimo||0).toLocaleString('pt-BR')}\nLeiloeiro: ${p.leiloeiro || '—'}\n${p.fonte_url || ''}`)
+                  const loc = encodeURIComponent(`${p.endereco || ''} ${p.bairro || ''}, ${p.cidade || ''} ${p.estado || ''}`)
+                  window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${dtStart}/${dtEnd}&details=${desc}&location=${loc}`, '_blank')
+                  setShowShareMenu(false)
+                }} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 12px',
+                  border:'none',background:'none',cursor:'pointer',borderRadius:8,fontSize:13,color:C.navy,fontWeight:600,
+                  textAlign:'left'}}>
+                  <span style={{fontSize:18}}>📅</span>
+                  <div><div>Adicionar ao Calendário</div><div style={{fontSize:10,color:C.muted,fontWeight:400}}>Google Calendar · {p.data_leilao ? new Date(p.data_leilao+'T12:00').toLocaleDateString('pt-BR') : ''}</div></div>
+                </button>
+              )}
               {shareStatus && (
                 <div style={{padding:'6px 12px',textAlign:'center',fontSize:12,fontWeight:600,color:'#065F46'}}>{shareStatus}</div>
               )}

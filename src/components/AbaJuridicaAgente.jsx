@@ -481,6 +481,23 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
       }).catch(e => console.warn('[AXIS save doc]', e.message))
     }
     const todasAnalises = resultados.map(r => r.analise).filter(Boolean)
+    // Sprint 11: propagar campos extraídos do edital para o imóvel
+    const camposExtraidos = {}
+    for (const a of todasAnalises) {
+      if (a.praca && !imovel.praca) camposExtraidos.praca = a.praca
+      if (a.parcelamento_aceito != null) camposExtraidos.parcelamento_aceito = a.parcelamento_aceito
+      if (a.parcelamento_detalhes) camposExtraidos.parcelamento_detalhes = a.parcelamento_detalhes
+      if (a.coproprietarios) camposExtraidos.coproprietarios = a.coproprietarios
+      if (a.area_construida_m2 && !imovel.area_construida_m2) camposExtraidos.area_construida_m2 = a.area_construida_m2
+      if (a.elevador != null && imovel.elevador == null) camposExtraidos.elevador = a.elevador
+      if (a.nome_condominio && !imovel.nome_condominio) camposExtraidos.nome_condominio = a.nome_condominio
+    }
+    if (Object.keys(camposExtraidos).length > 0) {
+      try {
+        await supabase.from('imoveis').update(camposExtraidos).eq('id', imovel.id)
+        console.debug('[AXIS jurídico] Campos propagados:', Object.keys(camposExtraidos))
+      } catch(e) { console.warn('[AXIS jurídico] propagar campos:', e.message) }
+    }
     const { novoScore, delta } = calcularNovoScoreJuridico(imovel.score_juridico || 7, todasAnalises)
     if (onReclassificado && delta !== 0) {
       try {
@@ -657,6 +674,21 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
           processado: true, status: 'analisado',
           analisado_em: new Date().toISOString(),
         }).catch(e => console.warn('[AXIS handleAnalisarDoc]', e.message))
+        // Sprint 11: propagar campos do edital para o imóvel
+        const a = res.analise_estruturada || {}
+        const upd = {}
+        if (a.praca && !imovel.praca) upd.praca = a.praca
+        if (a.parcelamento_aceito != null) upd.parcelamento_aceito = a.parcelamento_aceito
+        if (a.parcelamento_detalhes) upd.parcelamento_detalhes = a.parcelamento_detalhes
+        if (a.coproprietarios) upd.coproprietarios = a.coproprietarios
+        if (a.area_construida_m2 && !imovel.area_construida_m2) upd.area_construida_m2 = a.area_construida_m2
+        if (a.elevador != null && imovel.elevador == null) upd.elevador = a.elevador
+        if (a.nome_condominio && !imovel.nome_condominio) upd.nome_condominio = a.nome_condominio
+        if (Object.keys(upd).length > 0) {
+          supabase.from('imoveis').update(upd).eq('id', imovel.id).then(() => {
+            console.debug('[AXIS jurídico] Campos extraídos do edital:', Object.keys(upd))
+          }).catch(() => {})
+        }
         setProgresso(`✅ ${doc.nome || doc.tipo} analisado — recarregando...`)
         await carregarDocs()
       } else {

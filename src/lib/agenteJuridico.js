@@ -331,6 +331,13 @@ Analise juridicamente este documento e retorne APENAS JSON válido (sem markdown
   "ocupacao_confirmada": "desocupado|ocupado|incerto",
   "prazo_liberacao_meses": 0,
   "recomendacao_juridica": "favoravel|neutro|desfavoravel",
+  "praca": null,
+  "parcelamento_aceito": false,
+  "parcelamento_detalhes": null,
+  "coproprietarios": null,
+  "area_construida_m2": null,
+  "elevador": null,
+  "nome_condominio": null,
   "parecer": "parecer jurídico completo em 3-5 linhas"
 }`
 
@@ -374,7 +381,8 @@ export async function analisarPDFBase64Gemini(base64, nomeArq, imovel, geminiKey
 Analise este documento jurídico (${nomeArq}) do imóvel: ${imovel.titulo || imovel.endereco || ''}
 
 Identifique riscos, processos, dívidas e situação jurídica.
-Retorne APENAS JSON com: tipo_documento, resumo, riscos_identificados (array com risco_id/descricao/gravidade/impacto_score), pontos_positivos, alertas_criticos, score_juridico_sugerido, score_juridico_delta, recomendacao_juridica, parecer.`
+Extraia também: praça do leilão (1 ou 2), se aceita parcelamento (e condições), coproprietários intimados, área construída, se tem elevador, nome do condomínio/edifício.
+Retorne APENAS JSON com: tipo_documento, resumo, riscos_identificados (array com risco_id/descricao/gravidade/impacto_score), pontos_positivos, alertas_criticos, score_juridico_sugerido, score_juridico_delta, recomendacao_juridica, praca, parcelamento_aceito, parcelamento_detalhes, coproprietarios, area_construida_m2, elevador, nome_condominio, parecer.`
 
   try {
     const { MODELOS_GEMINI_PRO, parseJSONResposta } = await import('./constants.js')
