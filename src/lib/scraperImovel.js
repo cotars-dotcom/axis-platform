@@ -28,6 +28,12 @@ const SPA_DOMAINS = [
   'superbid.net', 'biditalia.com.br', 'leiloesjudicial.com.br',
 ]
 
+// Domínios protegidos por Cloudflare — precisam de X-Wait-For-Selector no Jina
+const CLOUDFLARE_DOMAINS = [
+  'alexandrepedrosaleiloeiro.com.br',
+  'alexandrepedrosoleiloeiro.com.br',
+]
+
 /**
  * Verifica qualidade do conteúdo scrapeado.
  * Retorna { ok, reason } — ok=false significa que o conteúdo é lixo/SPA
@@ -127,21 +133,37 @@ export async function scrapeUrlJina(url) {
   
   // Tentar HTML primeiro para portais (melhor com SPAs renderizados)
   const isSPA = SPA_DOMAINS.some(d => url.toLowerCase().includes(d))
+  const isCloudflare = CLOUDFLARE_DOMAINS.some(d => url.toLowerCase().includes(d))
   const formatos = isSPA 
     ? [['text/html', 'html'], ['text/plain', 'markdown'], ['text/plain', 'text']]
     : [['text/plain', 'markdown'], ['text/html', 'html'], ['text/plain', 'text']]
   
   let melhorTexto = ''
+  let cloudflareDetected = false
+
   for (const [accept, fmt] of formatos) {
     try {
+      const headers = { 'Accept': accept, 'X-Return-Format': fmt }
+      // Cloudflare: pedir pro Jina esperar a página renderizar (bypass challenge)
+      if (isCloudflare || cloudflareDetected) {
+        headers['X-Wait-For-Selector'] = 'img, .lote-info, .detalhes, h1, h2'
+        headers['X-Timeout'] = '45'
+      }
       const res = await fetch(jinaUrl, {
-        headers: { 'Accept': accept, 'X-Return-Format': fmt },
-        signal: AbortSignal.timeout(25000)
+        headers,
+        signal: AbortSignal.timeout(isCloudflare ? 50000 : 25000)
       })
       if (res.ok) {
         let text = await res.text()
         // Limpar HTML tags se veio como HTML
         if (fmt === 'html') text = text.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+        // Detectar Cloudflare challenge no conteúdo
+        const tl = text.toLowerCase()
+        if ((tl.includes('just a moment') || tl.includes('checking your browser') || tl.includes('cloudflare')) && text.length < 2000) {
+          cloudflareDetected = true
+          console.warn(`[AXIS scraper] Cloudflare detected for ${url}, retrying with wait headers...`)
+          continue
+        }
         if (text && text.length > melhorTexto.length) melhorTexto = text
         // Verificar qualidade
         const qualidade = verificarQualidadeScrape(text, url)
@@ -150,9 +172,25 @@ export async function scrapeUrlJina(url) {
     } catch(e) { /* tentar próximo formato */ }
   }
 
+  // ── FALLBACK: Cloudflare retry com Google Cache ────────────────────────────
+  if (cloudflareDetected && melhorTexto.length < 200) {
+    try {
+      const cacheUrl = `https://r.jina.ai/https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`
+      const res = await fetch(cacheUrl, {
+        headers: { 'Accept': 'text/plain', 'X-Return-Format': 'markdown' },
+        signal: AbortSignal.timeout(20000)
+      })
+      if (res.ok) {
+        const text = await res.text()
+        const qualidade = verificarQualidadeScrape(text, url)
+        if (qualidade.ok) return text
+      }
+    } catch (_) { /* google cache also failed */ }
+  }
+
   // Retornar o melhor que conseguiu (mesmo que de baixa qualidade)
   if (melhorTexto.length > 80) return melhorTexto
-  throw new Error(`Jina falhou para ${url} — ${isSPA ? 'site SPA não renderizável' : 'timeout ou bloqueio'}`)
+  throw new Error(`Jina falhou para ${url} — ${cloudflareDetected ? 'Cloudflare bloqueou (site protegido)' : isSPA ? 'site SPA não renderizável' : 'timeout ou bloqueio'}`)
 }
 
 // ─── EXTRATOR DE CAMPOS VIA REGEX (ZERO CUSTO) ───────────────────────────────
