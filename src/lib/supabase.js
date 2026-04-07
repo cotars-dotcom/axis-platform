@@ -14,17 +14,6 @@ async function cachedQuery(key, queryFn) {
   _cache[key] = { data, ts: now }
   return data
 }
-export function invalidarCache(key) {
-  if (key) delete _cache[key]
-  else Object.keys(_cache).forEach(k => delete _cache[k])
-}
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('[AXIS] Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.')
-}
 
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
@@ -75,7 +64,7 @@ export async function updateProfile(id, updates) {
 }
 
 // == IMOVEIS ==
-const IMOVEIS_LIST_COLS = `id,codigo_axis,titulo,cidade,estado,bairro,tipo,tipologia,score_total,recomendacao,status,valor_minimo,valor_avaliacao,desconto_percentual,area_m2,area_privativa_m2,ocupacao,processos_ativos,foto_principal,fotos,fonte_url,criado_em,criado_por,num_leilao,data_leilao,modalidade_leilao,score_localizacao,score_desconto,score_juridico,score_ocupacao,score_liquidez,score_mercado,jurimetria_vara,prazo_liberacao_estimado_meses,aluguel_mensal_estimado,valor_mercado_estimado,custo_reforma_calculado,mao_flip,mao_locacao,vara_judicial,tipo_justica,sintese_executiva,estrategia_recomendada,financiavel,analise_dupla_ia,preco_m2_imovel,preco_m2_mercado,num_documentos,score_viabilidade_docs,recomendacao_juridica_docs,resumo_documentos,mercado_tendencia,mercado_demanda,mercado_tempo_venda_meses,mercado_obs,yield_bruto_pct,classe_ipead,debitos_condominio,debitos_iptu,estrutura_recomendada,responsabilidade_debitos,obs_juridicas,positivos,negativos,alertas,custo_reforma_previsto,comparaveis,desconto_sobre_mercado_pct,fator_homogenizacao,valor_mercado_homogenizado,aluguel_sem_reforma,aluguel_com_reforma,custo_reforma_basica,custo_reforma_media,custo_reforma_completa,elevador,piscina,area_lazer,salao_festas,suites,banheiros,andar,condominio_mensal,aluguel_m2_estimado,tipo_transacao,preco_pedido,desconto_sobre_mercado_pct_calculado,vagas,portaria_24h,mobiliado,padrao_acabamento,_dados_bairro_axis,_score_axis_patrimonial,_gap_asking_closing_pct,_correcoes_vision,_vision_observacoes,arremates_busca_cache,arremates_busca_em,arremates_busca_modelo,jurimetria_taxa_embargo,quartos,justificativa,leiloeiro,endereco,matricula_status,preco_m2_fonte,custo_regularizacao,retorno_venda_pct,retorno_locacao_anual_pct,comissao_leiloeiro_pct,responsabilidade_fonte,area_total_m2,area_usada_calculo_m2,itbi_pct,custo_total_aquisicao,custo_juridico_estimado,liquidez,prazo_revenda_meses,mercado_tendencia_pct_12m,status_operacional,area_construida_m2,praca,investimento_total,roi_estimado,nome_condominio,parcelamento_aceito,coordenadas_lat,coordenadas_lng,processo_numero`
+const IMOVEIS_LIST_COLS = `id,codigo_axis,titulo,cidade,estado,bairro,tipo,tipologia,score_total,recomendacao,status,valor_minimo,valor_avaliacao,desconto_percentual,area_m2,area_privativa_m2,ocupacao,processos_ativos,foto_principal,fotos,fonte_url,criado_em,criado_por,num_leilao,data_leilao,modalidade_leilao,score_localizacao,score_desconto,score_juridico,score_ocupacao,score_liquidez,score_mercado,jurimetria_vara,prazo_liberacao_estimado_meses,aluguel_mensal_estimado,valor_mercado_estimado,custo_reforma_calculado,mao_flip,mao_locacao,vara_judicial,tipo_justica,sintese_executiva,estrategia_recomendada,financiavel,analise_dupla_ia,preco_m2_imovel,preco_m2_mercado,num_documentos,score_viabilidade_docs,recomendacao_juridica_docs,resumo_documentos,mercado_tendencia,mercado_demanda,mercado_tempo_venda_meses,mercado_obs,yield_bruto_pct,classe_ipead,debitos_condominio,debitos_iptu,estrutura_recomendada,responsabilidade_debitos,obs_juridicas,positivos,negativos,alertas,custo_reforma_previsto,comparaveis,desconto_sobre_mercado_pct,fator_homogenizacao,valor_mercado_homogenizado,aluguel_sem_reforma,aluguel_com_reforma,custo_reforma_basica,custo_reforma_media,custo_reforma_completa,elevador,piscina,area_lazer,salao_festas,suites,banheiros,andar,condominio_mensal,aluguel_m2_estimado,tipo_transacao,preco_pedido,desconto_sobre_mercado_pct_calculado,vagas,portaria_24h,mobiliado,padrao_acabamento,_dados_bairro_axis,_score_axis_patrimonial,_gap_asking_closing_pct,_correcoes_vision,_vision_observacoes,arremates_busca_cache,arremates_busca_em,arremates_busca_modelo,jurimetria_taxa_embargo,quartos,justificativa,leiloeiro,endereco,matricula_status,preco_m2_fonte,custo_regularizacao,retorno_venda_pct,retorno_locacao_anual_pct,comissao_leiloeiro_pct,responsabilidade_fonte,area_total_m2,area_usada_calculo_m2,itbi_pct,custo_total_aquisicao,custo_juridico_estimado,liquidez,prazo_revenda_meses,mercado_tendencia_pct_12m,status_operacional,area_construida_m2,praca,investimento_total,roi_estimado,nome_condominio,parcelamento_aceito,coordenadas_lat,coordenadas_lng,processo_numero,parcelamento_detalhes,coproprietarios,distribuicao_pavimentos`
 
 export async function getImoveis() {
   const { data, error } = await supabase
@@ -327,17 +316,6 @@ export async function deleteImovel(id) {
   if (error) throw error
 }
 
-export async function updateImovelStatus(id, status) {
-  const { error } = await supabase
-    .from('imoveis')
-    .update({ status, atualizado_em: new Date().toISOString() })
-    .eq('id', id)
-  if (error) throw error
-}
-
-// == PARAMETROS DE SCORE ==
-// ─── JURIMETRIA ───────────────────────────────────────────────────────────────
-
 export async function getJurimetriaVara() {
   try {
     const { data } = await supabase
@@ -363,14 +341,12 @@ export async function getMetricasBairro(bairro) {
   } catch(e) { console.warn('[AXIS] getMetricasBairro:', e.message); return null }
 }
 
-
 export async function getParametros() {
   const { data, error } = await supabase
     .from('parametros_score').select('*').eq('ativo', true).order('ordem')
   if (error) throw error
   return data || []
 }
-export const getParametrosScore = getParametros
 
 export async function saveParametro(param) {
   const { data, error } = await supabase
@@ -378,26 +354,7 @@ export async function saveParametro(param) {
   if (error) throw error
   return data
 }
-export const updateParametroScore = saveParametro
 
-// == CRITERIOS ==
-export async function getCriterios() {
-  const { data, error } = await supabase
-    .from('criterios_avaliacao').select('*').eq('ativo', true).order('categoria')
-  if (error) throw error
-  return data || []
-}
-export const getCriteriosAvaliacao = getCriterios
-
-export async function saveCriterio(criterio) {
-  const { data, error } = await supabase
-    .from('criterios_avaliacao').upsert(criterio).select().single()
-  if (error) throw error
-  return data
-}
-export const saveCriterioAvaliacao = saveCriterio
-
-// == AVALIACOES ==
 export async function getAvaliacoes(imovelId) {
   const { data, error } = await supabase
     .from('avaliacoes_imovel')
@@ -406,7 +363,6 @@ export async function getAvaliacoes(imovelId) {
   if (error) throw error
   return data || []
 }
-export const getAvaliacoesImovel = getAvaliacoes
 
 export async function saveAvaliacao(av) {
   const { data, error } = await supabase
@@ -414,9 +370,6 @@ export async function saveAvaliacao(av) {
   if (error) throw error
   return data
 }
-export const saveAvaliacaoImovel = saveAvaliacao
-
-// == TAREFAS ==
 export async function getTarefas(userId, role) {
   let q = supabase
     .from('tarefas')
@@ -472,40 +425,7 @@ export async function saveObservacao(obs) {
 }
 
 // == APP SETTINGS (API KEYS) ==
-export async function getAppSetting(chave) {
-  return cachedQuery(`app_setting_${chave}`, async () => {
-    try {
-      const { data, error } = await supabase
-        .from('app_settings').select('valor').eq('chave', chave).single()
-      if (error) return null
-      return data?.valor || null
-    } catch { return null }
-  })
-}
 
-export async function getAppSettings() {
-  return cachedQuery('app_settings', async () => {
-    try {
-      const { data, error } = await supabase
-        .from('app_settings').select('chave, valor, descricao')
-      if (error) return {}
-      return Object.fromEntries((data || []).map(r => [r.chave, r]))
-    } catch { return {} }
-  })
-}
-
-export async function setAppSetting(chave, valor, userId) {
-  const { error } = await supabase.from('app_settings').upsert({
-    chave, valor,
-    atualizado_por: userId,
-    atualizado_em: new Date().toISOString()
-  })
-  if (error) throw error
-  invalidarCache(`app_setting_${chave}`)
-  invalidarCache('app_settings')
-}
-
-// == API KEYS POR USUÁRIO (cross-device sync) ==
 export async function loadApiKeys(userId) {
   try {
     const { data } = await supabase
@@ -541,7 +461,6 @@ export async function persistApiKeys(userId, { claudeKey, openaiKey, geminiKey, 
   } catch(e) { console.warn('[AXIS] persistApiKeys:', e.message) }
 }
 
-
 // == CONVITES ==
 export async function criarConvite(email, nome, role, adminId) {
   const token = Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -562,21 +481,6 @@ export async function getConvites() {
     .from('convites').select('*').order('criado_em', { ascending: false })
   if (error) throw error
   return data || []
-}
-
-export async function validarConvite(token) {
-  try {
-    const { data } = await supabase
-      .from('convites').select('*').eq('token', token).eq('usado', false).single()
-    if (!data || new Date(data.expira_em) < new Date()) return null
-    return data
-  } catch { return null }
-}
-
-export async function usarConvite(token) {
-  await supabase.from('convites')
-    .update({ usado: true, usado_em: new Date().toISOString() })
-    .eq('token', token)
 }
 
 export async function revogarConvite(id) {
@@ -633,14 +537,6 @@ export async function logAtividade(userId, acao, entidade, entidadeId, detalhes)
 }
 
 // == MERCADO REGIONAL ==
-export async function getMercadoRegional() {
-  const { data, error } = await supabase
-    .from('mercado_regional')
-    .select('*')
-    .order('cidade')
-  if (error) throw error
-  return data || []
-}
 
 export async function getMercadoComFallback(regiaoId) {
   try {
@@ -656,25 +552,6 @@ export async function getMercadoComFallback(regiaoId) {
   return getMercado(regiaoId)
 }
 
-export async function getMercadoPorRegiao(regiaoKey) {
-  const { data, error } = await supabase
-    .from('mercado_regional')
-    .select('*')
-    .eq('regiao_key', regiaoKey)
-    .single()
-  if (error) return null
-  return data
-}
-
-export async function updateMercadoRegional(regiaoKey, updates) {
-  const { error } = await supabase
-    .from('mercado_regional')
-    .update({ ...updates, atualizado_em: new Date().toISOString() })
-    .eq('regiao_key', regiaoKey)
-  if (error) throw error
-}
-
-// == RISCOS JURÍDICOS ==
 export async function getRiscosJuridicos() {
   const { data, error } = await supabase
     .from('riscos_juridicos').select('*').order('risco_nota', { ascending: false })
@@ -682,41 +559,6 @@ export async function getRiscosJuridicos() {
   return data || []
 }
 
-export async function getRiscosImovel(imovelId) {
-  const { data, error } = await supabase
-    .from('riscos_imovel')
-    .select('*, risco:riscos_juridicos(*)')
-    .eq('imovel_id', imovelId)
-  if (error) throw error
-  return data || []
-}
-
-export async function addRiscoImovel(imovelId, riscoId, dados) {
-  const { data, error } = await supabase
-    .from('riscos_imovel')
-    .upsert({ imovel_id: imovelId, risco_id: riscoId, ...dados })
-    .select().single()
-  if (error) throw error
-  return data
-}
-
-// == REFORMA ==
-export async function getParametrosReforma() {
-  const { data, error } = await supabase
-    .from('parametros_reforma').select('*').order('faixa_venda_m2_min', { ascending: false })
-  if (error) throw error
-  return data || []
-}
-
-export async function getPacotesReforma() {
-  const { data, error } = await supabase
-    .from('pacotes_reforma').select('*').order('custo_min')
-  if (error) throw error
-  return data || []
-}
-
-// == DOCUMENTOS JURÍDICOS ==
-// Limpar PDFs duplicados do storage — manter apenas o mais recente por tipo
 export async function limparPDFsDuplicados(imovelId) {
   try {
     const { data: files } = await supabase.storage
@@ -984,15 +826,6 @@ export async function registrarTrelloCard(imovelId, cardId, cardUrl, listId, use
   }).catch(() => {})
 }
 
-export async function getImoveisComTrello() {
-  const { data } = await supabase
-    .from('imoveis')
-    .select('id, codigo_axis, trello_card_id, trello_card_url, trello_list_id')
-    .not('trello_card_id', 'is', null)
-    .or('status_operacional.eq.ativo,status_operacional.is.null')
-  return data || []
-}
-
 export async function updateTrelloCardId(imovelId, cardId, cardUrl, listId) {
   const { error } = await supabase
     .from('imoveis')
@@ -1006,16 +839,6 @@ export async function updateTrelloCardId(imovelId, cardId, cardUrl, listId) {
   if (error) throw error
 }
 
-export async function getImovelByCodigo(codigoAxis) {
-  const { data } = await supabase
-    .from('imoveis')
-    .select('*')
-    .eq('codigo_axis', codigoAxis)
-    .single()
-  return data
-}
-
-// ── Gerar código AXIS único por imóvel ────────────────────────────
 export async function gerarAxisId(cidade) {
   const PREFIXOS = {
     'belo horizonte': 'BH', 'bh': 'BH',
@@ -1133,76 +956,6 @@ export function exportarAnaliseJSON(imovel) {
   URL.revokeObjectURL(url)
 }
 
-export function exportarRelatorioHTML(imovel) {
-  const fmtC = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
-  const fmtPct = v => v ? `${v}%` : '—'
-  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-  const html = `<!DOCTYPE html><html lang="pt-BR">
-<head><meta charset="UTF-8"><title>AXIS — ${esc(imovel.codigo_axis)}</title>
-<style>
-  body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#1e293b}
-  h1{color:#0f172a;border-bottom:3px solid #14b8a6;padding-bottom:8px}
-  h2{color:#0f172a;margin-top:24px;font-size:15px;text-transform:uppercase;letter-spacing:.5px}
-  .score{font-size:48px;font-weight:700;color:${imovel.score_total>=7?'#10b981':imovel.score_total>=6?'#f59e0b':'#ef4444'}}
-  .rec{display:inline-block;padding:4px 14px;border-radius:20px;font-weight:700;font-size:14px;
-       background:${imovel.recomendacao==='COMPRAR'?'#d1fae5':imovel.recomendacao==='AGUARDAR'?'#fef3c7':'#fee2e2'};
-       color:${imovel.recomendacao==='COMPRAR'?'#065f46':imovel.recomendacao==='AGUARDAR'?'#92400e':'#991b1b'}}
-  table{width:100%;border-collapse:collapse;margin-top:8px}
-  td{padding:6px 10px;border-bottom:1px solid #e2e8f0;font-size:13px}
-  td:first-child{color:#64748b;width:40%}
-  td:last-child{font-weight:500}
-  .dim{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-  .dim-item{background:#f8fafc;border-radius:8px;padding:10px;text-align:center}
-  .dim-score{font-size:20px;font-weight:700}
-  .alerta{background:#fef3c7;border-left:4px solid #f59e0b;padding:8px 12px;margin:4px 0;border-radius:0 6px 6px 0;font-size:12px}
-  .pos{background:#d1fae5;border-left:4px solid #10b981;padding:8px 12px;margin:4px 0;border-radius:0 6px 6px 0;font-size:12px}
-  footer{margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:11px;text-align:center}
-</style></head><body>
-<h1>AXIS — ${esc(imovel.codigo_axis || 'Análise')}</h1>
-<div style="display:flex;align-items:center;gap:20px;margin:16px 0">
-  <div class="score">${(imovel.score_total||0).toFixed(1)}</div>
-  <div>
-    <div class="rec">${esc(imovel.recomendacao)||'—'}</div>
-    <div style="color:#64748b;font-size:13px;margin-top:4px">${esc(imovel.titulo)}</div>
-    <div style="color:#94a3b8;font-size:12px">${esc(imovel.endereco)} · ${esc(imovel.cidade)}</div>
-  </div>
-</div>
-<h2>Score por dimensão</h2>
-<div class="dim">
-  ${[['Localização',imovel.score_localizacao,'20%'],['Desconto',imovel.score_desconto,'18%'],
-     ['Jurídico',imovel.score_juridico,'18%'],['Ocupação',imovel.score_ocupacao,'15%'],
-     ['Liquidez',imovel.score_liquidez,'15%'],['Mercado',imovel.score_mercado,'14%']]
-    .map(([l,v,p])=>`<div class="dim-item"><div style="font-size:11px;color:#64748b">${l} · ${p}</div>
-      <div class="dim-score" style="color:${(v||0)>=7?'#10b981':(v||0)>=5?'#f59e0b':'#ef4444'}">${(v||0).toFixed(1)}</div></div>`).join('')}
-</div>
-<h2>Dados financeiros</h2>
-<table>
-  <tr><td>Lance mínimo</td><td>${fmtC(imovel.valor_minimo)}</td></tr>
-  <tr><td>Avaliação judicial</td><td>${fmtC(imovel.valor_avaliacao)}</td></tr>
-  <tr><td>Desconto</td><td>${fmtPct(imovel.desconto_percentual)}</td></tr>
-  <tr><td>Valor de mercado est.</td><td>${fmtC(imovel.valor_mercado_estimado)}</td></tr>
-  <tr><td>Lance máximo (MAO Flip)</td><td>${fmtC(imovel.mao_flip)}</td></tr>
-  <tr><td>Custo reforma est.</td><td>${fmtC(imovel.custo_reforma_calculado||imovel.custo_reforma_previsto)}</td></tr>
-  <tr><td>Prazo liberação est.</td><td>${imovel.prazo_liberacao_estimado_meses ? imovel.prazo_liberacao_estimado_meses+' meses' : '—'}</td></tr>
-  ${imovel.jurimetria_vara ? `<tr><td>Vara judicial</td><td>${esc(imovel.vara_judicial)} · ${esc(imovel.jurimetria_vara)}</td></tr>` : ''}
-</table>
-<h2>Síntese</h2>
-<p style="font-size:13px;line-height:1.6;color:#334155">${esc(imovel.sintese_executiva||imovel.justificativa)||'—'}</p>
-${imovel.positivos?.length ? `<h2>Pontos positivos</h2>${imovel.positivos.map(a=>`<div class="pos">${esc(a)}</div>`).join('')}` : ''}
-${imovel.alertas?.length ? `<h2>Alertas</h2>${imovel.alertas.map(a=>`<div class="alerta">${esc(a)}</div>`).join('')}` : ''}
-${imovel.resumo_documentos?.length ? `<h2>Documentos Jurídicos (${imovel.num_documentos||imovel.resumo_documentos.length})</h2>${imovel.resumo_documentos.map(d=>`<div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin:4px 0"><div style="display:flex;justify-content:space-between"><strong style="font-size:12px">${esc(d.tipo?.toUpperCase()||'DOC')}: ${esc(d.nome||'')}</strong>${d.score!=null?`<b style="color:${d.score>=7?'#059669':'#D97706'}">${Number(d.score).toFixed(1)}/10</b>`:''}</div>${d.resumo?`<p style="font-size:11px;color:#334155;margin:4px 0">${esc(d.resumo.substring(0,200))}</p>`:''}</div>`).join('')}` : ''}
-<footer>Gerado pelo AXIS Inteligência Patrimonial · ${new Date().toLocaleDateString('pt-BR')}</footer>
-</body></html>`
-  const blob = new Blob([html], { type: 'text/html' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `AXIS_${imovel.codigo_axis || 'relatorio'}_${new Date().toISOString().slice(0,10)}.html`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-// == SEED DE DADOS DE REFERÊNCIA ==
 export async function seedMercadoRegional() {
   const { MERCADO_REGIONAL } = await import('../data/mercado_regional.js')
   const entradas = Object.entries(MERCADO_REGIONAL).map(([regiao_id, d]) => ({
@@ -1356,12 +1109,3 @@ export async function getImovelPorToken(token) {
 // ══════════════════════════════════════════════════════════════════════════
 // SPRINT 10 — Export carteira
 // ══════════════════════════════════════════════════════════════════════════
-export async function getImoveisParaExport() {
-  const { data, error } = await supabase
-    .from('imoveis')
-    .select('*')
-    .or('status_operacional.eq.ativo,status_operacional.is.null')
-    .order('score_total', { ascending: false })
-  if (error) throw error
-  return data || []
-}

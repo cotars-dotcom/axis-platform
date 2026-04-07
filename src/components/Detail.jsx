@@ -18,6 +18,7 @@ import { calcularCustosAquisicao } from '../lib/constants.js'
 import CenariosReforma from './CenariosReforma.jsx'
 import { ReformaProvider } from '../hooks/useReforma.jsx'
 import CustosReaisEditor from './CustosReaisEditor.jsx'
+import ComparaveisComFiltros from './ComparaveisComFiltros.jsx'
 // ExportarPDF: loaded dynamically via import() in share menu
 
 const ESCOPOS_INFO = {
@@ -1155,10 +1156,7 @@ for (const s of SCORES) {
           </div>
         )}
       {/* Comparáveis — também na aba mercado */}
-      {p.comparaveis?.length>0&&<div style={{...card(),marginTop:14,marginBottom:0}}>
-        <div style={{fontWeight:"600",color:K.wh,marginBottom:"10px",fontSize:"13px"}}>🏘️ Comparáveis de Mercado ({p.comparaveis.length})</div>
-        {p.comparaveis.map((c,i)=><CardComparavel key={i} item={c} K={K} isPhone={isPhone} imovel={p}/>)}
-      </div>}
+      {p.comparaveis?.length>0&&<ComparaveisComFiltros comparaveis={p.comparaveis} imovel={p} isPhone={isPhone} CardComparavel={CardComparavel}/>}
       </div>}
 
       {abaDetalhe==='resumo'&&<>
@@ -1577,10 +1575,7 @@ for (const s of SCORES) {
         </div>
       </div>
       {/* Comparáveis */}
-      {p.comparaveis?.length>0&&<div style={{...card(),marginBottom:"14px"}}>
-        <div style={{fontWeight:"600",color:K.wh,marginBottom:"10px",fontSize:"13px"}}>🏘️ Comparáveis encontrados ({p.comparaveis.length})</div>
-        {p.comparaveis.map((c,i)=><CardComparavel key={i} item={c} K={K} isPhone={isPhone} imovel={p}/>)}
-      </div>}
+      {p.comparaveis?.length>0&&<ComparaveisComFiltros comparaveis={p.comparaveis} imovel={p} isPhone={isPhone} CardComparavel={CardComparavel}/>}
       {/* Responsabilidade passivos */}
       {p.responsabilidade_debitos&&<div style={{...card(),marginBottom:"14px",background:p.responsabilidade_debitos==='exonerado'?`${K.grn}15`:p.responsabilidade_debitos==='sub_rogado'?`${K.teal}15`:`${K.red}15`,border:`1px solid ${p.responsabilidade_debitos==='exonerado'?K.grn:p.responsabilidade_debitos==='sub_rogado'?K.teal:K.red}30`}}>
         <div style={{fontSize:"12.5px",fontWeight:"600",color:p.responsabilidade_debitos==='exonerado'?K.grn:p.responsabilidade_debitos==='sub_rogado'?K.teal:K.red}}>

@@ -343,10 +343,23 @@ export default function ManualAxis({ isMobile }) {
     })
   }, [])
 
+  const [faqAberto, setFaqAberto] = useState(null)
+  const FAQ = [
+    { q:'O que é o Score AXIS e como é calculado?', a:'O Score AXIS é uma nota de 0 a 10 que combina 6 dimensões: Localização (20%), Desconto (18%), Jurídico (18%), Ocupação (15%), Liquidez (15%) e Mercado (14%). Cada dimensão é avaliada de 0 a 10 e ponderada pelo peso correspondente.' },
+    { q:'Qual a diferença entre "Desconto s/avaliação" e "Desconto s/mercado"?', a:'O desconto sobre avaliação compara o lance mínimo com o valor oficial da avaliação judicial. O desconto sobre mercado compara com o valor real estimado pelo motor IA. O segundo é mais confiável para decisão de investimento.' },
+    { q:'O que significa cada recomendação?', a:'COMPRAR: score ≥ 5.5 com ROI positivo e riscos controlados. AGUARDAR: potencial existe mas há pendências ou preço alto. EVITAR: riscos graves, ROI negativo ou mercado desfavorável.' },
+    { q:'Como funciona a análise de matrícula?', a:'O agente jurídico faz OCR na matrícula via Gemini Vision, extrai atos registrais (R., Av., AV-) e monta timeline. Identifica ônus, indisponibilidades, penhoras e alienações, classificando gravidade.' },
+    { q:'O que é o Preditor de Concorrência?', a:'Estima quantos licitantes podem participar baseado em desconto, localização, tipologia, praça e dados históricos. Mais concorrência = lance final mais alto.' },
+    { q:'Posso confiar nos comparáveis?', a:'Comparáveis são gerados pelo motor IA a partir de portais reais (ZAP, VivaReal, QuintoAndar). Links gerados para verificação. Recomendamos validar presencialmente.' },
+    { q:'O que é mercado direto vs. leilão?', a:'Leilão: hasta pública com desconto forçado mas riscos jurídicos. Mercado direto: compra convencional sem desconto mas sem riscos de arrematação.' },
+    { q:'Como interpretar ROI e cenários?', a:'ROI considera todos os custos e compara com valor de saída. Cenários: Otimista (venda rápida acima mercado), Realista (mercado em prazo médio), Rápido (abaixo com liquidez) e Locação (renda passiva).' },
+    { q:'O AXIS substitui consultoria jurídica?', a:'Não. O AXIS é ferramenta de apoio. Toda arrematação deve ser precedida de due diligence, consulta com advogado e verificação de matrícula atualizada.' },
+  ]
+
   const ABAS = [
     ['guia','📖 O AXIS'],['score','🎯 Score'],['fluxo','⚙️ Fluxo'],
     ['mercado','📈 Mercado BH'],['juridico','⚖️ Jurisprudência'],['financiamento','🏦 Financiamento'],
-    ['banco','🗄️ Base de Dados'],['glossario','📚 Glossário'],['diretrizes','📋 Diretrizes'],
+    ['banco','🗄️ Base de Dados'],['glossario','📚 Glossário'],['diretrizes','📋 Diretrizes'],['faq','❓ FAQ'],
   ]
   const glossFilt = GLOSS.filter(g =>
     !busca || g.t.toLowerCase().includes(busca.toLowerCase()) || g.def.toLowerCase().includes(busca.toLowerCase())
@@ -933,6 +946,44 @@ export default function ManualAxis({ isMobile }) {
               e verificação da matrícula no cartório. Investimentos em leilão envolvem riscos reais.
             </div>
           </Box>
+        </div>
+      )}
+
+      {/* ─── ABA: FAQ ────────────────────────────────────────────────── */}
+      {aba === 'faq' && (
+        <div>
+          <Box style={{ marginBottom:14, background:P.emeraldL, border:`1px solid ${P.emerald}20` }}>
+            <div style={{ fontSize:12, color:P.navy, lineHeight:1.7 }}>
+              Perguntas frequentes sobre o AXIS, interpretação de dados e boas práticas.
+            </div>
+          </Box>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {FAQ.map((item, i) => {
+              const open = faqAberto === i
+              return (
+                <div key={i} style={{
+                  borderRadius:10, overflow:'hidden',
+                  border:`1px solid ${open ? `${P.emerald}40` : P.border}`,
+                  background: open ? `${P.emerald}06` : P.white,
+                  transition:'all .2s',
+                }}>
+                  <div onClick={() => setFaqAberto(open ? null : i)}
+                    style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+                      padding:'12px 14px', cursor:'pointer', gap:10 }}>
+                    <div style={{ fontSize:12.5, fontWeight:600, color:P.navy, lineHeight:1.5 }}>{item.q}</div>
+                    <span style={{ fontSize:16, color:P.emerald, flexShrink:0,
+                      transform: open ? 'rotate(180deg)' : 'rotate(0)', transition:'transform .2s' }}>▾</span>
+                  </div>
+                  {open && (
+                    <div style={{ padding:'0 14px 14px', fontSize:12, color:P.text,
+                      lineHeight:1.75, borderTop:`1px solid ${P.border}`, paddingTop:12 }}>
+                      {item.a}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>

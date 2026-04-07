@@ -134,9 +134,13 @@ export default function CenariosReforma({ imovel, isAdmin }) {
         ))}
       </div>
 
-      {/* Painel do cenário selecionado — ocultar cálculos se sem dados */}
-      {semDados ? null : <></>}
-      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12, opacity: semDados ? 0.3 : 1, pointerEvents: semDados ? 'none' : 'auto'}}>
+      {/* Painel do cenário selecionado — ocultar se sem dados */}
+      {semDados ? (
+        <div style={{fontSize:12, color:C.muted, textAlign:'center', padding:'16px 0'}}>
+          Informe o preço de aquisição para visualizar os cenários de reforma e ROI.
+        </div>
+      ) : <>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12}}>
 
         {/* Coluna esquerda — custos */}
         <div style={{padding:'12px 14px', background:C.surface, borderRadius:10}}>
@@ -289,6 +293,7 @@ export default function CenariosReforma({ imovel, isAdmin }) {
           </div>
         </div>
       )}
+      </>}
     </div>
   )
 }

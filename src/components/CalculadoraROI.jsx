@@ -13,6 +13,12 @@ export default function CalculadoraROI({ imovel }) {
   const precoAquisicao = eMercado
     ? (parseFloat(imovel.preco_pedido) || parseFloat(imovel.valor_minimo) || 0)
     : (parseFloat(imovel.valor_minimo) || 0)
+  if (precoAquisicao <= 0) {
+    return <div style={{ ...card(), padding: 16 }}>
+      <div style={{ fontWeight: 600, fontSize: 13, color: C.navy, marginBottom: 6 }}>💰 Calculadora de ROI</div>
+      <div style={{ fontSize: 12, color: C.muted }}>Preço de aquisição não disponível — informe o valor para calcular.</div>
+    </div>
+  }
   const _tab = eMercado ? CUSTOS_MERCADO : CUSTOS_LEILAO
   const comissao    = precoAquisicao * ((imovel.comissao_leiloeiro_pct ?? _tab.comissao_leiloeiro_pct) / 100)
   const itbi        = precoAquisicao * ((imovel.itbi_pct ?? _tab.itbi_pct) / 100)
