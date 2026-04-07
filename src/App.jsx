@@ -972,9 +972,9 @@ function PropCard({p,onNav}) {
   const fmtPct = v => v ? `${parseFloat(v).toFixed(1)}%` : '—'
   const fmtM2 = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}/m²` : '—'
   const dataLeilao = p.data_leilao ? (() => { const d = new Date(p.data_leilao.slice(0,10)+'T12:00:00'); return isNaN(d.getTime()) ? null : d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) })() : null
+  const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
   const diasParaLeilao = p.data_leilao && !eMercado ? (() => { const d = new Date(p.data_leilao.slice(0,10)+'T12:00:00'); if(isNaN(d.getTime())) return null; return Math.ceil((d - Date.now()) / 86400000) })() : null
   const numLeilao = p.praca ? `${p.praca}ª PRAÇA` : p.num_leilao ? `${p.num_leilao}º LEILÃO` : null
-  const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
   const scoreDelta = p.preco_m2_imovel && p.preco_m2_mercado
     ? ((1 - p.preco_m2_imovel/p.preco_m2_mercado)*100).toFixed(0)
     : null
