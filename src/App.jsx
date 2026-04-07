@@ -1891,15 +1891,20 @@ export default function App() {
     {showApiKey&&<ApiKeyModal onClose={()=>setShowApiKey(false)} session={session}/>}
     {showTrelloModal&&<ModalAuditoriaTrello config={trello||JSON.parse(localStorage.getItem('axis-trello')||'{}')} imoveis={props} onClose={()=>setShowTrelloModal(false)}/>}
 
-{/* SIDEBAR — 64px icon-only */}
-<aside className="axis-sidebar" style={{
+{/* SIDEBAR — hover-expand: 64px → 200px */}
+<aside className="axis-sidebar" 
+  onMouseEnter={e=>{e.currentTarget.style.width='200px';e.currentTarget.style.minWidth='200px';e.currentTarget.dataset.expanded='1'}}
+  onMouseLeave={e=>{e.currentTarget.style.width='64px';e.currentTarget.style.minWidth='64px';e.currentTarget.dataset.expanded=''}}
+  style={{
   width:64,minWidth:64,height:'100dvh',position:'sticky',top:0,
   background:C.navy,display:'flex',flexDirection:'column',
   borderRight:`1px solid ${C.navy2}`,flexShrink:0,
+  transition:'width 0.2s ease, min-width 0.2s ease',overflow:'hidden',zIndex:50,
 }}>
   {/* Logo */}
-  <div style={{padding:"16px 0",borderBottom:"1px solid rgba(255,255,255,0.07)",display:'flex',justifyContent:'center'}}>
+  <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.07)",display:'flex',alignItems:'center',gap:10,minHeight:60}}>
     <AxisLogo collapsed light />
+    <span className="sidebar-label" style={{fontSize:14,fontWeight:700,color:'#fff',whiteSpace:'nowrap',opacity:0,transition:'opacity 0.15s',letterSpacing:'-0.3px'}}>AXIS</span>
   </div>
   {/* Nav */}
   <nav style={{flex:1,padding:'10px 8px',display:'flex',flexDirection:'column',gap:2}}>
@@ -1907,41 +1912,49 @@ export default function App() {
       const active=isAct(item.v)
       return <button key={item.v} onClick={()=>nav(item.v)} title={item.l}
         style={{
-          width:'100%',display:'flex',alignItems:'center',justifyContent:'center',
-          padding:'10px',borderRadius:8,border:'none',cursor:'pointer',
+          width:'100%',display:'flex',alignItems:'center',gap:12,
+          padding:'10px 12px',borderRadius:8,border:'none',cursor:'pointer',
           background:active?'rgba(5,168,109,0.15)':'transparent',
           color:active?C.emerald:'rgba(255,255,255,0.55)',
-          transition:'all 0.15s',position:'relative',
+          fontSize:13,fontWeight:active?600:400,
+          transition:'all 0.15s',position:'relative',textAlign:'left',
+          whiteSpace:'nowrap',overflow:'hidden',
         }}
         onMouseEnter={e=>{if(!active)e.currentTarget.style.background='rgba(255,255,255,0.06)'}}
         onMouseLeave={e=>{if(!active)e.currentTarget.style.background='transparent'}}
       >
         {active&&<span style={{position:'absolute',left:0,top:'18%',bottom:'18%',width:3,borderRadius:'0 3px 3px 0',background:C.emerald}} />}
-        <item.icon size={18} strokeWidth={active?2.2:1.6} />
+        <item.icon size={18} strokeWidth={active?2.2:1.6} style={{flexShrink:0}} />
+        <span className="sidebar-label" style={{opacity:0,transition:'opacity 0.15s'}}>{item.l}</span>
       </button>
     })}
   </nav>
   {/* Sidebar footer */}
-  <div style={{padding:'10px 8px',borderTop:'1px solid rgba(255,255,255,0.07)',display:'flex',flexDirection:'column',gap:4,alignItems:'center'}}>
+  <div style={{padding:'10px 8px',borderTop:'1px solid rgba(255,255,255,0.07)',display:'flex',flexDirection:'column',gap:4}}>
     <button title={trello?'Trello configurado':'Configurar Trello'} onClick={()=>trello?setShowTrelloModal(true):setShowTrello(true)} style={{
-      width:44,height:36,display:'flex',alignItems:'center',justifyContent:'center',
-      borderRadius:8,border:'none',cursor:'pointer',
+      width:'100%',height:36,display:'flex',alignItems:'center',gap:10,
+      padding:'0 12px',borderRadius:8,border:'none',cursor:'pointer',
       background:trello?'rgba(5,168,109,0.12)':'transparent',
-      color:trello?C.emerald:'rgba(255,255,255,0.45)',fontSize:16,
-    }}>🔷</button>
+      color:trello?C.emerald:'rgba(255,255,255,0.45)',fontSize:13,whiteSpace:'nowrap',overflow:'hidden',
+    }}>
+      <span style={{fontSize:16,flexShrink:0}}>🔷</span>
+      <span className="sidebar-label" style={{opacity:0,transition:'opacity 0.15s'}}>Trello</span>
+    </button>
     {isAdmin&&<button title="Configurações API" onClick={()=>setShowApiKey(true)} style={{
-      width:44,height:36,display:'flex',alignItems:'center',justifyContent:'center',
-      borderRadius:8,border:'none',cursor:'pointer',
-      background:'transparent',color:'rgba(255,255,255,0.45)',
-    }}><Settings size={15} /></button>}
+      width:'100%',height:36,display:'flex',alignItems:'center',gap:10,
+      padding:'0 12px',borderRadius:8,border:'none',cursor:'pointer',
+      background:'transparent',color:'rgba(255,255,255,0.45)',whiteSpace:'nowrap',overflow:'hidden',
+    }}><Settings size={15} style={{flexShrink:0}} /><span className="sidebar-label" style={{opacity:0,transition:'opacity 0.15s',fontSize:13}}>Config</span></button>}
     <div title={`Sair (${profile?.nome||'Usuário'})`} onClick={async()=>{if(confirm('Sair?')){const{signOut}=await import('./lib/supabase.js');await signOut()}}}
-      style={{width:44,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',borderRadius:8,marginTop:4}}>
-      <div style={{width:30,height:30,borderRadius:'50%',background:`${C.emerald}25`,border:`1px solid ${C.emerald}50`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C.emerald}}>
+      style={{display:'flex',alignItems:'center',gap:10,padding:'6px 12px',cursor:'pointer',borderRadius:8,marginTop:4,whiteSpace:'nowrap',overflow:'hidden'}}>
+      <div style={{width:30,height:30,borderRadius:'50%',background:`${C.emerald}25`,border:`1px solid ${C.emerald}50`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C.emerald,flexShrink:0}}>
         {(profile?.nome||'U')[0].toUpperCase()}
       </div>
+      <span className="sidebar-label" style={{opacity:0,transition:'opacity 0.15s',fontSize:12,color:'rgba(255,255,255,0.5)'}}>{profile?.nome||'Sair'}</span>
     </div>
   </div>
 </aside>
+<style>{`.axis-sidebar[data-expanded="1"] .sidebar-label { opacity: 1 !important; }`}</style>
 {/* FIM SIDEBAR */}
 
     {/* CONTENT */}
