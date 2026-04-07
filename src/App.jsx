@@ -1766,7 +1766,7 @@ export default function App() {
         else { const cache=JSON.parse(localStorage.getItem('axis-props')||'[]'); if(cache.length>0) setProps(cache) }
       } catch(e) { console.error('[AXIS] Load error:', e.message); const cache=JSON.parse(localStorage.getItem('axis-props')||'[]'); if(cache.length>0) setProps(cache) }
     } else { const cache=await stLoad("axis-props"); if(cache) setProps(cache) }
-  })()},[])
+  })()},[session])
   useEffect(()=>{if(loaded&&props.length>0)stSave("axis-props",props)},[props,loaded])
   useEffect(()=>{if(loaded&&trello)stSave("axis-trello",trello)},[trello,loaded])
 
