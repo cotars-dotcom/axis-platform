@@ -76,12 +76,12 @@ const IMOVEIS_LIST_COLS = `id,codigo_axis,titulo,cidade,estado,bairro,tipo,tipol
 export async function getImoveis() {
   const { data, error } = await supabase
     .from('imoveis')
-    .select(`${IMOVEIS_LIST_COLS},criador:profiles!imoveis_criado_por_fkey(nome)`)
+    .select('*,criador:profiles!imoveis_criado_por_fkey(nome)')
     .order('criado_em', { ascending: false })
     .limit(100)
   if (error) {
     const { data: d2, error: e2 } = await supabase
-      .from('imoveis').select(IMOVEIS_LIST_COLS)
+      .from('imoveis').select('*')
       .order('criado_em', { ascending: false }).limit(100)
     if (e2) throw e2
     return d2 || []
@@ -783,13 +783,13 @@ export async function registrarResultadoLeilao(imovelId, resultado, userId) {
 export async function getImoveisAtivos() {
   const { data, error } = await supabase
     .from('imoveis')
-    .select(`${IMOVEIS_LIST_COLS},criador:profiles!imoveis_criado_por_fkey(nome)`)
+    .select('*,criador:profiles!imoveis_criado_por_fkey(nome)')
     .or('status_operacional.eq.ativo,status_operacional.is.null')
     .order('criado_em', { ascending: false })
     .limit(100)
   if (error) {
     const { data: d2, error: e2 } = await supabase
-      .from('imoveis').select(IMOVEIS_LIST_COLS)
+      .from('imoveis').select('*')
       .or('status_operacional.eq.ativo,status_operacional.is.null')
       .order('criado_em', { ascending: false }).limit(100)
     if (e2) throw e2
