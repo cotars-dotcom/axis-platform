@@ -1171,7 +1171,12 @@ for (const s of SCORES) {
       )}
       <div style={{background:`${rc}10`,border:`1px solid ${rc}30`,borderRadius:"10px",padding:"20px",marginBottom:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"20px"}}>
-          <ScoreRing score={sc} size={90}/>
+          {sc > 0 ? <ScoreRing score={sc} size={90}/>
+            : <div style={{width:90,height:90,borderRadius:'50%',border:'3px dashed #D4D4D8',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column'}}>
+                <div style={{fontSize:16,fontWeight:700,color:C.muted}}>N/A</div>
+                <div style={{fontSize:8,color:C.hint}}>dados insuf.</div>
+              </div>
+          }
           <div>
             <div style={{fontSize:"11px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"4px"}}>Recomendação</div>
             <div style={{fontSize:"28px",fontWeight:"800",color:rc}}>{p.recomendacao||"—"}</div>
@@ -1246,7 +1251,7 @@ for (const s of SCORES) {
           )}
         </div>
       )}
-      {p.estrategia_recomendada_detalhe?.tipo && (() => {
+      {p.estrategia_recomendada_detalhe?.tipo && parseFloat(p.score_total) > 0 && (() => {
         const cfg = ESTRATEGIA_CONFIG[p.estrategia_recomendada_detalhe.tipo]
         return cfg ? (
           <div style={{ display:'inline-flex', alignItems:'center', gap:6,

@@ -90,6 +90,7 @@ export function calcularScoreTotal(scores) {
 
 // ─── HELPER: calcular custos de aquisição ────────────────────────
 export function calcularCustosAquisicao(precoBase, isMercado, overrides = {}) {
+  if (!precoBase || precoBase <= 0) return { precoBase: 0, comissao: 0, itbi: 0, advogado: 0, documentacao: 0, registro: 0, total: 0, percentual_total: '0', invalido: true }
   const tabela = isMercado ? CUSTOS_MERCADO : CUSTOS_LEILAO
   // Filtrar overrides nulos/undefined para não sobrescrever defaults com NaN
   const cleanOverrides = Object.fromEntries(
