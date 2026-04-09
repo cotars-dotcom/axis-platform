@@ -174,6 +174,28 @@ export function parseJSONResposta(texto) {
   return JSON.parse(match[0])
 }
 
+// ─── HOLDING COST ───────────────────────────────────────────────────
+export const IPTU_SOBRE_CONDO_RATIO = 0.35   // regra geral BH: IPTU ≈ 35% do condo
+export const HOLDING_MESES_PADRAO = 5
+
+/** Calcula custo total incluindo aquisição + reforma + holding */
+export function calcularCustoTotal(precoBase, isMercado, reforma = 0, holdingMeses = HOLDING_MESES_PADRAO, condoMensal = 0, iptuMensal = 0) {
+  const aquisicao = calcularCustosAquisicao(precoBase, isMercado)
+  const iptu = iptuMensal || (condoMensal > 0 ? Math.round(condoMensal * IPTU_SOBRE_CONDO_RATIO) : 0)
+  const holdingMensal = condoMensal + iptu
+  const holding = holdingMeses * holdingMensal
+  return {
+    ...aquisicao,
+    reforma: Math.round(reforma),
+    holding: Math.round(holding),
+    holdingMensal: Math.round(holdingMensal),
+    holdingMeses,
+    condoMensal: Math.round(condoMensal),
+    iptuMensal: Math.round(iptu),
+    totalCompleto: aquisicao.total + Math.round(reforma) + Math.round(holding),
+  }
+}
+
 // ─── SPRINT 11: Breakdown Financeiro e ROI ─────────────────────────
 
 /** Calcula breakdown completo dos custos de aquisição */
@@ -189,8 +211,13 @@ export function calcularBreakdownFinanceiro(lance, imovel = {}, eMercado = false
   const doc = lance * docPct + (custos.registro_fixo || 1500)
   const advogado = lance * advPct
   const reforma = parseFloat(imovel.custo_reforma_estimado || imovel.custo_reforma_calculado || 0)
+  const condoMensal = parseFloat(imovel.condominio_mensal || 0)
+  const iptuMensal = parseFloat(imovel.iptu_mensal || 0) || (condoMensal > 0 ? Math.round(condoMensal * IPTU_SOBRE_CONDO_RATIO) : 0)
+  const holdingMeses = HOLDING_MESES_PADRAO
+  const holdingMensal = condoMensal + iptuMensal
+  const holding = holdingMeses * holdingMensal
   const totalCustos = comissao + itbi + doc + advogado
-  const investimentoTotal = lance + totalCustos + reforma
+  const investimentoTotal = lance + totalCustos + reforma + holding
   
   return {
     lance,
@@ -199,6 +226,9 @@ export function calcularBreakdownFinanceiro(lance, imovel = {}, eMercado = false
     documentacao: { pct: docPct, valor: Math.round(doc) },
     advogado: { pct: advPct, valor: Math.round(advogado) },
     reforma: Math.round(reforma),
+    holding: Math.round(holding),
+    holdingMensal: Math.round(holdingMensal),
+    holdingMeses,
     totalCustos: Math.round(totalCustos),
     investimentoTotal: Math.round(investimentoTotal),
     pctCustosSobreLance: ((totalCustos / lance) * 100).toFixed(1),

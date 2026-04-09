@@ -956,8 +956,10 @@ for (const s of SCORES) {
             📤 Relatório
           </button>
           {showShareMenu && <>
-            <div onClick={() => setShowShareMenu(false)} style={{position:'fixed',inset:0,zIndex:40}} />
-            <div style={{position:'absolute',top:'100%',right:0,zIndex:50,marginTop:4,background:C.white,borderRadius:10,
+            <div onClick={() => setShowShareMenu(false)} style={{position:'fixed',inset:0,zIndex:40,background:isPhone?'rgba(0,0,0,0.3)':'transparent'}} />
+            <div style={isPhone?{position:'fixed',bottom:0,left:0,right:0,zIndex:50,background:C.white,borderRadius:'16px 16px 0 0',
+              boxShadow:'0 -8px 30px rgba(0,0,0,0.2)',padding:'6px 6px 20px',maxHeight:'70vh',overflowY:'auto'}
+              :{position:'absolute',top:'100%',right:0,zIndex:50,marginTop:4,background:C.white,borderRadius:10,
               border:`1px solid ${C.borderW}`,boxShadow:'0 8px 30px rgba(0,0,0,0.15)',padding:6,minWidth:210}}>
               {typeof navigator !== 'undefined' && navigator.share && (
                 <button onClick={async () => {

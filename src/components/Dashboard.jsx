@@ -414,6 +414,7 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
         background:C.white,border:`1px solid ${C.borderW}`,
         borderRadius:14,padding:"20px 24px",
         display:"flex",alignItems:"center",justifyContent:"space-between",
+        flexDirection:isPhone?"column":"row",
         boxShadow:"0 2px 12px rgba(0,43,128,0.06)",
       }}>
         <div>
@@ -425,21 +426,21 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
           </p>
           <p style={{margin:"4px 0 0",fontSize:12.5,color:C.muted}}>Score Médio AXIS</p>
         </div>
-        <div style={{display:"flex",gap:14,alignItems:"center"}}>
-          <svg width="80" height="80">
-            <circle cx="40" cy="40" r="32" fill="none" stroke={C.emeraldL} strokeWidth="6"/>
-            <circle cx="40" cy="40" r="32" fill="none" stroke={C.emerald} strokeWidth="6"
-              strokeDasharray={`${(avgPct/100)*201} 201`}
-              strokeLinecap="round" transform="rotate(-90 40 40)"/>
-            <text x="40" y="37" textAnchor="middle" fontSize="18" fontWeight="800" fill={C.navy}>{avg}</text>
-            <text x="40" y="50" textAnchor="middle" fontSize="10" fill={C.hint}>/10</text>
+        <div style={{display:"flex",gap:14,alignItems:"center",marginTop:isPhone?12:0}}>
+          <svg width={isPhone?64:80} height={isPhone?64:80}>
+            <circle cx={isPhone?32:40} cy={isPhone?32:40} r={isPhone?26:32} fill="none" stroke={C.emeraldL} strokeWidth="6"/>
+            <circle cx={isPhone?32:40} cy={isPhone?32:40} r={isPhone?26:32} fill="none" stroke={C.emerald} strokeWidth="6"
+              strokeDasharray={`${(avgPct/100)*(isPhone?163:201)} ${isPhone?163:201}`}
+              strokeLinecap="round" transform={`rotate(-90 ${isPhone?32:40} ${isPhone?32:40})`}/>
+            <text x={isPhone?32:40} y={isPhone?29:37} textAnchor="middle" fontSize={isPhone?15:18} fontWeight="800" fill={C.navy}>{avg}</text>
+            <text x={isPhone?32:40} y={isPhone?42:50} textAnchor="middle" fontSize="10" fill={C.hint}>/10</text>
           </svg>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            <div style={{display:"flex",gap:6}}>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               <button onClick={()=>onNav("novo")} style={{
                 padding:"8px 18px",borderRadius:7,
                 background:C.emerald,color:"#fff",
-                border:"none",fontSize:12.5,fontWeight:600,cursor:"pointer",
+                border:"none",fontSize:12.5,fontWeight:600,cursor:"pointer",flex:"1 1 auto",
               }}>
                 + Nova Análise
               </button>

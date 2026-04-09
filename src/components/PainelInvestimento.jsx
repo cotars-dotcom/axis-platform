@@ -41,7 +41,7 @@ export default function PainelInvestimento({ imovel }) {
   const preditor = !eMercado ? calcularPreditorConcorrencia(
     parseFloat(p.valor_minimo) || lance,
     mercado,
-    bd.totalCustos + bd.reforma
+    bd.totalCustos + bd.reforma + (bd.holding || 0)
   ) : []
 
   const roiColor = roi.roi > 20 ? '#065F46' : roi.roi > 10 ? '#D97706' : roi.roi > 0 ? '#92400E' : '#991B1B'
@@ -74,7 +74,7 @@ export default function PainelInvestimento({ imovel }) {
 
       <div style={{ padding: '14px 18px' }}>
         {/* Simulador de lance — Sprint 12 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: `1px solid ${C.borderW}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: `1px solid ${C.borderW}`, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, whiteSpace: 'nowrap' }}>🎯 Simular lance:</div>
           <input
             type="range"
@@ -83,11 +83,11 @@ export default function PainelInvestimento({ imovel }) {
             step={5000}
             value={lance}
             onChange={e => setLanceSimulado(Number(e.target.value))}
-            style={{ flex: 1, accentColor: '#002B80', cursor: 'pointer' }}
+            style={{ flex: '1 1 120px', accentColor: '#002B80', cursor: 'pointer' }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.navy, minWidth: 95, textAlign: 'right' }}>
-              R$ {Math.round(lance / 1000)}k
+              {fmt(lance)}
             </span>
             {lanceSimulado && (
               <button onClick={() => setLanceSimulado(null)} style={{
@@ -98,7 +98,7 @@ export default function PainelInvestimento({ imovel }) {
           </div>
         </div>
         {/* Grid principal: Breakdown + Resumo */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 14 }}>
           {/* Coluna esquerda: Breakdown de custos */}
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.3px' }}>
@@ -113,6 +113,9 @@ export default function PainelInvestimento({ imovel }) {
             )}
             {bd.reforma > 0 && (
               <BarraVisual label="Reforma estimada" valor={bd.reforma} total={mercado} cor="#F59E0B" />
+            )}
+            {bd.holding > 0 && (
+              <BarraVisual label={`Holding (${bd.holdingMeses}m × ${fmt(bd.holdingMensal)}/mês)`} valor={bd.holding} total={mercado} cor="#EA580C" />
             )}
             <div style={{ borderTop: `1px solid ${C.borderW}`, paddingTop: 6, marginTop: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700 }}>
@@ -229,7 +232,7 @@ export default function PainelInvestimento({ imovel }) {
                   })}
                 </div>
                 <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.5, padding: '6px 0' }}>
-                  💡 Cada lance = R$ 5.000 de incremento. Base: valor de mercado {fmt(mercado)}, custos {fmt(bd.totalCustos + bd.reforma)}.
+                  💡 Cada lance = R$ 5.000 de incremento. Base: valor de mercado {fmt(mercado)}, custos {fmt(bd.totalCustos + bd.reforma + (bd.holding || 0))} (aquisição + reforma + holding).
                   {preditor.find(n => n.label === 'Break-even')?.numLances > 15 
                     ? ' Excelente margem — você pode competir com confiança.'
                     : preditor.find(n => n.label === 'Break-even')?.numLances > 5
