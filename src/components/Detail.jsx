@@ -976,6 +976,20 @@ for (const s of SCORES) {
                 </button>
               )}
               <button onClick={async () => {
+                setShareStatus('⏳ Gerando PDF...')
+                try {
+                  const { gerarPDFProfissional } = await import('./GerarPDFProfissional.jsx')
+                  await gerarPDFProfissional(p, status => setShareStatus(`⏳ ${status}`))
+                  setShareStatus('📥 PDF gerado!')
+                } catch(e) { console.error('[AXIS PDF]', e); setShareStatus('❌ Erro') }
+                setTimeout(() => { setShareStatus(null); setShowShareMenu(false) }, 2000)
+              }} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 12px',
+                border:'none',background:'#F0F4FF',cursor:'pointer',borderRadius:8,fontSize:13,color:C.navy,fontWeight:600,
+                textAlign:'left'}}>
+                <span style={{fontSize:18}}>📄</span>
+                <div><div>PDF Profissional</div><div style={{fontSize:10,color:C.muted,fontWeight:400}}>6 páginas · envio WhatsApp</div></div>
+              </button>
+              <button onClick={async () => {
                 const { downloadRelatorio } = await import('./ExportarPDF.jsx')
                 await downloadRelatorio(p)
                 setShareStatus('📥 Baixado!')
