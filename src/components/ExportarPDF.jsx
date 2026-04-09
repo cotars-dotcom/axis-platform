@@ -5,7 +5,7 @@
 import { C } from '../appConstants.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 import { CUSTO_M2_SINAPI, FATOR_VALORIZACAO, detectarClasse, avaliarViabilidadeReforma } from '../lib/reformaUnificada.js'
-import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO } from '../lib/constants.js'
+import { calcularBreakdownFinanceiro, HOLDING_MESES_PADRAO, IPTU_SOBRE_CONDO_RATIO } from '../lib/constants.js'
 
 const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 const pct = v => v != null ? `${Number(v).toFixed(1)}%` : '—'
@@ -37,6 +37,14 @@ function gerarHTML(p) {
     return { label, custo, custoM2, valorizacao: Math.round((fv - 1) * 100),
       recomendacao: v?.recomendacao || '', roiFlip: v?.roiFlip || 0, eficiencia: v?.eficiencia || 0 }
   })
+
+  // Breakdown financeiro + Holding cost
+  const bd = calcularBreakdownFinanceiro(precoCompra, p, eMercado)
+  const condoMensal = parseFloat(p.condominio_mensal || 0)
+  const iptuMensal = parseFloat(p.iptu_mensal || 0) || (condoMensal > 0 ? Math.round(condoMensal * IPTU_SOBRE_CONDO_RATIO) : 0)
+  const holdingMeses = HOLDING_MESES_PADRAO
+  const holdingMensal = condoMensal + iptuMensal
+  const holdingTotal = holdingMeses * holdingMensal
 
   // Scores
   const scores = [
@@ -221,17 +229,27 @@ ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;marg
   <!-- Resumo financeiro -->
   <div class="grid" style="margin-bottom:14px">
     <div class="card">
-      <div class="card-t">💰 Custos</div>
+      <div class="card-t">💰 Custos de Aquisição</div>
       ${[
-        [eMercado ? 'Preço pedido' : 'Lance mínimo', fmt(p.preco_pedido || p.valor_minimo)],
+        [eMercado ? 'Preço pedido' : 'Lance mínimo', fmt(precoCompra)],
         ['Avaliação', fmt(p.valor_avaliacao)],
-        ['Desconto', p.desconto_percentual ? p.desconto_percentual + '%' : (p.desconto_sobre_mercado_pct_calculado ? p.desconto_sobre_mercado_pct_calculado + '%' : '—')],
+        ['Desconto s/ mercado', p.desconto_sobre_mercado_pct_calculado ? p.desconto_sobre_mercado_pct_calculado + '%' : (p.desconto_percentual ? p.desconto_percentual + '%' : null)],
+        [!eMercado ? 'Comissão leiloeiro' : null, bd.comissao.valor > 0 ? fmt(bd.comissao.valor) + ' (' + (bd.comissao.pct*100).toFixed(0) + '%)' : null],
+        ['ITBI', bd.itbi.valor > 0 ? fmt(bd.itbi.valor) + ' (' + (bd.itbi.pct*100).toFixed(0) + '%)' : null],
+        ['Doc + Registro', fmt(bd.documentacao.valor)],
+        [!eMercado && bd.advogado.valor > 0 ? 'Advogado' : null, bd.advogado.valor > 0 ? fmt(bd.advogado.valor) : null],
+        [holdingTotal > 0 ? 'Holding (' + holdingMeses + 'm)' : null, holdingTotal > 0 ? fmt(holdingTotal) + ' (' + fmt(holdingMensal) + '/mês)' : null],
+        ['Condomínio', condoMensal > 0 ? fmt(condoMensal) + '/mês' : null],
+        ['IPTU est.', iptuMensal > 0 ? fmt(iptuMensal) + '/mês' : null],
         ['Preço/m² imóvel', p.preco_m2_imovel ? 'R$ ' + Math.round(p.preco_m2_imovel).toLocaleString('pt-BR') + '/m²' : null],
         ['Preço/m² mercado', p.preco_m2_mercado ? 'R$ ' + Math.round(p.preco_m2_mercado).toLocaleString('pt-BR') + '/m²' : null],
-        ['Condomínio', p.condominio_mensal ? 'R$ ' + Number(p.condominio_mensal).toLocaleString('pt-BR') + '/mês' : null],
-      ].filter(([,v]) => v && v !== '—').map(([l,v]) =>
+      ].filter(([l,v]) => l && v && v !== '—').map(([l,v]) =>
         '<div class="row"><span class="row-l">' + l + '</span><span class="row-v">' + v + '</span></div>'
       ).join('')}
+      <div class="row" style="border-top:2px solid #002B80;margin-top:4px;padding-top:6px">
+        <span class="row-l" style="font-weight:700;color:#002B80">Investimento total</span>
+        <span class="row-v" style="font-weight:800;color:#002B80">${fmt(bd.investimentoTotal + holdingTotal)}</span>
+      </div>
     </div>
     <div class="card">
       <div class="card-t">📈 Retorno</div>
@@ -241,7 +259,7 @@ ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;marg
         ['MAO Locação', fmt(p.mao_locacao)],
         ['Retorno revenda', p.retorno_venda_pct ? '+' + p.retorno_venda_pct + '%' : null],
         ['Estrutura', p.estrutura_recomendada],
-        ['Estratégia', p.estrategia_recomendada],
+        ['Estratégia', p.estrategia_recomendada === 'aguardar_2a_praca' ? '⏳ Aguardar 2ª praça' : p.estrategia_recomendada],
       ].filter(([,v]) => v && v !== '—').map(([l,v]) =>
         '<div class="row"><span class="row-l">' + l + '</span><span class="row-v">' + v + '</span></div>'
       ).join('')}
@@ -300,7 +318,8 @@ ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;marg
     <div class="row"><span class="row-l">Custo/m²</span><span class="row-v" id="ref-m2">R$ ${reformas[0].custoM2}/m²</span></div>
     <div class="row"><span class="row-l">Valorização</span><span class="row-v green" id="ref-val">+${reformas[0].valorizacao}%</span></div>
     <div class="row"><span class="row-l">Valor pós-reforma</span><span class="row-v" id="ref-pos">${fmt(Math.round((p.valor_mercado_estimado || 0) * (1 + reformas[0].valorizacao / 100)))}</span></div>
-    <div class="row"><span class="row-l">Custo total (compra+reforma+taxas)</span><span class="row-v" id="ref-total">${fmt(precoCompra + reformas[0].custo + Math.round(precoCompra * (eMercado ? MULT_CUSTO_RAPIDO.mercado : MULT_CUSTO_RAPIDO.leilao)))}</span></div>
+    ${holdingTotal > 0 ? `<div class="row"><span class="row-l">Holding (${holdingMeses}m × ${fmt(holdingMensal)}/mês)</span><span class="row-v" style="color:#EA580C">${fmt(holdingTotal)}</span></div>` : ''}
+    <div class="row"><span class="row-l">Custo total (compra+reforma+taxas+holding)</span><span class="row-v" id="ref-total">${fmt(precoCompra + reformas[0].custo + bd.totalCustos + holdingTotal)}</span></div>
     <div class="row"><span class="row-l">ROI estimado (flip)</span><span class="row-v" style="color:${reformas[0].roiFlip > 0 ? '#065F46' : '#991B1B'}" id="ref-roi">${reformas[0].roiFlip > 0 ? '+' : ''}${reformas[0].roiFlip}%</span></div>
     <div class="row"><span class="row-l">Eficiência (R$1 gera)</span><span class="row-v" id="ref-ef">R$ ${reformas[0].eficiencia}</span></div>
   </div>
@@ -445,7 +464,8 @@ document.getElementById('tab-resumo').classList.add('active')
 const REF = ${JSON.stringify(reformas)};
 const VM = ${p.valor_mercado_estimado || 0};
 const LANCE = ${precoCompra || 0};
-const E_MERCADO = ${eMercado};
+const CUSTOS_AQ = ${bd.totalCustos};
+const HOLDING = ${holdingTotal};
 function selReforma(i){
   document.querySelectorAll('.ref-opt').forEach((e,j)=>e.classList.toggle('sel',j===i))
   const r=REF[i]
@@ -453,7 +473,7 @@ function selReforma(i){
   document.getElementById('ref-m2').textContent='R$ '+r.custoM2+'/m²'
   document.getElementById('ref-val').textContent='+'+r.valorizacao+'%'
   document.getElementById('ref-pos').textContent='R$ '+Math.round(VM*(1+r.valorizacao/100)).toLocaleString('pt-BR')
-  document.getElementById('ref-total').textContent='R$ '+(LANCE+r.custo+Math.round(LANCE*(E_MERCADO?${MULT_CUSTO_RAPIDO.mercado}:${MULT_CUSTO_RAPIDO.leilao}))).toLocaleString('pt-BR')
+  document.getElementById('ref-total').textContent='R$ '+(LANCE+r.custo+CUSTOS_AQ+HOLDING).toLocaleString('pt-BR')
   const roiEl=document.getElementById('ref-roi'); if(roiEl) roiEl.textContent=(r.roiFlip>0?'+':'')+r.roiFlip+'%'
   const efEl=document.getElementById('ref-ef'); if(efEl) efEl.textContent='R$ '+r.eficiencia
 }
