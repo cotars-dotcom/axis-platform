@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { getImovelPorToken } from '../lib/supabase.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
+import { calcularBreakdownFinanceiro, calcularROI, calcularCustoHolding } from '../lib/constants.js'
 
 const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 const pct = v => v != null ? `${Number(v).toFixed(1)}%` : '—'
@@ -73,6 +74,14 @@ export default function SharedViewer({ token }) {
   const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 0
   const recBg = p.recomendacao === 'COMPRAR' ? '#ECFDF5' : p.recomendacao === 'EVITAR' ? '#FEF2F2' : '#FEF9C3'
   const recCor = p.recomendacao === 'COMPRAR' ? '#065F46' : p.recomendacao === 'EVITAR' ? '#991B1B' : '#92400E'
+
+  const lance = parseFloat(p.preco_pedido || p.valor_minimo) || 0
+  const mercado = parseFloat(p.valor_mercado_estimado) || 0
+  const bd = lance && mercado ? calcularBreakdownFinanceiro(lance, p, eMercado) : null
+  const roi = bd ? calcularROI(bd.investimentoTotal, mercado, parseFloat(p.aluguel_mensal_estimado) || 0) : null
+  const holding = calcularCustoHolding(parseFloat(p.condominio_mensal) || 0, 4, p.iptu_mensal ? parseFloat(p.iptu_mensal) : null)
+  const investComHolding = bd && holding.total ? bd.investimentoTotal + holding.total : null
+  const roiComHolding = investComHolding ? calcularROI(investComHolding, mercado, parseFloat(p.aluguel_mensal_estimado) || 0) : null
 
   return (
     <div style={{ background: P.bg, minHeight: '100vh', fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
@@ -158,6 +167,53 @@ export default function SharedViewer({ token }) {
           <div style={{ background: P.white, border: `1px solid ${P.border}`, borderRadius: 12, padding: '16px 20px', marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: P.navy, marginBottom: 8 }}>Síntese Executiva</div>
             <div style={{ fontSize: 12.5, color: P.text, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.sintese_executiva}</div>
+          </div>
+        )}
+
+        {/* Investimento + Holding */}
+        {bd && roi && (
+          <div style={{ background: P.white, border: `1px solid ${P.border}`, borderRadius: 12, padding: '16px 20px', marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: P.navy, marginBottom: 12 }}>💰 Análise de Investimento</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              {[
+                { label: eMercado ? 'Preço Pedido' : 'Lance Mínimo', value: fmt(lance), color: P.text },
+                { label: 'Custos de Aquisição', value: fmt(bd.totalCustos), color: P.text },
+                { label: 'Investimento Total', value: fmt(bd.investimentoTotal), color: P.navy },
+                { label: 'ROI Estimado', value: `${roi.roi > 0 ? '+' : ''}${roi.roi}%`, color: roi.roi >= 15 ? '#065F46' : roi.roi >= 0 ? '#D97706' : '#991B1B' },
+              ].map((kpi, i) => (
+                <div key={i} style={{ background: P.surface, border: `1px solid ${P.border}`, borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: 9.5, color: P.muted, textTransform: 'uppercase', letterSpacing: '.3px' }}>{kpi.label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: kpi.color, marginTop: 2 }}>{kpi.value}</div>
+                </div>
+              ))}
+            </div>
+            {holding.porMes > 0 && (
+              <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', marginBottom: 6 }}>🏗️ Custo de Holding (4 meses)</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#78350F' }}>
+                  <span>Cond. {fmt(holding.condominio)} + IPTU {fmt(holding.iptuMensal)}/mês</span>
+                  <span style={{ fontWeight: 700 }}>{fmt(holding.total)}</span>
+                </div>
+                {roiComHolding && (
+                  <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#92400E', borderTop: '1px solid #FDE68A', paddingTop: 4 }}>
+                    <span>ROI c/ holding</span>
+                    <span style={{ fontWeight: 700, color: roiComHolding.roi >= 0 ? '#065F46' : '#991B1B' }}>
+                      {roiComHolding.roi > 0 ? '+' : ''}{roiComHolding.roi}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            {roi.locacao && (
+              <div style={{ marginTop: 10, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '8px 12px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#065F46', marginBottom: 4 }}>🏠 Locação</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#064E3B' }}>
+                  <span>Aluguel {fmt(roi.locacao.aluguelMensal)}/mês</span>
+                  <span>Yield {roi.locacao.yieldAnual}% a.a.</span>
+                  <span>Payback {Math.round(roi.locacao.paybackMeses / 12)} anos</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

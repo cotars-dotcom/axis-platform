@@ -5,7 +5,7 @@
 import { C } from '../appConstants.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 import { CUSTO_M2_SINAPI, FATOR_VALORIZACAO, detectarClasse, avaliarViabilidadeReforma } from '../lib/reformaUnificada.js'
-import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO } from '../lib/constants.js'
+import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO, calcularCustoHolding } from '../lib/constants.js'
 
 const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 const pct = v => v != null ? `${Number(v).toFixed(1)}%` : '—'
@@ -37,6 +37,19 @@ function gerarHTML(p) {
     return { label, custo, custoM2, valorizacao: Math.round((fv - 1) * 100),
       recomendacao: v?.recomendacao || '', roiFlip: v?.roiFlip || 0, eficiencia: v?.eficiencia || 0 }
   })
+
+  // Holding cost (4 meses padrão)
+  const holding = calcularCustoHolding(
+    parseFloat(p.condominio_mensal) || 0,
+    4,
+    p.iptu_mensal ? parseFloat(p.iptu_mensal) : null
+  )
+  const precoBaseAq = parseFloat(p.preco_pedido || p.valor_minimo) || 0
+  const custosAq = calcularCustosAquisicao(precoBaseAq, eMercado)
+  const investimentoComHolding = custosAq.total + holding.total + (parseFloat(p.custo_reforma_estimado || p.custo_reforma_calculado) || 0)
+  const roiComHolding = investimentoComHolding > 0 && valorMercado > 0
+    ? (((valorMercado - investimentoComHolding) / investimentoComHolding) * 100).toFixed(1)
+    : null
 
   // Scores
   const scores = [
@@ -247,6 +260,32 @@ ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;marg
       ).join('')}
     </div>
   </div>
+
+  <!-- Holding cost -->
+  ${holding.porMes > 0 ? `
+  <div class="card" style="margin-bottom:14px;background:#FFFBEB;border-color:#FDE68A">
+    <div class="card-t" style="color:#92400E">🏗️ Custo de Holding (4 meses estimado)</div>
+    <div class="row">
+      <span class="row-l">Condomínio mensal</span>
+      <span class="row-v">${fmt(holding.condominio)}/mês</span>
+    </div>
+    <div class="row">
+      <span class="row-l">IPTU estimado (35% cond.)</span>
+      <span class="row-v">${fmt(holding.iptuMensal)}/mês</span>
+    </div>
+    <div class="row">
+      <span class="row-l">Custo mensal total</span>
+      <span class="row-v">${fmt(holding.porMes)}/mês</span>
+    </div>
+    <div class="row" style="font-weight:700">
+      <span class="row-l">Holding 4 meses</span>
+      <span class="row-v amber">${fmt(holding.total)}</span>
+    </div>
+    ${roiComHolding !== null ? `<div class="row">
+      <span class="row-l">ROI c/ holding incluso</span>
+      <span class="row-v" style="color:${parseFloat(roiComHolding)>=0?'#065F46':'#991B1B'}">${parseFloat(roiComHolding)>=0?'+':''}${roiComHolding}%</span>
+    </div>` : ''}
+  </div>` : ''}
 
   <!-- Síntese -->
   ${p.sintese_executiva ? `
