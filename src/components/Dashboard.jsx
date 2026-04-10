@@ -318,22 +318,22 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
 
   return <div style={{background:C.bg,minHeight:"100%"}}>
     <AxisHeader profile={prof} imoveis={props} onNav={onNav} isPhone={isPhone} isMobile={isMobile}/>
-    <div style={{padding:isPhone?"20px 16px":"28px 32px",display:"flex",flexDirection:"column",gap:20}}>
+    <div style={{padding:isPhone?"16px 14px":"28px 32px",display:"flex",flexDirection:"column",gap:isPhone?14:20}}>
       {/* Linha 1: 3 colunas — Patrimônio | Valorização | Alertas */}
-      <div style={{display:"grid",gridTemplateColumns:isPhone?"1fr":isMobile?"repeat(2,1fr)":"1fr 1fr 1fr",gap:18}}>
+      <div style={{display:"grid",gridTemplateColumns:isPhone?"1fr":isMobile?"repeat(2,1fr)":"1fr 1fr 1fr",gap:isPhone?12:18}}>
         {/* Card 1 — Patrimônio Monitorado (verde escuro) */}
         <div style={{
-          background:"#064E3B",borderRadius:14,padding:"22px 24px",
+          background:"#064E3B",borderRadius:14,padding:isPhone?"16px 18px":"22px 24px",
           position:"relative",overflow:"hidden",
           boxShadow:"0 4px 20px rgba(5,168,109,0.25)",
         }}>
-          <p style={{margin:"0 0 8px",fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"0.8px"}}>
+          <p style={{margin:"0 0 6px",fontSize:isPhone?10:11,fontWeight:600,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"0.8px"}}>
             Patrimônio Monitorado
           </p>
-          <p style={{margin:"0 0 4px",fontSize:36,fontWeight:800,color:"#FFFFFF",letterSpacing:"-1.5px",lineHeight:1}}>
+          <p style={{margin:"0 0 2px",fontSize:isPhone?28:36,fontWeight:800,color:"#FFFFFF",letterSpacing:"-1.5px",lineHeight:1}}>
             {fmtM(totalValor)}
           </p>
-          <p style={{margin:"8px 0 0",fontSize:13,color:"rgba(255,255,255,0.65)"}}>
+          <p style={{margin:"4px 0 0",fontSize:isPhone?11:13,color:"rgba(255,255,255,0.65)"}}>
             {total} ativo{total!==1?"s":""} sob gestão
           </p>
           <div style={{position:"absolute",bottom:16,right:20}}>
@@ -343,19 +343,19 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
         {/* Card 2 — Score Médio */}
         <div style={{
           background:C.white,border:`1px solid ${C.borderW}`,
-          borderRadius:14,padding:"22px 24px",
+          borderRadius:14,padding:isPhone?"16px 18px":"22px 24px",
           boxShadow:"0 2px 12px rgba(0,43,128,0.06)",
         }}>
-          <p style={{margin:"0 0 8px",fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>
+          <p style={{margin:"0 0 6px",fontSize:isPhone?10:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>
             Score Médio AXIS
           </p>
-          <p style={{margin:"0 0 4px",fontSize:38,fontWeight:800,color:C.emerald,letterSpacing:"-1.5px",lineHeight:1}}>
+          <p style={{margin:"0 0 2px",fontSize:isPhone?30:38,fontWeight:800,color:C.emerald,letterSpacing:"-1.5px",lineHeight:1}}>
             {avg}/10
           </p>
-          <p style={{margin:"4px 0 0",fontSize:12.5,color:C.muted}}>Média da carteira ativa</p>
+          <p style={{margin:"2px 0 0",fontSize:isPhone?11:12.5,color:C.muted}}>Média da carteira ativa</p>
           <div style={{
-            marginTop:14,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,
-            paddingTop:12,borderTop:`1px solid ${C.borderW}`,
+            marginTop:isPhone?10:14,display:"flex",gap:12,
+            paddingTop:isPhone?8:12,borderTop:`1px solid ${C.borderW}`,
           }}>
             <div>
               <p style={{margin:0,fontSize:10,color:C.hint,whiteSpace:"nowrap"}}>Para comprar</p>
@@ -372,10 +372,10 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
         {/* Card 3 — Alertas / Destaque */}
         <div style={{
           background:C.white,border:`1px solid ${C.borderW}`,
-          borderRadius:14,padding:"22px 24px",
+          borderRadius:14,padding:isPhone?"16px 18px":"22px 24px",
           boxShadow:"0 2px 12px rgba(0,43,128,0.06)",
         }}>
-          <p style={{margin:"0 0 10px",fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>
+          <p style={{margin:"0 0 8px",fontSize:isPhone?10:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>
             Alertas e Destaques
           </p>
           {topAlerta?<>
@@ -412,9 +412,9 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
       {/* Linha 2: Oportunidades Ativas */}
       <div style={{
         background:C.white,border:`1px solid ${C.borderW}`,
-        borderRadius:14,padding:"20px 24px",
+        borderRadius:14,padding:isPhone?"16px 18px":"20px 24px",
         display:"flex",alignItems:"center",justifyContent:"space-between",
-        flexDirection:isPhone?"column":"row",
+        flexDirection:isPhone?"column":"row",gap:isPhone?12:0,
         boxShadow:"0 2px 12px rgba(0,43,128,0.06)",
       }}>
         <div>
