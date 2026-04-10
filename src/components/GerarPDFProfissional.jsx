@@ -4,7 +4,7 @@
  * Páginas: Capa | Resumo Executivo | Investimento | Jurídico | Mercado | Fotos
  */
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 import { calcularBreakdownFinanceiro, calcularROI, HOLDING_MESES_PADRAO, IPTU_SOBRE_CONDO_RATIO } from '../lib/constants.js'
 import { CUSTO_M2_SINAPI, FATOR_VALORIZACAO, detectarClasse, avaliarViabilidadeReforma } from '../lib/reformaUnificada.js'
@@ -79,6 +79,14 @@ function recBadgeColors(rec) {
 // ══════════════════════════════════════════════════════════════════
 export async function gerarPDFProfissional(p, onProgress = () => {}) {
   const doc = new jsPDF('p', 'mm', 'a4') // 210 × 297mm
+  let lastTableY = 0
+  let lastTableResult = null
+  const table = (opts) => {
+    const r = autoTable(doc, opts)
+    lastTableY = r?.finalY ?? (doc.lastAutoTable?.finalY ?? lastTableY)
+    lastTableResult = r
+    return r
+  }
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
   const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 0
   const lance = parseFloat(p.preco_pedido || p.valor_minimo) || 0
@@ -367,7 +375,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   if (holdingTotal > 0) breakdownRows.push([`Holding (${HOLDING_MESES_PADRAO}m × ${fmt(holdingMensal)}/mês)`, fmt(holdingTotal)])
   breakdownRows.push([{ content: 'INVESTIMENTO TOTAL', styles: { fontStyle: 'bold', textColor: NAVY } }, { content: fmt(bd.investimentoTotal + holdingTotal), styles: { fontStyle: 'bold', textColor: NAVY } }])
 
-  doc.autoTable({
+  table({
     startY: yPos,
     head: [],
     body: breakdownRows,
@@ -386,12 +394,12 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   doc.text('Cenários de Saída', 110, exitStartY)
 
   const exitRows = [
-    ['📈 Otimista (+15%)', fmt(roi.cenarios?.otimista?.valor), `${roi.cenarios?.otimista?.roi > 0 ? '+' : ''}${roi.cenarios?.otimista?.roi}%`],
-    ['📊 Realista', fmt(roi.cenarios?.realista?.valor), `${roi.cenarios?.realista?.roi > 0 ? '+' : ''}${roi.cenarios?.realista?.roi}%`],
-    ['⚡ Venda rápida (-10%)', fmt(roi.cenarios?.vendaRapida?.valor), `${roi.cenarios?.vendaRapida?.roi > 0 ? '+' : ''}${roi.cenarios?.vendaRapida?.roi}%`],
+    ['Otimista (+15%)', fmt(roi.cenarios?.otimista?.valor), `${roi.cenarios?.otimista?.roi > 0 ? '+' : ''}${roi.cenarios?.otimista?.roi}%`],
+    ['Realista', fmt(roi.cenarios?.realista?.valor), `${roi.cenarios?.realista?.roi > 0 ? '+' : ''}${roi.cenarios?.realista?.roi}%`],
+    ['Venda rápida (-10%)', fmt(roi.cenarios?.vendaRapida?.valor), `${roi.cenarios?.vendaRapida?.roi > 0 ? '+' : ''}${roi.cenarios?.vendaRapida?.roi}%`],
   ]
 
-  doc.autoTable({
+  table({
     startY: exitStartY + 3,
     head: [['Cenário', 'Valor', 'ROI']],
     body: exitRows,
@@ -404,7 +412,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
 
   // Locação
   if (roi.locacao) {
-    const locY = doc.lastAutoTable.finalY + 5
+    const locY = lastTableY + 5
     doc.setFillColor(240, 253, 244)
     doc.roundedRect(110, locY, 85, 18, 2, 2, 'F')
     doc.setFontSize(7)
@@ -417,7 +425,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   }
 
   // Cenários de reforma
-  yPos = Math.max(doc.lastAutoTable.finalY + 15, (roi.locacao ? doc.lastAutoTable.finalY + 30 : doc.lastAutoTable.finalY + 10))
+  yPos = Math.max(lastTableY + 15, (roi.locacao ? lastTableY + 30 : lastTableY + 10))
   doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...NAVY)
@@ -431,7 +439,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
     return [r.label, fmt(r.custo), `R$ ${r.custoM2}/m²`, `+${r.valorizacao}%`, fmt(custoTotal), fmt(valorPos), `${roiRef > 0 ? '+' : ''}${roiRef}%`]
   })
 
-  doc.autoTable({
+  table({
     startY: yPos,
     head: [['Cenário', 'Custo', 'R$/m²', 'Valoriz.', 'Invest. Total', 'Valor Pós', 'ROI']],
     body: reformaRows,
@@ -464,7 +472,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
     p.matricula_status && ['Matrícula', p.matricula_status],
     p.ocupacao && ['Ocupação', p.ocupacao],
     p.ocupacao_fonte && ['Fonte ocupação', p.ocupacao_fonte],
-    ['Responsab. débitos', p.responsabilidade_debitos === 'sub_rogado' ? '✅ Sub-rogados no preço' : p.responsabilidade_debitos === 'exonerado' ? '✅ Arrematante exonerado' : p.responsabilidade_debitos === 'arrematante' ? '⚠️ Arrematante arca' : p.responsabilidade_debitos || '—'],
+    ['Responsab. débitos', p.responsabilidade_debitos === 'sub_rogado' ? '[OK] Sub-rogados no preço' : p.responsabilidade_debitos === 'exonerado' ? '[OK] Arrematante exonerado' : p.responsabilidade_debitos === 'arrematante' ? '[!] Arrematante arca' : p.responsabilidade_debitos || '—'],
     p.responsabilidade_fonte && ['Fonte', p.responsabilidade_fonte],
     p.debitos_condominio && ['Déb. condomínio', p.debitos_condominio],
     p.debitos_iptu && ['Déb. IPTU', p.debitos_iptu],
@@ -472,7 +480,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
     ['Pagamento', p.parcelamento_aceito ? 'Parcelamento aceito' : 'Exclusivamente à vista'],
   ].filter(Boolean)
 
-  doc.autoTable({
+  table({
     startY: yPos,
     head: [],
     body: juridRows.map(([l, v]) => {
@@ -488,7 +496,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
     margin: { left: 15, right: 15 },
   })
 
-  yPos = doc.lastAutoTable.finalY + 8
+  yPos = lastTableY + 8
 
   // Observações jurídicas
   if (p.obs_juridicas && yPos < 240) {
@@ -533,7 +541,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
     ['Liquidez', p.liquidez || '—'],
   ]
 
-  doc.autoTable({
+  table({
     startY: yPos,
     head: [['Indicador', 'Valor']],
     body: mercRows,
@@ -560,7 +568,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
       db.tendencia12m != null && ['Tendência 12m', `${db.tendencia12m}%`],
     ].filter(Boolean)
 
-    doc.autoTable({
+    table({
       startY: yPos + 3,
       head: [],
       body: axisRows,
@@ -572,7 +580,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
     })
   }
 
-  yPos = doc.lastAutoTable.finalY + 10
+  yPos = lastTableY + 10
 
   // Comparáveis
   if (p.comparaveis?.length > 0 && yPos < 220) {
@@ -590,7 +598,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
       c.preco_m2 ? `R$ ${Math.round(c.preco_m2).toLocaleString('pt-BR')}` : '—',
     ])
 
-    doc.autoTable({
+    table({
       startY: yPos,
       head: [['Endereço', 'Área', 'Q', 'Preço', 'R$/m²']],
       body: compRows,
@@ -602,7 +610,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   }
 
   // Aluguel por cenário
-  yPos = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : yPos + 5
+  yPos = lastTableResult ? lastTableY + 10 : yPos + 5
   if (aluguel > 0 && yPos < 250) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
@@ -618,7 +626,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
       return [label, fmt(alug) + '/mês', `${yieldB}%`]
     })
 
-    doc.autoTable({
+    table({
       startY: yPos,
       head: [['Cenário', 'Aluguel', 'Yield']],
       body: alugCenarios,
