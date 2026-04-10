@@ -289,46 +289,74 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   }
   foot(doc, p, 3, totalPg)
 
-  // ============ PAGINA 4 — CENARIOS DE REFORMA ============
-  onProgress('Cenarios de reforma...')
+  // ============ PAGINA 4 — MATRIZ UNIFICADA DE INVESTIMENTO ============
+  onProgress('Matriz de investimento...')
   doc.addPage(); y = 15
-  y = secH(doc, y, 'Cenarios de Reforma (SINAPI-MG 2026)')
+  y = secH(doc, y, 'Matriz Unificada de Investimento')
 
-  // Contexto
   doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.textL)
-  doc.text(`Classe mercado: ${classe || '--'}  |  Area: ${area}m2  |  Escopo recomendado: ${p.escopo_reforma || '--'}`, 15, y); y += 6
+  doc.text(`Classe: ${classe || '--'}  |  Area: ${area}m2  |  Escopo IA: ${p.escopo_reforma || '--'}  |  Holding: ${HOLDING_MESES_PADRAO} meses`, 15, y); y += 6
 
-  // Tabela detalhada
-  const rfRows = reformas.map(r => {
-    const ct = lance + bd.totalCustos + r.custo + holdingTotal
-    const vp = Math.round(mercado * (1 + r.valorizacao / 100))
-    const lucro = vp - ct
-    const roiR = ct > 0 ? ((vp - ct) / ct * 100).toFixed(1) : '0'
-    const alugRef = Math.round(aluguel * (r.label.includes('Basica') ? 1.0 : r.label.includes('Media') ? 1.08 : 1.20))
-    const yieldRef = ct > 0 ? ((alugRef * 12) / ct * 100).toFixed(1) : '--'
-    return [r.label, fmt(r.custo), `R$ ${r.custoM2}/m2`, `+${r.valorizacao}%`, fmt(ct), fmt(vp), `${lucro >= 0 ? '+' : ''}${fmt(lucro)}`, `${parseFloat(roiR) > 0 ? '+' : ''}${roiR}%`]
-  })
-  tbl({ startY: y, head: [['Cenario', 'Custo Ref.', 'R$/m2', 'Valoriz.', 'Invest. Total', 'Valor Pos', 'Lucro', 'ROI']], body: rfRows, theme: 'grid', styles: { fontSize: 6.5, cellPadding: 2 }, headStyles: { fillColor: C.navy, textColor: C.white, fontSize: 6 }, alternateRowStyles: { fillColor: C.bg }, margin: { left: 15, right: 15 } })
+  // Matriz: linhas = métricas, colunas = cenários
+  const fatores = [0.90, 1.00, 1.08, 1.20]
+  const cenLabels = ['Sem Reforma', 'Basica', 'Media', 'Completa']
+  const custoRef = [0, reformas[0]?.custo || 0, reformas[1]?.custo || 0, reformas[2]?.custo || 0]
+  const valoriz = [0, reformas[0]?.valorizacao || 0, reformas[1]?.valorizacao || 0, reformas[2]?.valorizacao || 0]
+
+  const matrizRows = []
+  // Custo reforma
+  matrizRows.push([{ content: 'Custo Reforma', styles: { fontStyle: 'bold' } }, ...custoRef.map(c => fmt(c))])
+  // Invest total
+  const invests = custoRef.map(c => lance + bd.totalCustos + c + holdingTotal)
+  matrizRows.push([{ content: 'Investimento Total', styles: { fontStyle: 'bold' } }, ...invests.map(v => fmt(v))])
+  // Valor pos reforma
+  const valoresPos = valoriz.map(v => Math.round(mercado * (1 + v / 100)))
+  matrizRows.push([{ content: 'Valor Pos-Reforma', styles: { fontStyle: 'bold' } }, ...valoresPos.map(v => fmt(v))])
+  // Lucro flip
+  const lucros = invests.map((inv, i) => valoresPos[i] - inv)
+  matrizRows.push([{ content: 'Lucro (Flip)', styles: { fontStyle: 'bold' } }, ...lucros.map(l => ({ content: `${l >= 0 ? '+' : ''}${fmt(l)}`, styles: { textColor: l >= 0 ? C.green : C.red } }))])
+  // ROI flip
+  const rois = invests.map((inv, i) => inv > 0 ? ((valoresPos[i] - inv) / inv * 100).toFixed(1) : '0')
+  matrizRows.push([{ content: 'ROI Flip', styles: { fontStyle: 'bold' } }, ...rois.map(r => ({ content: `${parseFloat(r) > 0 ? '+' : ''}${r}%`, styles: { textColor: parseFloat(r) >= 10 ? C.green : parseFloat(r) >= 0 ? C.amber : C.red, fontStyle: 'bold' } }))])
+  // Separador
+  matrizRows.push([{ content: 'LOCACAO', styles: { fontStyle: 'bold', textColor: C.navy }, colSpan: 5 }])
+  // Aluguel
+  const alugs = fatores.map(f => Math.round(aluguel * f))
+  matrizRows.push([{ content: 'Aluguel Mensal', styles: { fontStyle: 'bold' } }, ...alugs.map(a => `${fmt(a)}/mes`)])
+  // Yield
+  matrizRows.push([{ content: 'Yield Bruto', styles: { fontStyle: 'bold' } }, ...alugs.map((a, i) => invests[i] > 0 ? `${((a * 12) / invests[i] * 100).toFixed(1)}%` : '--')])
+  // Payback
+  matrizRows.push([{ content: 'Payback', styles: { fontStyle: 'bold' } }, ...alugs.map((a, i) => a > 0 ? `${Math.round(invests[i] / (a * 12))} anos` : '--')])
+
+  tbl({ startY: y, head: [['', ...cenLabels]], body: matrizRows, theme: 'grid', styles: { fontSize: 7, cellPadding: 2.5 }, headStyles: { fillColor: C.navy, textColor: C.white, fontSize: 7 }, alternateRowStyles: { fillColor: C.bg }, columnStyles: { 0: { cellWidth: 38 } }, margin: { left: 15, right: 15 } })
   y = lastY + 8
 
-  // Aluguel por cenario
-  if (aluguel > 0) {
-    y = subH(doc, y, 'Impacto no Aluguel por Cenario de Reforma')
-    tbl({ startY: y, head: [['Cenario', 'Aluguel Estimado', 'Yield Bruto', 'Payback (anos)']], body: [
-      ['Sem reforma', `${fmt(Math.round(aluguel * 0.90))}/mes`, lance > 0 ? `${((Math.round(aluguel * 0.90) * 12) / lance * 100).toFixed(1)}%` : '--', lance > 0 ? Math.round(lance / (Math.round(aluguel * 0.90) * 12)) : '--'],
-      ['Basica (Refresh)', `${fmt(aluguel)}/mes`, lance > 0 ? `${((aluguel * 12) / (lance + (reformas[0]?.custo || 0)) * 100).toFixed(1)}%` : '--', (lance + (reformas[0]?.custo || 0)) > 0 ? Math.round((lance + reformas[0].custo) / (aluguel * 12)) : '--'],
-      ['Media (1 molhada)', `${fmt(Math.round(aluguel * 1.08))}/mes`, lance > 0 ? `${((Math.round(aluguel * 1.08) * 12) / (lance + (reformas[1]?.custo || 0)) * 100).toFixed(1)}%` : '--', (lance + (reformas[1]?.custo || 0)) > 0 ? Math.round((lance + reformas[1].custo) / (Math.round(aluguel * 1.08) * 12)) : '--'],
-      ['Completa (Full)', `${fmt(Math.round(aluguel * 1.20))}/mes`, lance > 0 ? `${((Math.round(aluguel * 1.20) * 12) / (lance + (reformas[2]?.custo || 0)) * 100).toFixed(1)}%` : '--', (lance + (reformas[2]?.custo || 0)) > 0 ? Math.round((lance + reformas[2].custo) / (Math.round(aluguel * 1.20) * 12)) : '--'],
-    ], theme: 'striped', styles: { fontSize: 7, cellPadding: 2.5 }, headStyles: { fillColor: C.green, textColor: C.white, fontSize: 6.5 }, alternateRowStyles: { fillColor: C.greenL }, margin: { left: 15, right: 15 } })
-    y = lastY + 8
+  // Recomendacao
+  if (viab) {
+    y = subH(doc, y, 'Recomendacao')
+    const bestIdx = rois.reduce((bi, r, i) => parseFloat(r) > parseFloat(rois[bi]) ? i : bi, 0)
+    const bestYieldIdx = alugs.reduce((bi, a, i) => {
+      const y1 = invests[i] > 0 ? (a * 12) / invests[i] : 0
+      const y2 = invests[bi] > 0 ? (alugs[bi] * 12) / invests[bi] : 0
+      return y1 > y2 ? i : bi
+    }, 0)
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.text)
+    doc.text(doc.splitTextToSize(`FLIP: Melhor cenario "${cenLabels[bestIdx]}" com ROI de ${rois[bestIdx]}% e lucro de ${fmt(lucros[bestIdx])}. LOCACAO: Melhor yield no cenario "${cenLabels[bestYieldIdx]}" com ${((alugs[bestYieldIdx] * 12) / invests[bestYieldIdx] * 100).toFixed(1)}% a.a. e payback de ${Math.round(invests[bestYieldIdx] / (alugs[bestYieldIdx] * 12))} anos. Escopo IA: ${p.escopo_reforma || '--'}.`, 175), 15, y)
+    y += 16
   }
 
-  // Recomendacao de reforma
-  if (viab) {
-    y = subH(doc, y, 'Recomendacao de Reforma')
-    const best = reformas.reduce((a, b) => (b.roiFlip > a.roiFlip ? b : a), reformas[0])
-    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.text)
-    doc.text(doc.splitTextToSize(`Melhor cenario para flip: ${best.label} (ROI ${best.roiFlip > 0 ? '+' : ''}${best.roiFlip.toFixed(0)}%). Para locacao, a reforma basica oferece o melhor custo-beneficio com menor investimento e yield competitivo. O escopo recomendado pela IA e "${p.escopo_reforma || 'nao definido'}".`, 175), 15, y)
+  // Atributos do predio (se disponíveis)
+  const attrs = ['elevador', 'piscina', 'academia', 'churrasqueira', 'area_lazer', 'portaria_24h']
+  const attrPresent = attrs.filter(a => p[a] != null)
+  if (attrPresent.length > 0) {
+    y = subH(doc, y, 'Atributos do Predio')
+    const attrLabels = { elevador: 'Elevador', piscina: 'Piscina', academia: 'Academia', churrasqueira: 'Churrasqueira', area_lazer: 'Area Lazer', portaria_24h: 'Portaria 24h' }
+    const attrRow = attrPresent.map(a => [attrLabels[a], p[a] ? 'Sim' : 'Nao'])
+    if (p.nome_condominio) attrRow.push(['Condominio', p.nome_condominio])
+    if (p.andar) attrRow.push(['Andar', String(p.andar)])
+    if (p.ano_construcao) attrRow.push(['Ano construcao', String(p.ano_construcao)])
+    if (p.distribuicao_pavimentos) attrRow.push(['Pavimentos', p.distribuicao_pavimentos.substring(0, 80)])
+    tbl({ startY: y, head: [], body: attrRow, theme: 'plain', styles: { fontSize: 7.5, cellPadding: 2, textColor: C.text }, columnStyles: { 0: { cellWidth: 35, fontStyle: 'bold', textColor: C.gray } }, margin: { left: 15, right: 105 }, tableWidth: 90 })
   }
   foot(doc, p, 4, totalPg)
 

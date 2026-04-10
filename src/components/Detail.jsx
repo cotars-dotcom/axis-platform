@@ -11,6 +11,8 @@ const AbaJuridicaAgente = lazy(() => import('./AbaJuridicaAgente.jsx'))
 import { buscarArrematesSimilares, carregarCacheArremates } from '../lib/buscaArrematesGPT.js'
 import PainelLancamento from './PainelLancamento.jsx'
 import PainelInvestimento from './PainelInvestimento.jsx'
+import AtributosPredio from './AtributosPredio.jsx'
+import SimuladorLance from './SimuladorLance.jsx'
 import TimelineMatricula from './TimelineMatricula.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
@@ -1413,6 +1415,10 @@ for (const s of SCORES) {
         {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && <PainelLancamento imovel={p}/>}
         {/* Sprint 11: Breakdown financeiro + ROI + Preditor de Concorrência */}
         <PainelInvestimento imovel={p} />
+        {/* Sprint 16: Simulador de Lance Interativo */}
+        <SimuladorLance p={p} isPhone={isPhone} />
+        {/* Sprint 16: Atributos do Prédio */}
+        <AtributosPredio p={p} />
         {/* Sprint 12.2: Timeline da Matrícula */}
         <TimelineMatricula imovel={p} />
         {/* Mercado direto: badge de oportunidade */}
