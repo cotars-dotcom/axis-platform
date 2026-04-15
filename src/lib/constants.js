@@ -5,6 +5,16 @@
  * Qualquer alteração aqui propaga para todo o sistema.
  */
 
+// ─── GUARD: parseFloat seguro (evita NaN propagando em cálculos) ─────
+export const safeFloat = (v, def = 0) => {
+  const n = parseFloat(v)
+  return (isNaN(n) || !isFinite(n)) ? def : n
+}
+/** Clamp score no intervalo 0-10 */
+export const clampScore = (v) => Math.max(0, Math.min(10, safeFloat(v, 0)))
+/** Clamp percentual no intervalo razoável (-100% a 999%) */
+const clampPct = (v) => Math.max(-100, Math.min(999, safeFloat(v, 0)))
+
 // ─── PESOS DO SCORE 6D (soma = 1.00) ────────────────────────────
 export const SCORE_PESOS = {
   localizacao: 0.20,
@@ -79,18 +89,19 @@ export const CUSTO_POR_TOKEN = {
 // ─── HELPER: calcular score total ────────────────────────────────
 export function calcularScoreTotal(scores) {
   return parseFloat((
-    (scores.score_localizacao || 0) * SCORE_PESOS.localizacao +
-    (scores.score_desconto    || 0) * SCORE_PESOS.desconto +
-    (scores.score_juridico    || 0) * SCORE_PESOS.juridico +
-    (scores.score_ocupacao    || 0) * SCORE_PESOS.ocupacao +
-    (scores.score_liquidez    || 0) * SCORE_PESOS.liquidez +
-    (scores.score_mercado     || 0) * SCORE_PESOS.mercado
+    clampScore(scores.score_localizacao) * SCORE_PESOS.localizacao +
+    clampScore(scores.score_desconto)    * SCORE_PESOS.desconto +
+    clampScore(scores.score_juridico)    * SCORE_PESOS.juridico +
+    clampScore(scores.score_ocupacao)    * SCORE_PESOS.ocupacao +
+    clampScore(scores.score_liquidez)    * SCORE_PESOS.liquidez +
+    clampScore(scores.score_mercado)     * SCORE_PESOS.mercado
   ).toFixed(2))
 }
 
 // ─── HELPER: calcular custos de aquisição ────────────────────────
 export function calcularCustosAquisicao(precoBase, isMercado, overrides = {}) {
-  if (!precoBase || precoBase <= 0) return { precoBase: 0, comissao: 0, itbi: 0, advogado: 0, documentacao: 0, registro: 0, total: 0, percentual_total: '0', invalido: true }
+  const pb = safeFloat(precoBase)
+  if (pb <= 0) return { precoBase: 0, comissao: 0, itbi: 0, advogado: 0, documentacao: 0, registro: 0, total: 0, percentual_total: '0', invalido: true }
   const tabela = isMercado ? CUSTOS_MERCADO : CUSTOS_LEILAO
   // Filtrar overrides nulos/undefined para não sobrescrever defaults com NaN
   const cleanOverrides = Object.fromEntries(

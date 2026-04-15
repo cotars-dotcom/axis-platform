@@ -263,34 +263,37 @@ async function chamarGeminiModelo(prompt, geminiKey, modelo) {
   return JSON.parse(jsonMatch[0])
 }
 
-// Cascata de modelos Gemini: 2.0-flash → 1.5-flash → 1.5-pro
+// Cascata de modelos Gemini com retry limitado + backoff exponencial
 async function chamarGemini(prompt, geminiKey) {
-  // Cascade expandida: tenta variantes de nome do modelo
-  // Cascata centralizada de constants.js
   const MODELOS = [...MODELOS_GEMINI]
+  const MAX_RETRIES_429 = 3
   let ultimoErro = null
-  let tentativas = 0
-  for (const modelo of MODELOS) {
+  let retries429 = 0
+  
+  for (let i = 0; i < MODELOS.length; i++) {
+    const modelo = MODELOS[i]
     try {
-      tentativas++
       const resultado = await chamarGeminiModelo(prompt, geminiKey, modelo)
-      
       return { resultado, modeloUsado: modelo }
     } catch(e) {
       console.warn('[AXIS Gemini] Falhou com', modelo, ':', e.message.substring(0, 100))
       ultimoErro = e
       const msg = e.message || ''
-      // Se chave inválida, não tentar outros modelos
+      // Chave inválida → abortar
       if (msg.includes('API_KEY_INVALID') || msg.includes('401') || msg.includes('403')) {
         ultimoErro = new Error('Chave Gemini inválida — verifique em Admin > API Keys')
         break
       }
-      // Se 429 rate limit, esperar e tentar o mesmo modelo
-      if (msg.includes('429')) {
-        await new Promise(r => setTimeout(r, 2000))
+      // 429 rate limit → backoff exponencial com limite
+      if (msg.includes('429') && retries429 < MAX_RETRIES_429) {
+        retries429++
+        const delay = Math.min(2000 * Math.pow(2, retries429 - 1), 16000) // 2s, 4s, 8s (max 16s)
+        console.warn(`[AXIS Gemini] 429 rate limit, retry ${retries429}/${MAX_RETRIES_429} em ${delay}ms`)
+        await new Promise(r => setTimeout(r, delay))
+        i-- // Re-tentar o mesmo modelo
         continue
       }
-      // Se 404 (modelo não existe), tentar o próximo
+      // 404 (modelo não existe) → próximo modelo
       if (msg.includes('404')) continue
     }
   }

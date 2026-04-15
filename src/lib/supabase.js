@@ -14,6 +14,11 @@ async function cachedQuery(key, queryFn) {
   _cache[key] = { data, ts: now }
   return data
 }
+/** Invalidar cache por prefixo ou tudo */
+export function invalidarCache(prefixo = null) {
+  if (!prefixo) { Object.keys(_cache).forEach(k => delete _cache[k]); return }
+  Object.keys(_cache).filter(k => k.startsWith(prefixo)).forEach(k => delete _cache[k])
+}
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -99,6 +104,7 @@ export async function saveImovel(imovel, userId) {
     .upsert({ ...imovel, criado_por: userId, atualizado_em: new Date().toISOString() })
     .select().single()
   if (error) throw error
+  invalidarCache('imoveis')
   return data
 }
 
@@ -315,12 +321,14 @@ if (atual.comparaveis?.length > 2) {
     console.error('[AXIS Supabase] ERRO ao salvar:', error.code, error.message, error.details)
     throw error
   }
+  invalidarCache('imoveis')
   return data
 }
 
 export async function deleteImovel(id) {
   const { error } = await supabase.from('imoveis').delete().eq('id', id)
   if (error) throw error
+  invalidarCache('imoveis')
 }
 
 export async function getJurimetriaVara() {
