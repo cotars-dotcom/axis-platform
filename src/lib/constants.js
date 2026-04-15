@@ -26,33 +26,35 @@ export const SCORE_PESOS = {
 }
 
 // ─── CUSTOS PERCENTUAIS — LEILÃO ─────────────────────────────────
+// Validados: STJ (comissão 5%), Lei 5.492/1988 BH (ITBI 3%),
+// OAB-MG/mercado (advogado 5%), TJ-MG Portaria 8.366/2025 (doc ~2.5%)
 export const CUSTOS_LEILAO = {
-  comissao_leiloeiro_pct: 5.0,     // % sobre lance
-  itbi_pct:               3.0,     // % BH desde 2024
-  advogado_pct:           2.0,     // % honorários
-  documentacao_pct:       0.5,     // % cartório/registro
-  registro_fixo:          1500,    // R$ fixo
-  corretagem_venda_pct:   6.0,     // % sobre preço de venda
-  irpf_ganho_capital_pct: 15.0,    // % sobre ganho
+  comissao_leiloeiro_pct: 5.0,     // % sobre lance — STJ mín 5% (Decreto 21.981/1932)
+  itbi_pct:               3.0,     // % BH — Lei Municipal 5.492/1988 (art. 8º)
+  advogado_pct:           5.0,     // % honorários — OAB-MG tabela + mercado BH (5-6%)
+  documentacao_pct:       2.5,     // % cartório — emolumentos CRI-MG + TFJ + custas judiciais
+  registro_fixo:          0,       // R$ (absorvido no % acima)
+  corretagem_venda_pct:   6.0,     // % sobre preço de venda (revenda)
+  irpf_ganho_capital_pct: 15.0,    // % sobre ganho — Lei 8.981/1995
 }
 
 // ─── CUSTOS PERCENTUAIS — MERCADO DIRETO ─────────────────────────
 export const CUSTOS_MERCADO = {
   comissao_leiloeiro_pct: 0.0,     // sem leiloeiro
-  itbi_pct:               3.0,     // % BH
-  advogado_pct:           0.0,     // sem necessidade
-  documentacao_pct:       0.5,     // % cartório/registro
-  registro_fixo:          1500,    // R$ fixo
+  itbi_pct:               3.0,     // % BH — Lei Municipal 5.492/1988
+  advogado_pct:           0.0,     // sem necessidade (compra direta)
+  documentacao_pct:       1.5,     // % cartório — escritura + registro (sem custas judiciais)
+  registro_fixo:          0,       // R$ (absorvido no % acima)
   corretagem_venda_pct:   6.0,     // % sobre preço de venda
   irpf_ganho_capital_pct: 15.0,    // % sobre ganho
 }
 
 // ─── MULTIPLICADOR RÁPIDO PARA ESTIMATIVA CUSTO TOTAL ────────────
-// Mercado: ITBI 3% + doc 0.5% = ~3.5%
-// Leilão:  comissão 5% + ITBI 3% + adv 2% + doc 0.5% = ~10.5%
+// Mercado: ITBI 3% + doc 1.5% = ~4.5%
+// Leilão:  comissão 5% + ITBI 3% + adv 5% + doc 2.5% = ~15.5%
 export const MULT_CUSTO_RAPIDO = {
-  mercado: 0.035,
-  leilao:  0.105,
+  mercado: 0.045,
+  leilao:  0.155,
 }
 
 // ─── MODELOS IA — CASCATA ────────────────────────────────────────
@@ -187,7 +189,7 @@ export function parseJSONResposta(texto) {
 
 // ─── HOLDING COST ───────────────────────────────────────────────────
 export const IPTU_SOBRE_CONDO_RATIO = 0.35   // regra geral BH: IPTU ≈ 35% do condo
-export const HOLDING_MESES_PADRAO = 5
+export const HOLDING_MESES_PADRAO = 6          // prazo médio revenda BH (4-8m, usando 6 conservador)
 
 /** Calcula custo total incluindo aquisição + reforma + holding */
 export function calcularCustoTotal(precoBase, isMercado, reforma = 0, holdingMeses = HOLDING_MESES_PADRAO, condoMensal = 0, iptuMensal = 0) {
@@ -219,7 +221,7 @@ export function calcularBreakdownFinanceiro(lance, imovel = {}, eMercado = false
   
   const comissao = lance * comissaoPct
   const itbi = lance * itbiPct
-  const doc = lance * docPct + (custos.registro_fixo || 1500)
+  const doc = lance * docPct + (custos.registro_fixo ?? 0)
   const advogado = lance * advPct
   const reforma = parseFloat(imovel.custo_reforma_estimado || imovel.custo_reforma_calculado || 0)
   const condoMensal = parseFloat(imovel.condominio_mensal || 0)
@@ -566,7 +568,7 @@ export function calcularLanceMaximoParaROI(roiAlvo, p, opts = {}) {
   const iptuMensal = parseFloat(p.iptu_mensal || 0) || (condoMensal > 0 ? Math.round(condoMensal * IPTU_SOBRE_CONDO_RATIO) : 0)
   const holdingMeses = opts.holdingMeses || HOLDING_MESES_PADRAO
   const holdingTotal = holdingMeses * (condoMensal + iptuMensal)
-  const registroFixo = custos.registro_fixo || 1500
+  const registroFixo = custos.registro_fixo ?? 0
 
   // valorVenda = mercado * 0.94 (- 6% corretagem)
   // investTotal = lance * (1 + pctCustos) + registroFixo + custoReforma + holdingTotal
