@@ -83,6 +83,67 @@ const PADROES_LEILOEIRO = {
       return links
     }
   },
+  // Cravo Leilões — mesma plataforma suporteleiloes.com.br
+  'cravoleiloes.com.br': {
+    extrairLinks: (html, url) => {
+      const links = []
+      const pdfs = html.match(/href=["']([^"']+\.pdf[^"']*)['"]/gi) || []
+      pdfs.forEach(m => {
+        const href = m.replace(/href=["']/i, '').replace(/["']$/, '')
+        const fullUrl = href.startsWith('http') ? href : `https://www.cravoleiloes.com.br${href}`
+        if (!links.find(l => l.url === fullUrl)) {
+          const nome = (href + fullUrl).toLowerCase()
+          const tipo = nome.includes('edital') ? 'edital' : nome.includes('matri') || nome.includes('rgi') ? 'matricula' : 'documento'
+          links.push({ url: fullUrl, tipo, nome: tipo.charAt(0).toUpperCase() + tipo.slice(1) })
+        }
+      })
+      // Storage suporteleiloes
+      const storageLinks = html.match(/https?:\/\/static\.suporteleiloes\.com\.br\/[^\s"'\)\]]+\.pdf/gi) || []
+      storageLinks.forEach(u => {
+        if (!links.find(l => l.url === u)) {
+          const t = u.toLowerCase().includes('edital') ? 'edital' : u.toLowerCase().includes('matri') ? 'matricula' : 'documento'
+          links.push({ url: u, tipo: t, nome: t.charAt(0).toUpperCase() + t.slice(1) })
+        }
+      })
+      // Markdown links
+      const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+(?:\.pdf|storage[^)]+))\)/gi
+      let mdMatch
+      while ((mdMatch = mdRegex.exec(html)) !== null) {
+        const nomeReal = mdMatch[1].replace(/\.pdf$/i, '').trim()
+        const fullUrl = mdMatch[2]
+        if (!links.find(l => l.url === fullUrl)) {
+          const nomeLower = (nomeReal + fullUrl).toLowerCase()
+          const t = nomeLower.includes('edital') ? 'edital' : nomeLower.includes('matri') ? 'matricula' : 'documento'
+          links.push({ url: fullUrl, tipo: t, nome: nomeReal || t })
+        }
+      }
+      return links
+    }
+  },
+  // Alexandre Pedro — mesma plataforma suporteleiloes.com.br
+  'alexandrepedrosaleiloeiro.com.br': {
+    extrairLinks: (html, url) => {
+      const links = []
+      const pdfs = html.match(/href=["']([^"']+\.pdf[^"']*)['"]/gi) || []
+      pdfs.forEach(m => {
+        const href = m.replace(/href=["']/i, '').replace(/["']$/, '')
+        const fullUrl = href.startsWith('http') ? href : `https://www.alexandrepedrosaleiloeiro.com.br${href}`
+        if (!links.find(l => l.url === fullUrl)) {
+          const nome = (href + fullUrl).toLowerCase()
+          const tipo = nome.includes('edital') ? 'edital' : nome.includes('matri') || nome.includes('rgi') ? 'matricula' : 'documento'
+          links.push({ url: fullUrl, tipo, nome: tipo.charAt(0).toUpperCase() + tipo.slice(1) })
+        }
+      })
+      const storageLinks = html.match(/https?:\/\/static\.suporteleiloes\.com\.br\/[^\s"'\)\]]+\.pdf/gi) || []
+      storageLinks.forEach(u => {
+        if (!links.find(l => l.url === u)) {
+          const t = u.toLowerCase().includes('edital') ? 'edital' : u.toLowerCase().includes('matri') ? 'matricula' : 'documento'
+          links.push({ url: u, tipo: t, nome: t.charAt(0).toUpperCase() + t.slice(1) })
+        }
+      })
+      return links
+    }
+  },
   'superbid.net': {
     extrairLinks: (html, url) => {
       const links = []

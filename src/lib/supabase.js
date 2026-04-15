@@ -909,14 +909,40 @@ export async function gerarAxisId(cidade) {
 // ── Verificar imóvel duplicado por URL ────────────────────────────
 export async function verificarImovelDuplicado(url) {
   if (!url) return null
-  const urlNorm = url.trim()
-  const slug = urlNorm.split('/').filter(Boolean).pop() || ''
-  const { data } = await supabase
-    .from('imoveis')
-    .select('id, codigo_axis, titulo, score_total, recomendacao, criado_em, fonte_url')
-    .or(`fonte_url.eq.${urlNorm},fonte_url.ilike.%${slug}%`)
-    .limit(3)
-  return data?.length > 0 ? data : null
+  const urlNorm = url.trim().replace(/\/+$/, '') // Remover trailing slashes
+  
+  // Extrair slug significativo: domínio + item ID (evitar "detalhes", "index" etc)
+  try {
+    const parsed = new URL(urlNorm)
+    const dominio = parsed.hostname.replace('www.', '')
+    // Pegar segmentos numéricos da URL (IDs de lote/item)
+    const segmentos = parsed.pathname.split('/').filter(Boolean)
+    const itemId = segmentos.find(s => /^\d+$/.test(s)) || ''
+    // Slug = domínio + itemId (ex: "cravoleiloes.com.br/10347")
+    const slugSignificativo = itemId ? `${dominio}%${itemId}` : ''
+    
+    // Busca: URL exata OU (mesmo domínio + mesmo item ID)
+    let query = supabase
+      .from('imoveis')
+      .select('id, codigo_axis, titulo, score_total, recomendacao, criado_em, fonte_url')
+    
+    if (slugSignificativo) {
+      query = query.or(`fonte_url.eq.${urlNorm},fonte_url.ilike.%${slugSignificativo}%`)
+    } else {
+      query = query.eq('fonte_url', urlNorm) // Só match exato se não tem ID numérico
+    }
+    
+    const { data } = await query.limit(3)
+    return data?.length > 0 ? data : null
+  } catch {
+    // Fallback: só match exato
+    const { data } = await supabase
+      .from('imoveis')
+      .select('id, codigo_axis, titulo, score_total, recomendacao, criado_em, fonte_url')
+      .eq('fonte_url', urlNorm)
+      .limit(3)
+    return data?.length > 0 ? data : null
+  }
 }
 
 // ── Log de uso de chamadas de API ────────────────────────────────

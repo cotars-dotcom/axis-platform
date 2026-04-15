@@ -26,6 +26,7 @@ const SPA_DOMAINS = [
   'marcoantonioleiloeiro.com.br', 'leiloeiro.com.br',
   'zukerman.com.br', 'santanderimentoleiloes.com.br',
   'superbid.net', 'biditalia.com.br', 'leiloesjudicial.com.br',
+  'cravoleiloes.com.br',
 ]
 
 // Domínios protegidos por Cloudflare — precisam de X-Wait-For-Selector no Jina
@@ -77,7 +78,7 @@ export async function scrapeUrlJina(url) {
   // Usada por: marcoantonioleiloeiro, zukerman e outros. Retorna "var lote = {...}" no HTML.
   const isSuporteLeiloes = [
     'marcoantonioleiloeiro.com.br', 'zukerman.com.br', 'leiloeiro.com.br',
-    'superbid.net', 'biditalia.com.br',
+    'superbid.net', 'biditalia.com.br', 'cravoleiloes.com.br',
   ].some(d => url.toLowerCase().includes(d))
 
   if (isSuporteLeiloes) {
