@@ -229,6 +229,25 @@ ATRIBUTOS DO PRÉDIO — REGRAS CONSERVADORAS (só marcar true quando EXPLICITAM
 }
 
 // ─── CHAMADA GEMINI FLASH-LITE ───────────────────────────────────────────────
+// ─── PROXY-FIRST: tenta Edge Function, fallback para chamada direta ──────
+async function chamarGeminiComProxy(prompt, geminiKey, modelo) {
+  // Tentar proxy server-side primeiro (Sprint 18 — keys protegidas)
+  try {
+    const { geminiViaProxy } = await import('./aiProxy.js')
+    const { texto } = await geminiViaProxy(prompt, modelo, { maxOutputTokens: 8192, timeout: 60000 })
+    if (!texto || texto.length < 10) throw new Error('Proxy: resposta vazia')
+    const clean = texto.replace(/```json|```/g, '').trim()
+    const jsonMatch = clean.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('Proxy: JSON não encontrado')
+    return JSON.parse(jsonMatch[0])
+  } catch (proxyErr) {
+    console.warn('[AXIS] Proxy falhou, fallback direto:', proxyErr.message?.substring(0, 80))
+    // Fallback: chamada direta com key do localStorage
+    if (!geminiKey) throw proxyErr
+    return chamarGeminiModelo(prompt, geminiKey, modelo)
+  }
+}
+
 async function chamarGeminiModelo(prompt, geminiKey, modelo) {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${geminiKey}`,
@@ -273,7 +292,7 @@ async function chamarGemini(prompt, geminiKey) {
   for (let i = 0; i < MODELOS.length; i++) {
     const modelo = MODELOS[i]
     try {
-      const resultado = await chamarGeminiModelo(prompt, geminiKey, modelo)
+      const resultado = await chamarGeminiComProxy(prompt, geminiKey, modelo)
       return { resultado, modeloUsado: modelo }
     } catch(e) {
       console.warn('[AXIS Gemini] Falhou com', modelo, ':', e.message.substring(0, 100))
@@ -735,23 +754,33 @@ export async function analisarComDeepSeek(url, deepseekKey, parametros, onProgre
   const prompt = buildPromptGemini(camposBasicos, textoScrapeado, null, imovelContexto, _dsJurimetria, _dsMetricasBairro, _eMercadoDS)
   
   try {
-    const r = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekKey}` },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 4096,
-        temperature: 0.1
-      }),
-      signal: AbortSignal.timeout(90000)
-    })
-    if (!r.ok) {
-      const body = await r.text().catch(() => '')
-      throw new Error(`DeepSeek ${r.status}: ${body.substring(0, 100)}`)
+    // Tentar proxy server-side primeiro (Sprint 18)
+    let txt = ''
+    try {
+      const { deepseekViaProxy } = await import('./aiProxy.js')
+      txt = await deepseekViaProxy([{ role: 'user', content: prompt }], { maxTokens: 4096, timeout: 90000 })
+    } catch (proxyErr) {
+      console.warn('[AXIS] DeepSeek proxy falhou, fallback direto:', proxyErr.message?.substring(0, 80))
+      // Fallback: chamada direta
+      if (!deepseekKey) throw proxyErr
+      const r = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekKey}` },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 4096,
+          temperature: 0.1
+        }),
+        signal: AbortSignal.timeout(90000)
+      })
+      if (!r.ok) {
+        const body = await r.text().catch(() => '')
+        throw new Error(`DeepSeek ${r.status}: ${body.substring(0, 100)}`)
+      }
+      const data = await r.json()
+      txt = data.choices?.[0]?.message?.content || ''
     }
-    const data = await r.json()
-    const txt = data.choices?.[0]?.message?.content || ''
     const clean = txt.replace(/```json|```/g, '').trim()
     const match = clean.match(/\{[\s\S]*\}/)
     if (!match) throw new Error('DeepSeek JSON inválido')

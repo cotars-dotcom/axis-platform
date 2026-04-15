@@ -135,6 +135,15 @@ export default function AbaDiagnostico({ session, isPhone }) {
       res.claude = { status: keys?.claudeKey ? 'invalido' : 'vazio', detalhe: keys?.claudeKey?.length < 30 ? `Chave truncada (${keys?.claudeKey?.length} chars — esperado ~108)` : undefined }
     }
 
+    // Edge Function Proxy (Sprint 18 — server-side keys)
+    try {
+      const { testarProxy } = await import('../lib/aiProxy.js')
+      const proxyRes = await testarProxy('gemini')
+      res.proxy = proxyRes.ok
+        ? { status:'ok', modelo:'ai-proxy → gemini', latencia: proxyRes.latency, custo:'server-side' }
+        : { status:'erro', detalhe: proxyRes.error?.substring(0, 100) }
+    } catch(e) { res.proxy = { status:'erro', detalhe: `Proxy não disponível: ${e.message?.substring(0,60)}` } }
+
     setResultados(res)
     setTestando(false)
   }
@@ -214,6 +223,7 @@ export default function AbaDiagnostico({ session, isPhone }) {
           { key:'deepseek', nome:'DeepSeek V3 (fallback)', icone:'⚡', k: keys?.deepseekKey },
           { key:'openai', nome:'OpenAI/GPT-4o (mercado)', icone:'🔍', k: keys?.openaiKey },
           { key:'claude', nome:'Claude Sonnet (emergência)', icone:'🔵', k: keys?.claudeKey },
+          { key:'proxy', nome:'Edge Function Proxy (server-side)', icone:'🔒', k: 'ai-proxy' },
         ].map(({ key, nome, icone, k }) => {
           const r = resultados[key]
           const status = r ? r.status : (k ? (k.length > 15 ? 'ok' : 'invalido') : 'vazio')
