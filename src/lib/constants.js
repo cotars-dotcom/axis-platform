@@ -330,24 +330,31 @@ export function calcularPreditorConcorrencia(lanceMinimo, valorMercado, custos, 
  * Referência: NBR 14653-2 (Avaliação de Imóveis Urbanos) — fatores de homogeneização.
  */
 export const FATORES_ATRIBUTOS = {
-  elevador_presente:          { fator: 1.08,  label: 'Elevador',           descricao: 'Prédio com elevador' },
-  elevador_ausente_alto:      { fator: 0.87,  label: 'Sem elevador (>4and)', descricao: 'Sem elevador, prédio >4 andares' },
-  elevador_ausente_baixo:     { fator: 1.00,  label: 'Sem elevador (≤4and)', descricao: 'Sem elevador, prédio ≤4 andares (neutro)' },
-  piscina:                    { fator: 1.05,  label: 'Piscina',            descricao: 'Condomínio com piscina' },
-  area_lazer:                 { fator: 1.03,  label: 'Área de lazer',      descricao: 'Área de lazer completa' },
-  portaria_24h:               { fator: 1.04,  label: 'Portaria 24h',       descricao: 'Portaria 24 horas' },
-  andar_alto:                 { fator: 1.05,  label: 'Andar alto (>8)',     descricao: 'Unidade em andar acima do 8º' },
-  idade_alta:                 { fator: 0.95,  label: 'Idade >30 anos',     descricao: 'Edificação com mais de 30 anos sem reforma relevante' },
-  academia:                   { fator: 1.02,  label: 'Academia',           descricao: 'Condomínio com academia' },
-  churrasqueira:              { fator: 1.01,  label: 'Churrasqueira',      descricao: 'Área de churrasqueira' },
+  // ─── Fatores estruturais (sem saturação) ─────────────────────
+  elevador_presente:          { fator: 1.08,  label: 'Elevador',           descricao: 'Prédio com elevador', grupo: 'estrutural' },
+  elevador_ausente_alto:      { fator: 0.87,  label: 'Sem elevador (>4and)', descricao: 'Sem elevador, prédio >4 andares', grupo: 'estrutural' },
+  elevador_ausente_baixo:     { fator: 1.00,  label: 'Sem elevador (≤4and)', descricao: 'Sem elevador, prédio ≤4 andares (neutro)', grupo: 'estrutural' },
+  portaria_24h:               { fator: 1.04,  label: 'Portaria 24h',       descricao: 'Portaria 24 horas', grupo: 'seguranca' },
+  andar_alto:                 { fator: 1.05,  label: 'Andar alto (>8)',     descricao: 'Unidade em andar acima do 8º', grupo: 'estrutural' },
+  idade_alta:                 { fator: 0.95,  label: 'Idade >30 anos',     descricao: 'Edificação com mais de 30 anos sem reforma relevante', grupo: 'estrutural' },
+  // ─── Fatores de lazer (saturação ×0.80 quando 2+ presentes) ───
+  piscina:                    { fator: 1.05,  label: 'Piscina',            descricao: 'Condomínio com piscina', grupo: 'lazer' },
+  area_lazer:                 { fator: 1.03,  label: 'Área de lazer',      descricao: 'Área de lazer completa', grupo: 'lazer' },
+  academia:                   { fator: 1.02,  label: 'Academia',           descricao: 'Condomínio com academia', grupo: 'lazer' },
+  churrasqueira:              { fator: 1.01,  label: 'Churrasqueira',      descricao: 'Área de churrasqueira', grupo: 'lazer' },
 }
 
+// Fator de saturação para itens de lazer quando 2+ presentes (IBAPE/estudos hedônicos)
+const SATURACAO_LAZER = 0.80
+
 /**
- * Calcula o fator de homogeneização composto e a lista de ajustes aplicados.
- *
- * @param {object} p - Imóvel com campos: elevador, piscina, academia, churrasqueira,
- *                      area_lazer, portaria_24h, andar, total_andares, ano_construcao
- * @returns {{ fator: number, ajustes: Array<{key, label, fator, impactoR$}>, impactoTotal: number }}
+ * Calcula o fator de homogeneização composto (fórmula ADITIVA IBAPE com saturação).
+ * 
+ * Fórmula: Vu = Vo × [1 + Σ(Fi - 1)]
+ * Onde fatores de lazer são multiplicados por 0.80 quando 2+ presentes (saturação).
+ * 
+ * Referências: NBR 14653-2, IBAPE/SP 2011, Lima/COBREAP 2006, Lindenberg/FipeZAP
+ * Teto prático: ~18-22% com todos os atributos presentes
  */
 export function calcularFatorHomogeneizacao(p, valorBase = 0) {
   if (!p) return { fator: 1.0, ajustes: [], impactoTotal: 0 }
@@ -382,20 +389,38 @@ export function calcularFatorHomogeneizacao(p, valorBase = 0) {
   // Idade alta sem reforma relevante
   if (idadeEdif > 30) ajustes.push({ key: 'idade_alta', ...FATORES_ATRIBUTOS.idade_alta })
 
-  // Fator composto (multiplicativo)
-  const fator = ajustes.reduce((acc, a) => acc * a.fator, 1.0)
+  // ─── Fórmula ADITIVA IBAPE com saturação para lazer ─────────
+  // Separar ajustes por grupo: lazer vs não-lazer
+  const ajustesLazer = ajustes.filter(a => a.grupo === 'lazer')
+  const ajustesOutros = ajustes.filter(a => a.grupo !== 'lazer')
+  
+  // Soma dos incrementos (Fi - 1) para não-lazer
+  const somaOutros = ajustesOutros.reduce((acc, a) => acc + (a.fator - 1), 0)
+  
+  // Soma dos incrementos de lazer com saturação
+  const somaLazerBruta = ajustesLazer.reduce((acc, a) => acc + (a.fator - 1), 0)
+  const aplicaSaturacao = ajustesLazer.length >= 2
+  const somaLazer = aplicaSaturacao ? somaLazerBruta * SATURACAO_LAZER : somaLazerBruta
+  
+  // Fórmula aditiva: Vu = Vo × [1 + Σ(Fi - 1)]
+  const fator = 1 + somaOutros + somaLazer
   const fatorArredondado = Math.round(fator * 10000) / 10000
 
   // Impacto em R$ se valor base fornecido
   const valorAjustado = Math.round(valorBase * fatorArredondado)
   const impactoTotal = valorAjustado - Math.round(valorBase)
 
-  // Enriquecer cada ajuste com impacto em R$
-  const ajustesComImpacto = ajustes.map(a => ({
-    ...a,
-    impactoR$: valorBase > 0 ? Math.round(valorBase * (a.fator - 1)) : 0,
-    impactoPct: Math.round((a.fator - 1) * 1000) / 10,
-  }))
+  // Enriquecer cada ajuste com impacto em R$ (com saturação refletida nos de lazer)
+  const ajustesComImpacto = ajustes.map(a => {
+    const incremento = a.fator - 1
+    const incrementoEfetivo = (a.grupo === 'lazer' && aplicaSaturacao) ? incremento * SATURACAO_LAZER : incremento
+    return {
+      ...a,
+      impactoR$: valorBase > 0 ? Math.round(valorBase * incrementoEfetivo) : 0,
+      impactoPct: Math.round(incrementoEfetivo * 1000) / 10,
+      saturado: a.grupo === 'lazer' && aplicaSaturacao,
+    }
+  })
 
   return {
     fator: fatorArredondado,
@@ -403,6 +428,9 @@ export function calcularFatorHomogeneizacao(p, valorBase = 0) {
     impactoTotal,
     valorAjustado,
     qtdAjustes: ajustes.length,
+    saturacaoAplicada: aplicaSaturacao,
+    somaLazerBruta: Math.round(somaLazerBruta * 1000) / 10,
+    somaLazerEfetiva: Math.round(somaLazer * 1000) / 10,
   }
 }
 

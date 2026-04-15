@@ -134,7 +134,9 @@ export default function AtributosPredio({ p }) {
             marginTop: 6, padding: '6px 8px', borderRadius: 6,
             background: homo.fator >= 1 ? '#065F4610' : '#991B1B10',
             border: `1px solid ${homo.fator >= 1 ? '#065F4630' : '#991B1B30'}`}}>
-            <span style={{fontSize: 11, fontWeight: 700, color: C.navy}}>Ajuste composto</span>
+            <span style={{fontSize: 11, fontWeight: 700, color: C.navy}}>
+              Ajuste composto {homo.saturacaoAplicada ? <span style={{fontSize: 9, color: '#7C3AED', fontWeight: 600}}>(saturação lazer ×0.80)</span> : ''}
+            </span>
             <div style={{display: 'flex', gap: 10, alignItems: 'center'}}>
               <span style={{fontWeight: 800, color: fatorCor, fontSize: 12}}>
                 {homo.fator >= 1 ? '+' : ''}{((homo.fator - 1) * 100).toFixed(1)}%
