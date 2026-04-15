@@ -1,23 +1,13 @@
 import { useState, useMemo } from 'react'
 import { C, card } from '../appConstants.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
-import { CUSTOS_LEILAO, CUSTOS_MERCADO } from '../lib/constants.js'
+import { CUSTOS_LEILAO, CUSTOS_MERCADO, calcularFatorHomogeneizacao } from '../lib/constants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 const pct = v => v != null ? `${Number(v).toFixed(1)}%` : '—'
 const GREEN = '#065F46', RED = '#991B1B', GOLD = '#92400E'
-
-// Fatores de homogeneização NBR 14653 (fonte: pesquisa mercado BH 2025-2026)
-const FATORES_ATRIBUTOS = {
-  sem_elevador: 0.85,   // -15% (NBR 14653, validação AXIS: central 0.85, térreo 0.90, andar alto 0.80)
-  sem_piscina:  0.97,   // -3%
-  sem_lazer:    0.95,   // -5%
-  sem_salao:    0.97,   // -3%
-  vaga_0:       0.90,   // sem vaga = -10%
-  vaga_2:       1.05,   // 2ª vaga = +5%
-}
 
 // Probabilidades TRT-3 BH por faixa de desconto (baseado em histórico)
 function probArrematacao(desconto, leilao) {
@@ -234,15 +224,10 @@ export default function PainelRentabilidade({ imovel }) {
   }
   const aluguelAtual = Math.round(aluguelMap[cenarioReforma]) || 3200
 
-  // Calcular fator de homogeneização real
+  // Calcular fator de homogeneização real (centralizado em constants.js - Sprint 17)
   const fatorCalc = useMemo(() => {
-    let f = 1.0
-    if (elevador === false) f *= FATORES_ATRIBUTOS.sem_elevador
-    if (piscina === false)  f *= FATORES_ATRIBUTOS.sem_piscina
-    if (area_lazer === false) f *= FATORES_ATRIBUTOS.sem_lazer
-    if (salao_festas === false) f *= FATORES_ATRIBUTOS.sem_salao
-    if ((vagas || 0) === 0) f *= FATORES_ATRIBUTOS.vaga_0
-    return parseFloat(fator_homogenizacao) || f
+    const homo = calcularFatorHomogeneizacao(imovel)
+    return parseFloat(fator_homogenizacao) || homo.fator
   }, [elevador, piscina, area_lazer, salao_festas, vagas, fator_homogenizacao])
 
   // Cenários de lance — adaptado para leilão ou mercado direto

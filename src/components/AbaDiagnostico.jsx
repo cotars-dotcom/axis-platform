@@ -95,9 +95,12 @@ export default function AbaDiagnostico({ session, isPhone }) {
           signal: AbortSignal.timeout(8000)
         })
         const d = await r.json()
-        if (d.error) res.deepseek = { status:'erro', detalhe: d.error.message?.substring(0,80) }
-        else res.deepseek = { status:'ok', modelo:'deepseek-chat', latencia: Date.now()-t0, custo:'~R$0,05' }
-      } catch(e) { res.deepseek = { status:'erro', detalhe: e.message?.substring(0,60) } }
+        if (!r.ok || d.error) {
+          const errMsg = d.error?.message || d.detail || JSON.stringify(d).substring(0, 120)
+          res.deepseek = { status:'erro', detalhe: `HTTP ${r.status}: ${errMsg}`.substring(0, 120) }
+        }
+        else res.deepseek = { status:'ok', modelo:'deepseek-chat (V3.2)', latencia: Date.now()-t0, custo:'~R$0,05' }
+      } catch(e) { res.deepseek = { status:'erro', detalhe: e.message?.substring(0,80) } }
     } else { res.deepseek = { status:'vazio' } }
 
     // OpenAI
