@@ -26,11 +26,13 @@ export default function SimuladorLance({ p, isPhone = false }) {
   const iptuMensal = parseFloat(p.iptu_mensal || 0) || (condoMensal > 0 ? Math.round(condoMensal * IPTU_SOBRE_CONDO_RATIO) : 0)
   const holdingEstudo = HOLDING_MESES_PADRAO * (condoMensal + iptuMensal)
 
-  const [lanceCustom, setLanceCustom] = useState(lance1p)
+  // Default: 2ª praça para leilão (estudo de oportunidade), preço pedido para mercado
+  const lanceDefault = eMercado ? lance1p : (lance2p > 0 ? lance2p : lance1p)
+  const [lanceCustom, setLanceCustom] = useState(lanceDefault)
   const [custoReformaManual, setCustoReformaManual] = useState(reformaEstudo)
   const [custoExtra, setCustoExtra] = useState(0)
   const [roiAlvo, setRoiAlvo] = useState(15)
-  const [showComparativo, setShowComparativo] = useState(false)
+  const [showComparativo, setShowComparativo] = useState(!eMercado) // auto-abrir comparativo em leilão
 
   const sim = useMemo(() => {
     const bd = calcularBreakdownFinanceiro(lanceCustom, { ...p, custo_reforma_estimado: custoReformaManual }, eMercado)

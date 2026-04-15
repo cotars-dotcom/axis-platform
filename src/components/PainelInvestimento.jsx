@@ -28,11 +28,10 @@ function BarraVisual({ label, valor, total, cor }) {
 
 export default function PainelInvestimento({ imovel }) {
   const [expandido, setExpandido] = useState(false)
-  const [lanceSimulado, setLanceSimulado] = useState(null)
   const [mesesHolding, setMesesHolding] = useState(4)
   const p = imovel
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
-  const lance = lanceSimulado || parseFloat(p.preco_pedido || p.valor_minimo) || 0
+  const lance = parseFloat(p.preco_pedido || p.valor_minimo) || 0
   const mercado = parseFloat(p.valor_mercado_estimado) || 0
 
   if (!lance || !mercado) return null
@@ -81,30 +80,7 @@ export default function PainelInvestimento({ imovel }) {
       </div>
 
       <div style={{ padding: '14px 18px' }}>
-        {/* Simulador de lance — Sprint 12 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: `1px solid ${C.borderW}`, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, whiteSpace: 'nowrap' }}>🎯 Simular lance:</div>
-          <input
-            type="range"
-            min={parseFloat(p.valor_minimo) || lance}
-            max={Math.round(mercado * 1.1)}
-            step={5000}
-            value={lance}
-            onChange={e => setLanceSimulado(Number(e.target.value))}
-            style={{ flex: '1 1 120px', accentColor: '#002B80', cursor: 'pointer' }}
-          />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.navy, minWidth: 95, textAlign: 'right' }}>
-              {fmt(lance)}
-            </span>
-            {lanceSimulado && (
-              <button onClick={() => setLanceSimulado(null)} style={{
-                background: 'none', border: `1px solid ${C.borderW}`, borderRadius: 4,
-                fontSize: 9, padding: '2px 6px', cursor: 'pointer', color: C.muted
-              }}>↩ mín</button>
-            )}
-          </div>
-        </div>
+        {/* Lance fixo — simulação completa fica no SimuladorLance abaixo */}
         {/* Grid principal: Breakdown + Resumo */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 14 }}>
           {/* Coluna esquerda: Breakdown de custos */}
