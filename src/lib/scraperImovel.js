@@ -121,8 +121,6 @@ export async function scrapeUrlJina(url) {
             ].filter(Boolean).join('\n')
             // Preservar dados estruturados no campo auxiliar
             lote._textoRaw = textoLote
-            // Salvar globalmente para o motor usar
-            if (typeof globalThis !== 'undefined') globalThis._suporteLeiloesData = lote
             return textoLote
           } catch (_) { /* JSON parse falhou, continuar com fallback */ }
         }

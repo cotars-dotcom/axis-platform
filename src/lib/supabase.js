@@ -255,12 +255,28 @@ export async function saveImovelCompleto(imovel, userId) {
           // Proteção de scores: não degradar scores bem calibrados com variação > 2.5 pts
           const SCORES_PROTEGIDOS = ['score_localizacao','score_desconto','score_juridico','score_ocupacao','score_liquidez','score_mercado','score_total']
           for (const s of SCORES_PROTEGIDOS) {
+            // Guard: forçar scores no intervalo 0-10
+            if (payload[s] != null) {
+              const v = parseFloat(payload[s])
+              if (isNaN(v) || v < 0 || v > 10) {
+                console.warn('[AXIS] Score fora do intervalo 0-10:', s, '=', payload[s], '→ clamped')
+                payload[s] = Math.max(0, Math.min(10, isNaN(v) ? 0 : v))
+              }
+            }
             if (atual[s] != null && payload[s] != null) {
               const diff = Math.abs(parseFloat(payload[s]) - parseFloat(atual[s]))
               if (diff > 2.5) {
                 console.warn('[AXIS] Score protegido:', s, `${atual[s]} → ${payload[s]} (diff ${diff.toFixed(1)}) — mantendo atual`)
                 payload[s] = atual[s]
               }
+            }
+          }
+          // Guard: desconto_percentual no intervalo 0-100
+          if (payload.desconto_percentual != null) {
+            const dp = parseFloat(payload.desconto_percentual)
+            if (isNaN(dp) || dp < -50 || dp > 100) {
+              console.warn('[AXIS] desconto_percentual fora do intervalo:', dp, '→ clamped')
+              payload.desconto_percentual = Math.max(-50, Math.min(100, isNaN(dp) ? 0 : dp))
             }
           }
           // Proteção de score_total: recalcular com pesos (fonte: constants.js)
