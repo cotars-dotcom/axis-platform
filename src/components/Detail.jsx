@@ -13,6 +13,7 @@ import PainelLancamento from './PainelLancamento.jsx'
 import PainelInvestimento from './PainelInvestimento.jsx'
 import AtributosPredio from './AtributosPredio.jsx'
 import SimuladorLance from './SimuladorLance.jsx'
+import ConfigEstudo from './ConfigEstudo.jsx'
 import TimelineMatricula from './TimelineMatricula.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
@@ -1411,6 +1412,8 @@ for (const s of SCORES) {
       {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && <PainelLeilao imovel={p} isAdmin={isAdmin} />}
       {/* ═══ ReformaProvider: sincroniza cenário de reforma entre painéis ═══ */}
       <ReformaProvider imovel={p}>
+        {/* Sprint 18: Configuração global do estudo (lance + reforma) */}
+        <ConfigEstudo imovel={p} />
         {/* Mostrar PainelLancamento só para leilões */}
         {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && <PainelLancamento imovel={p}/>}
         {/* Sprint 11: Breakdown financeiro + ROI + Preditor de Concorrência */}

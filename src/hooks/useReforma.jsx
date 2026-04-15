@@ -46,6 +46,14 @@ const CENARIO_PARA_ESCOPO = {
 export function ReformaProvider({ imovel, children }) {
   const [cenarioSimplificado, setCenarioSimplificado] = useState('media')
   const [escopoDetalhado, setEscopoDetalhado] = useState('leve_reforcada_1_molhado')
+  
+  // ─── Sprint 18: Lance de estudo global ───────────────────────────
+  const _eMercado = imovel?.tipo_transacao === 'mercado_direto' || (imovel?.fonte_url || '').includes('zapimoveis') || (imovel?.fonte_url || '').includes('vivareal')
+  const _avaliacao = parseFloat(imovel?.valor_avaliacao) || parseFloat(imovel?.valor_minimo) || 0
+  const _lance2p = Math.round(_avaliacao * 0.50)
+  const _lance1p = parseFloat(imovel?.valor_minimo || imovel?.preco_pedido) || 0
+  const _lanceDefault = _eMercado ? _lance1p : (_lance2p > 0 ? _lance2p : _lance1p)
+  const [lanceEstudo, setLanceEstudo] = useState(_lanceDefault)
 
   // Dados do imóvel
   const area = parseFloat(imovel?.area_privativa_m2 || imovel?.area_m2) || 80
@@ -93,9 +101,11 @@ export function ReformaProvider({ imovel, children }) {
     // Estado
     cenarioSimplificado,
     escopoDetalhado,
+    lanceEstudo,
     // Ações
     selecionarCenario,
     selecionarEscopo,
+    setLanceEstudo,
     // Custos calculados
     reformas,            // { basica, media, completa }
     custoReformaAtual,   // valor do cenário selecionado
@@ -106,7 +116,7 @@ export function ReformaProvider({ imovel, children }) {
     preco_m2,
     classe,
     valoresBanco,
-  }), [cenarioSimplificado, escopoDetalhado, reformas, custoReformaAtual, custoEscopoDetalhado, fatorValor, area, preco_m2, classe, valoresBanco])
+  }), [cenarioSimplificado, escopoDetalhado, lanceEstudo, reformas, custoReformaAtual, custoEscopoDetalhado, fatorValor, area, preco_m2, classe, valoresBanco])
 
   return (
     <ReformaContext.Provider value={value}>
@@ -123,8 +133,10 @@ export function useReforma() {
     return {
       cenarioSimplificado: 'media',
       escopoDetalhado: 'leve_reforcada_1_molhado',
+      lanceEstudo: 0,
       selecionarCenario: () => {},
       selecionarEscopo: () => {},
+      setLanceEstudo: () => {},
       reformas: { basica: 0, media: 0, completa: 0 },
       custoReformaAtual: 0,
       custoEscopoDetalhado: 0,

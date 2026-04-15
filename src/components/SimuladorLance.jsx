@@ -1,15 +1,18 @@
 /**
- * AXIS — Simulador de Lance v2 (Sprint 17)
- * Slider com marcas, ROI alvo → lance máximo, comparativo 1ª vs 2ª praça,
- * custos pré-preenchidos do estudo.
+ * AXIS — Simulador de Lance v3 (Sprint 18)
+ * Sincronizado com ConfigEstudo via useReforma context.
+ * Inputs formatados como moeda.
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { C, card, fmtC } from '../appConstants.js'
 import { calcularBreakdownFinanceiro, calcularROI, calcularLanceMaximoParaROI, HOLDING_MESES_PADRAO, IPTU_SOBRE_CONDO_RATIO } from '../lib/constants.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
+import { useReforma } from '../hooks/useReforma.jsx'
+import { InputMoeda } from './ConfigEstudo.jsx'
 
 export default function SimuladorLance({ p, isPhone = false }) {
   if (!p) return null
+  const { lanceEstudo, setLanceEstudo, custoReformaAtual } = useReforma()
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
   const avaliacao = parseFloat(p.valor_avaliacao) || parseFloat(p.valor_minimo) || 0
   const mercado = parseFloat(p.valor_mercado_estimado) || 0
@@ -20,16 +23,14 @@ export default function SimuladorLance({ p, isPhone = false }) {
   const minLance = Math.round(Math.min(lance2p, lance1p) * 0.8)
   const maxLance = Math.round(Math.max(avaliacao, mercado) * 1.1)
 
-  // Custos pré-preenchidos do estudo
-  const reformaEstudo = parseFloat(p.custo_reforma_estimado || p.custo_reforma_calculado || p.custo_reforma_basica) || 0
   const condoMensal = parseFloat(p.condominio_mensal || 0)
   const iptuMensal = parseFloat(p.iptu_mensal || 0) || (condoMensal > 0 ? Math.round(condoMensal * IPTU_SOBRE_CONDO_RATIO) : 0)
   const holdingEstudo = HOLDING_MESES_PADRAO * (condoMensal + iptuMensal)
 
-  // Default: 2ª praça para leilão (estudo de oportunidade), preço pedido para mercado
-  const lanceDefault = eMercado ? lance1p : (lance2p > 0 ? lance2p : lance1p)
-  const [lanceCustom, setLanceCustom] = useState(lanceDefault)
-  const [custoReformaManual, setCustoReformaManual] = useState(reformaEstudo)
+  // Lance e reforma sincronizados com contexto global
+  const lanceCustom = lanceEstudo || lance1p
+  const setLanceCustom = (v) => setLanceEstudo(v)
+  const custoReformaManual = custoReformaAtual
   const [custoExtra, setCustoExtra] = useState(0)
   const [roiAlvo, setRoiAlvo] = useState(15)
   const [showComparativo, setShowComparativo] = useState(!eMercado) // auto-abrir comparativo em leilão
@@ -70,12 +71,6 @@ export default function SimuladorLance({ p, isPhone = false }) {
     lanceMaxROI > 0 && lanceMaxROI < maxLance && { val: lanceMaxROI, label: `Limite ${roiAlvo}%`, color: '#DC2626' },
   ].filter(Boolean)
 
-  const inputStyle = {
-    width: '100%', padding: '6px 10px', borderRadius: 6, border: `1px solid ${C.border}`,
-    fontSize: 13, fontWeight: 600, color: C.navy, background: '#F8FAFC',
-    outline: 'none', textAlign: 'right',
-  }
-
   return (
     <div style={{...card(), padding: 16}}>
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14}}>
@@ -106,23 +101,20 @@ export default function SimuladorLance({ p, isPhone = false }) {
         </div>
       </div>
 
-      {/* Inputs manuais */}
-      <div style={{display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 14}}>
+      {/* Inputs manuais com formatação de moeda */}
+      <div style={{display: 'grid', gridTemplateColumns: isPhone ? '1fr 1fr' : '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 14}}>
+        <InputMoeda label="Valor do Lance" value={lanceCustom} onChange={setLanceCustom} cor="#D97706" />
         <div>
-          <label style={{fontSize: 10, color: C.muted, fontWeight: 600, textTransform: 'uppercase'}}>Valor do Lance</label>
-          <input type="number" value={lanceCustom} onChange={e => setLanceCustom(Number(e.target.value))} style={inputStyle} />
+          <div style={{fontSize: 9, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 3}}>Reforma (contexto)</div>
+          <div style={{padding: '8px 12px', borderRadius: 8, border: '2px solid #E2E8F020', background: '#F8FAFC', fontSize: 15, fontWeight: 800, color: C.navy, textAlign: 'right'}}>
+            {fmtC(custoReformaManual)}
+          </div>
         </div>
+        <InputMoeda label="Custos Extras" value={custoExtra} onChange={setCustoExtra} cor="#64748B" />
         <div>
-          <label style={{fontSize: 10, color: C.muted, fontWeight: 600, textTransform: 'uppercase'}}>Custo Reforma</label>
-          <input type="number" value={custoReformaManual} onChange={e => setCustoReformaManual(Number(e.target.value))} style={inputStyle} />
-        </div>
-        <div>
-          <label style={{fontSize: 10, color: C.muted, fontWeight: 600, textTransform: 'uppercase'}}>Custos Extras</label>
-          <input type="number" value={custoExtra} onChange={e => setCustoExtra(Number(e.target.value))} style={inputStyle} />
-        </div>
-        <div>
-          <label style={{fontSize: 10, color: '#DC2626', fontWeight: 600, textTransform: 'uppercase'}}>ROI Alvo (%)</label>
-          <input type="number" value={roiAlvo} onChange={e => setRoiAlvo(Number(e.target.value))} style={{...inputStyle, borderColor: '#DC262640', color: '#DC2626'}} />
+          <div style={{fontSize: 9, color: '#DC2626', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 3}}>ROI Alvo (%)</div>
+          <input type="number" value={roiAlvo} onChange={e => setRoiAlvo(Number(e.target.value))}
+            style={{width: '100%', padding: '8px 12px', borderRadius: 8, border: '2px solid #DC262630', fontSize: 15, fontWeight: 800, color: '#DC2626', background: '#DC262608', outline: 'none', textAlign: 'right', boxSizing: 'border-box'}} />
         </div>
       </div>
 

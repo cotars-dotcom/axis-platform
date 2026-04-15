@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { C, K, fmtC, card } from '../appConstants.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 import { calcularBreakdownFinanceiro, calcularROI, calcularPreditorConcorrencia, calcularCustoHolding } from '../lib/constants.js'
+import { useReforma } from '../hooks/useReforma.jsx'
 
 const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 const pct = v => v != null ? `${Number(v).toFixed(1)}%` : '—'
@@ -29,9 +30,10 @@ function BarraVisual({ label, valor, total, cor }) {
 export default function PainelInvestimento({ imovel }) {
   const [expandido, setExpandido] = useState(false)
   const [mesesHolding, setMesesHolding] = useState(4)
+  const { lanceEstudo, custoReformaAtual } = useReforma()
   const p = imovel
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
-  const lance = parseFloat(p.preco_pedido || p.valor_minimo) || 0
+  const lance = lanceEstudo || parseFloat(p.preco_pedido || p.valor_minimo) || 0
   const mercado = parseFloat(p.valor_mercado_estimado) || 0
 
   if (!lance || !mercado) return null
