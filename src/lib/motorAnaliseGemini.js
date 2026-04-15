@@ -713,7 +713,7 @@ export async function logUsoGemini(imovelId, titulo, modelo = MODELOS_GEMINI[0],
       tokensInput: 4000, tokensOutput: 1500,
       imovelId, imovelTitulo: titulo, sucesso
     })
-  } catch(e) {}
+  } catch(e) { /* grounding opcional */ }
 }
 
 // ─── DEEPSEEK V3 — ALTERNATIVA ULTRA-BARATA ($0.27/M tokens) ────────────────

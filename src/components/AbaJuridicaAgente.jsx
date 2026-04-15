@@ -392,7 +392,7 @@ export default function AbaJuridicaAgente({ imovel, isAdmin, onReclassificado })
       const analises = resultsFull.filter(r=>r.analise||r.analise_estruturada).map(r=>r.analise||r.analise_estruturada)
       if (analises.length>0) {
         const { novoScore, delta } = calcularNovoScoreJuridico(imovel.score_juridico||7, analises)
-        if (onReclassificado&&delta!==0) { try { await reclassificarImovel(imovel.id,{score_juridico:novoScore,reclassificado_por_doc:true},null); onReclassificado({...imovel,score_juridico:novoScore}) } catch(e){} }
+        if (onReclassificado&&delta!==0) { try { await reclassificarImovel(imovel.id,{score_juridico:novoScore,reclassificado_por_doc:true},null); onReclassificado({...imovel,score_juridico:novoScore}) } catch(e){ console.warn('[AXIS] Reclassificação falhou:', e.message) } }
         setProgresso(`✅ ${resultsFull.length} doc(s) — ${analises.length} com parecer IA jurídico. Score: ${novoScore}/10`)
       } else { setProgresso(`⚠️ ${resultsFull.filter(r=>r.sucesso).length} doc(s) baixado(s) mas sem análise IA — configure Gemini`) }
       await carregarDocs(); setSubAba('documentos')

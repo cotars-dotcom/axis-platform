@@ -395,7 +395,7 @@ export async function processarDocumentoCompleto({ url, nome, tipo, imovel, gemi
           .join(' ')
           .substring(0, 8000) || ''
       }
-    } catch(e) {}
+    } catch(e) { console.warn("[AXIS PDF]", e.message?.substring(0,40)) }
   }
   
   if (!textoParaAnalise || textoParaAnalise.length < 100) {
@@ -406,7 +406,7 @@ export async function processarDocumentoCompleto({ url, nome, tipo, imovel, gemi
         signal: AbortSignal.timeout(30000)
       })
       if (r.ok) textoParaAnalise = await r.text()
-    } catch(e) {}
+    } catch(e) { console.warn("[AXIS PDF]", e.message?.substring(0,40)) }
   }
   
   // 3. Salvar no Storage Supabase

@@ -901,7 +901,7 @@ for (const s of SCORES) {
           const { logAtividade } = await import('../lib/supabase.js')
           const { data:{ session: sess2 } } = await supabase.auth.getSession()
           if (sess2?.user?.id) logAtividade(sess2.user.id, 'reanalise', 'imovel', p.id, { titulo: p.titulo })
-        } catch(e) {}
+        } catch(e) { console.warn("[AXIS Detail]", e.message?.substring(0,60)) }
       } catch(saveErr) {
         console.warn('[AXIS] Salvar reanálise:', saveErr.message)
         setMsg("✅ Reanalisado! (sync nuvem falhou — tente novamente)")

@@ -1756,7 +1756,7 @@ export default function App() {
           if(local.length>0){
             const{saveImovelCompleto}=await import('./lib/supabase.js')
             let ok=0
-            for(const im of local){try{await saveImovelCompleto(im,session.user.id);ok++}catch(e){}}
+            for(const im of local){try{await saveImovelCompleto(im,session.user.id);ok++}catch(e){ console.warn("[AXIS] Sync falhou:", im.codigo_axis, e.message?.substring(0,60)) }}
             if(ok>0) localStorage.setItem('axis-migracao-concluida','true')
           } else { localStorage.setItem('axis-migracao-concluida','true') }
         }
