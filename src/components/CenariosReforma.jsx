@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { C, K, fmtC, btn, card } from '../appConstants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
-import { CUSTOS_LEILAO, CUSTOS_MERCADO } from '../lib/constants.js'
+import { CUSTOS_LEILAO, CUSTOS_MERCADO, calcularFatorHomogeneizacao } from '../lib/constants.js'
 import {
   ESCOPOS,
   CUSTO_M2_SINAPI,
@@ -24,7 +24,10 @@ export default function CenariosReforma({ imovel, isAdmin }) {
     : (parseFloat(p.valor_minimo) || 0)
   const semDados = precoAquisicao === 0
   const avaliacao = parseFloat(p.valor_avaliacao) || precoAquisicao * 1.3
-  const vmercado = parseFloat(p.valor_mercado_estimado) || avaliacao * 1.2
+  const vmercadoRaw = parseFloat(p.valor_mercado_estimado) || avaliacao * 1.2
+  // Ajustar valor de mercado por atributos (Sprint 17 — homogeneização NBR 14653)
+  const homo = calcularFatorHomogeneizacao(p, vmercadoRaw)
+  const vmercado = homo.valorAjustado || vmercadoRaw
   const aluguelBase = parseFloat(p.aluguel_mensal_estimado) || Math.round(vmercado * 0.005)
   const prazoLib = eMercado ? 0 : (parseFloat(p.prazo_liberacao_estimado_meses) || 0)
 

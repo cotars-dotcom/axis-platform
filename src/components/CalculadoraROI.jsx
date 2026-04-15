@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { C, RED, ESTRATEGIA_CONFIG } from "../appConstants.js"
 import { isMercadoDireto } from '../lib/detectarFonte.js'
-import { CUSTOS_LEILAO, CUSTOS_MERCADO } from '../lib/constants.js'
+import { CUSTOS_LEILAO, CUSTOS_MERCADO, calcularFatorHomogeneizacao } from '../lib/constants.js'
 
 export default function CalculadoraROI({ imovel }) {
   const [entrada, setEntrada] = useState(30)
@@ -28,9 +28,12 @@ export default function CalculadoraROI({ imovel }) {
   const registro    = _tab.registro_fixo
   const custoJuridico = imovel.custo_juridico_estimado || 0
   const custoTotal    = precoAquisicao + comissao + itbi + doc + advogado + registro + reforma + custoJuridico
-  const vmercado = imovel.valor_mercado_estimado || imovel.valor_pos_reforma_estimado
+  const vmercadoRaw = imovel.valor_mercado_estimado || imovel.valor_pos_reforma_estimado
     || (imovel.preco_m2_mercado * (imovel.area_privativa_m2 || imovel.area_m2 || 0))
     || precoAquisicao * 1.4
+  // Ajustar por atributos (Sprint 17 — homogeneização NBR 14653)
+  const homo = calcularFatorHomogeneizacao(imovel, vmercadoRaw)
+  const vmercado = homo.valorAjustado || vmercadoRaw
   // IRPF: isento até R$440k (imóvel único PF - Lei 11.196/2005); 15% acima
   const ganhoCapital = Math.max(0, vmercado - custoTotal)
   const irpfGanho = vmercado <= 440000 ? 0 : ganhoCapital * 0.15

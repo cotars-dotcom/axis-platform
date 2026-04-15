@@ -77,8 +77,10 @@ export default function SharedViewer({ token }) {
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
   const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 0
   const lance = parseFloat(p.preco_pedido || p.valor_minimo) || 0
-  const mercado = parseFloat(p.valor_mercado_estimado) || 0
+  const mercadoRaw = parseFloat(p.valor_mercado_estimado) || 0
   const aluguel = parseFloat(p.aluguel_mensal_estimado) || 0
+  const homoSV = calcularFatorHomogeneizacao(p, mercadoRaw)
+  const mercado = homoSV.valorAjustado || mercadoRaw
   const bd = calcularBreakdownFinanceiro(lance, p, eMercado)
   const roi = calcularROI(bd.investimentoTotal, mercado, aluguel)
   const condoMensal = parseFloat(p.condominio_mensal || 0)
@@ -97,7 +99,7 @@ export default function SharedViewer({ token }) {
     const fv = FATOR_VALORIZACAO[esc] || 1
     return { label: ['Básica','Média','Completa'][i], custo, custoM2, valorizacao: Math.round((fv-1)*100) }
   })
-  const homo = calcularFatorHomogeneizacao(p, mercado)
+  const homo = homoSV  // computed above with mercado ajustado
 
   const fotos = [...new Set([p.foto_principal,...(p.fotos||[])].filter(f => f && !f.includes('{action}')))]
   const respDebitos = p.responsabilidade_debitos === 'sub_rogado' ? '✅ Sub-rogados no preço' : p.responsabilidade_debitos === 'exonerado' ? '✅ Exonerado' : p.responsabilidade_debitos === 'arrematante' ? '⚠️ Arrematante arca' : p.responsabilidade_debitos
