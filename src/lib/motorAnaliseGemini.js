@@ -227,6 +227,13 @@ ATRIBUTOS DO PRÉDIO — REGRAS CONSERVADORAS (só marcar true quando EXPLICITAM
 - score_liquidez: alta demanda→8.5, média→6.5, baixa→4.0
 - score_mercado: classe Luxo BH→8.5, Alto→7.0, Médio→5.5, Popular→4.0
 
+CLASSIFICAÇÃO DE DÉBITOS (responsabilidade_debitos):
+- Se o edital ou documentos MENCIONAM débitos de condomínio/IPTU → use "arrematante" (STJ: obrigação propter rem, arrematante ciente = responsável)
+- Se o edital diz expressamente "livre de ônus" ou "sub-rogado no preço" → use "sub_rogado"
+- Se o edital exonera o arrematante → use "exonerado"
+- Na DÚVIDA, use "arrematante" (mais conservador = mais seguro pro investidor)
+- NUNCA use "sub_rogado" como default — só quando há evidência explícita de sub-rogação
+
 FÓRMULA OBRIGATÓRIA DO SCORE TOTAL (NÃO INVENTE UM VALOR — CALCULE):
 score_total = ROUND(score_localizacao×0.20 + score_desconto×0.18 + score_juridico×0.18 + score_ocupacao×0.15 + score_liquidez×0.15 + score_mercado×0.14, 2)
 O score_total retornado DEVE ser matematicamente consistente com os sub-scores acima.`

@@ -1380,9 +1380,9 @@ for (const s of SCORES) {
         </div>
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>🏠 Ficha Técnica</div>
-          {[["Tipo",p.tipologia||p.tipo],["Área privativa",(p.area_privativa_m2||p.area_m2)?`${p.area_privativa_m2||p.area_m2}m²`:"—"],
-            ...(p.area_total_m2&&p.area_total_m2!==(p.area_privativa_m2||p.area_m2)?[["Área total (registral)",`${p.area_total_m2}m² · inclui área comum`]]:[]
-            ),["Base de cálculo",(p.area_usada_calculo_m2||p.area_privativa_m2)?`${p.area_usada_calculo_m2||p.area_privativa_m2}m² (privativa)`:"—"],
+          {[["Tipo",(p.tipologia||p.tipo||'').replace(/_/g,' ').replace(/^\w/,c=>c.toUpperCase())],["Área privativa",(p.area_privativa_m2||p.area_m2)?`${String(p.area_privativa_m2||p.area_m2).replace('.',',')}m²`:"—"],
+            ...(p.area_total_m2&&p.area_total_m2!==(p.area_privativa_m2||p.area_m2)?[["Área total (registral)",`${String(p.area_total_m2).replace('.',',')}m² · inclui área comum`]]:[]
+            ),["Base de cálculo",(p.area_usada_calculo_m2||p.area_privativa_m2)?`${String(p.area_usada_calculo_m2||p.area_privativa_m2).replace('.',',')}m² (privativa)`:"—"],
             ["Quartos",p.quartos],["Suítes",p.suites],["Vagas",p.vagas],["Andar",p.andar],["Condomínio",p.condominio_mensal?`R$ ${p.condominio_mensal.toLocaleString('pt-BR')}/mês`:null],["Padrão",p.padrao_acabamento],...(!isMercadoDireto(p.fonte_url,p.tipo_transacao)?[["Leiloeiro",p.leiloeiro],["Data leilão",p.data_leilao],["Nº leilão",p.num_leilao?`${p.num_leilao}º leilão`:null]]:[]),["Liquidez",LIQUIDEZ_MAP[p.liquidez?.toLowerCase()]||p.liquidez],["Revenda est.",p.prazo_revenda_meses?`${p.prazo_revenda_meses} meses`:"—"]].filter(([,v])=>v&&v!==null&&v!=="—"&&v!=="0"&&v!==0).map(([l,v])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
               <span style={{fontSize:"12px",color:K.t3}}>{l}</span><span style={{fontSize:"12.5px",color:K.tx}}>{v}</span>
