@@ -169,7 +169,7 @@ export default function SharedViewer({ token }) {
           <KPI label="Mercado Est." value={fmt(mercado)} cor={C.navy} />
           <KPI label="Aluguel Est." value={aluguel?`${fmt(aluguel)}/mês`:'—'} cor={C.purple} />
           <KPI label="Desconto" value={p.desconto_sobre_mercado_pct_calculado ? `${p.desconto_sobre_mercado_pct_calculado}%` : '—'} cor="#065F46" />
-          <KPI label="Investimento Total" value={fmt(bd.investimentoTotal+holdingTotal)} cor={C.navy} sub={`Custos ${bd.pctCustosSobreLance}% + holding`} />
+          <KPI label="Investimento Total" value={fmt(bd.investimentoTotal)} cor={C.navy} sub={`Custos ${bd.pctCustosSobreLance}% + holding${bd.debitosArrematante > 0 ? ' + débitos' : ''}`} />
           {roi.roi!=null && !roi.invalido && <KPI label="ROI Estimado" value={`${roi.roi>0?'+':''}${roi.roi}%`} cor={roi.roi>0?'#065F46':'#991B1B'} />}
           {roi.locacao && <KPI label="Yield Bruto" value={`${roi.locacao.yieldAnual}% a.a.`} cor="#065F46" sub={`Payback ${Math.round(roi.locacao.paybackMeses/12)}a`} />}
           <KPI label="R$/m² Imóvel" value={p.preco_m2_imovel?`R$ ${Math.round(p.preco_m2_imovel).toLocaleString('pt-BR')}`:'—'} />

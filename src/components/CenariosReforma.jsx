@@ -75,6 +75,14 @@ export default function CenariosReforma({ imovel, isAdmin }) {
       const sobrecap = custoReforma > teto
         ? 'vermelho' : custoReforma > teto * 0.85 ? 'amarelo' : 'verde'
 
+      // MAO — lance máximo para ROI mínimo 20% neste cenário
+      // custoTotalMAO = valorVendaLiq / 1.20  → MAO = custoTotalMAO - custos_não_lance
+      const custoAlvo20 = valorVendaReal > 0 ? (valorVendaReal - corretagem) / 1.20 : 0
+      const custosNaoLance = custoReforma + debitosArrematante + reg
+      const txProp = ((p.comissao_leiloeiro_pct ?? _tab.comissao_leiloeiro_pct) + (p.itbi_pct ?? _tab.itbi_pct) + _tab.documentacao_pct + _tab.advogado_pct) / 100
+      const mao20 = Math.max(0, Math.round((custoAlvo20 - custosNaoLance) / (1 + txProp)))
+      const deltaLanceVsMAO = precoAquisicao - mao20
+
       return {
         ...esc,
         custoReforma: Math.round(custoReforma),
@@ -90,7 +98,9 @@ export default function CenariosReforma({ imovel, isAdmin }) {
         yieldBruto: parseFloat(yieldBruto.toFixed(1)),
         sobrecap,
         liquidezBonus: Math.round(liquidezBonus * 100),
-        valororiacao: Math.round((esc.fator_valorizacao - 1) * 100)
+        valororiacao: Math.round((esc.fator_valorizacao - 1) * 100),
+        mao20,
+        deltaLanceVsMAO,
       }
     })
   }, [precoAquisicao, vmercado, area, classe, prazoLib, aluguelBase, avaliacao, comissao, itbi, doc, adv])
@@ -111,6 +121,11 @@ export default function CenariosReforma({ imovel, isAdmin }) {
           <div style={{fontSize:10, color:C.hint, marginTop:2}}>
             Classe {classeLabel} · {area}m² · SINAPI-MG 2026
           </div>
+          {!semDados && (
+            <div style={{fontSize:10, color:'#D97706', marginTop:3, fontWeight:600}}>
+              📐 Analisando com lance do estudo: <strong>{fmt(precoAquisicao)}</strong>
+            </div>
+          )}
         </div>
         <button onClick={() => setMostrarDetalhe(!mostrarDetalhe)}
           style={{...btn('s'), fontSize:11, color:C.muted}}>
@@ -267,7 +282,7 @@ export default function CenariosReforma({ imovel, isAdmin }) {
           <table style={{width:'100%', borderCollapse:'collapse', fontSize:11}}>
             <thead>
               <tr style={{background:C.surface}}>
-                {['Escopo','Custo reforma','Total','Valor venda','Lucro','ROI','Yield loc.'].map(h => (
+                {['Escopo','Custo reforma','Total','Valor venda','Lucro','ROI','MAO p/ ROI 20%','Yield loc.'].map(h => (
                   <th key={h} style={{padding:'7px 10px', textAlign: h === 'Escopo' ? 'left' : 'right',
                     fontWeight:600, color:C.muted, fontSize:10, borderBottom:`1px solid ${C.borderW}`}}>{h}</th>
                 ))}
@@ -288,13 +303,16 @@ export default function CenariosReforma({ imovel, isAdmin }) {
                   <td style={{padding:'7px 10px', textAlign:'right', color:C.text}}>{fmt(c.valorPosReforma)}</td>
                   <td style={{padding:'7px 10px', textAlign:'right', color:c.lucro > 0 ? C.emerald : '#A32D2D', fontWeight:600}}>{fmt(c.lucro)}</td>
                   <td style={{padding:'7px 10px', textAlign:'right', color:c.roi >= 30 ? C.emerald : c.roi >= 20 ? C.mustard : '#A32D2D', fontWeight:600}}>{pct(c.roi)}</td>
+                  <td style={{padding:'7px 10px', textAlign:'right', color: c.deltaLanceVsMAO <= 0 ? C.emerald : '#A32D2D', fontWeight:600}} title={c.deltaLanceVsMAO > 0 ? `Lance excede MAO em ${fmt(c.deltaLanceVsMAO)}` : `Margem de ${fmt(-c.deltaLanceVsMAO)}`}>
+                    {fmt(c.mao20)}
+                  </td>
                   <td style={{padding:'7px 10px', textAlign:'right', color:c.yieldBruto >= 6 ? C.emerald : C.muted}}>{pct(c.yieldBruto)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div style={{fontSize:9, color:C.hint, marginTop:4, padding:'0 10px'}}>
-            Clique em um cenário para selecionar · SINAPI-MG 2026 · Fator liquidez baseado em mercado BH
+            Clique em um cenário para selecionar · SINAPI-MG 2026 · MAO = lance máximo para ROI ≥ 20% · 🟢 lance ≤ MAO, 🔴 lance excede MAO
           </div>
         </div>
       )}

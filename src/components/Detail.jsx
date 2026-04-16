@@ -1521,65 +1521,10 @@ for (const s of SCORES) {
         <PainelRentabilidade imovel={p}/>
       {/* Cenários de Reforma */}
       <CenariosReforma imovel={p} isAdmin={isAdmin} />
-      </ReformaProvider>
-      {/* Calculadora ROI */}
+      {/* Calculadora ROI — dentro do Provider para sincronizar com ConfigEstudo */}
       <div style={{...card(),marginBottom:"14px"}}>
         <CalculadoraROI imovel={p} />
       </div>
-      {/* Plano de Reforma — SINAPI Unificado com ROI */}
-      {(() => {
-        const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 60
-        const preco_m2 = parseFloat(p.preco_m2_mercado) || 7000
-        const classe = detectarClasseReforma(preco_m2)
-        const classeLabels = { A_prime:'A — Prime', B_medio_alto:'B — Médio-Alto', C_intermediario:'C — Intermediário', D_popular:'D — Popular' }
-        const precoCompra = parseFloat(p.preco_pedido || p.valor_minimo) || 0
-        const valorMercado = parseFloat(p.valor_mercado_estimado) || (area * preco_m2)
-        const viab = avaliarViabilidadeReforma(valorMercado, precoCompra, area, preco_m2)
-        const cenarios = [
-          { id: 'basica', label: 'Básica', desc: 'Pintura, reparos, limpeza', ico: '🖌' },
-          { id: 'media', label: 'Média', desc: 'Pisos, banheiro, elétrica', ico: '🔧' },
-          { id: 'completa', label: 'Completa', desc: 'Total + estrutura + projeto', ico: '🏗' },
-        ]
-        return (
-          <div style={{...card(),marginBottom:"14px"}}>
-            <div style={{fontWeight:"600",color:C.navy,marginBottom:"4px",fontSize:"13px"}}>🏗️ Plano de Reforma — Vale a pena?</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>
-              Classe: <strong style={{color:C.navy}}>{classeLabels[classe] || classe}</strong> · Área: {area}m² · Mercado: {fmtC(valorMercado)}
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-              {cenarios.map(c => {
-                const v = viab?.[c.id]
-                if (!v) return null
-                return (
-                  <div key={c.id} style={{borderRadius:10,padding:12,border:`2px solid ${v.cor}25`,background:`${v.cor}06`}}>
-                    <div style={{fontSize:11,fontWeight:700,color:C.navy,marginBottom:4}}>{c.ico} {c.label}</div>
-                    <div style={{fontSize:9,color:C.muted,marginBottom:6,lineHeight:1.3}}>{c.desc}</div>
-                    <div style={{fontSize:16,fontWeight:800,color:C.navy}}>{fmtC(v.custoReforma)}</div>
-                    <div style={{fontSize:10,color:C.muted,marginTop:4}}>R$ {Math.round(v.custoReforma / area)}/m²</div>
-                    {/* ROI indicator */}
-                    <div style={{marginTop:8,padding:'4px 8px',borderRadius:6,background:`${v.cor}15`,textAlign:'center'}}>
-                      <div style={{fontSize:12,fontWeight:700,color:v.cor}}>{v.recomendacao}</div>
-                    </div>
-                    <div style={{marginTop:6,fontSize:9,color:C.muted,lineHeight:1.4}}>
-                      <div>Valorização: <strong style={{color:C.navy}}>+{Math.round((FATOR_VALORIZACAO[({basica:'refresh_giro',media:'leve_reforcada_1_molhado',completa:'pesada'})[c.id]] - 1) * 100)}%</strong> ({fmtC(v.valorizacaoAbsoluta)})</div>
-                      <div>Pós-reforma: <strong>{fmtC(v.valorPosReforma)}</strong></div>
-                      <div>ROI flip: <strong style={{color:v.roiFlip > 0 ? '#065F46' : '#991B1B'}}>{v.roiFlip > 0 ? '+' : ''}{v.roiFlip}%</strong></div>
-                      <div>Eficiência: <strong>{v.eficiencia}x</strong> (R$1 → R${v.eficiencia})</div>
-                      {v.pctDoValor > 25 && <div style={{color:'#D97706',fontWeight:600}}>⚠️ {v.pctDoValor}% do valor</div>}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            {viab?._melhor && (
-              <div style={{marginTop:10,padding:'8px 12px',borderRadius:8,background:'#F0FDF4',border:'1px solid #BBF7D0',fontSize:11,color:'#065F46'}}>
-                💡 <strong>Melhor cenário: {viab._melhor.charAt(0).toUpperCase() + viab._melhor.slice(1)}</strong> — ROI {viab._melhorROI > 0 ? '+' : ''}{viab._melhorROI}%
-              </div>
-            )}
-            <div style={{fontSize:9,color:C.hint,marginTop:6,borderTop:`1px solid ${C.borderW}`,paddingTop:6}}>SINAPI-MG 2026 · Eficiência = valorização ÷ custo reforma (&gt;1.5x = bom)</div>
-          </div>
-        )
-      })()}
       <div style={{display:"grid",gridTemplateColumns:isPhone?"1fr":"1fr 1fr",gap:"14px",marginBottom:"14px"}}>
         <div style={card()}>
           <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>⚖️ Jurídico</div>
@@ -1607,7 +1552,8 @@ for (const s of SCORES) {
           {p.reclassificado_por_doc&&<div style={{marginTop:6,fontSize:10.5,color:K.amb,fontWeight:600}}>🔄 Reclassificado por documento</div>}
         </div>
         <div style={card()}>
-          <div style={{fontWeight:"600",color:K.wh,marginBottom:"12px",fontSize:"13px"}}>📈 Retorno e Custos</div>
+          <div style={{fontWeight:"600",color:K.wh,marginBottom:"4px",fontSize:"13px"}}>📈 Retorno e Custos <span style={{fontSize:9,fontWeight:500,color:K.t3}}>— da análise IA</span></div>
+          <div style={{fontSize:10,color:K.t3,marginBottom:10}}>Snapshot gerado na análise original. Para valores dinâmicos com seu lance, veja os painéis acima.</div>
           {[["Custo regularização",fmtC(p.custo_regularizacao),K.amb],["Custo reforma",fmtC(p.custo_reforma_calculado),K.amb],["Retorno revenda",p.retorno_venda_pct?`+${p.retorno_venda_pct}%`:"—",K.grn],["Locação a.a.",p.retorno_locacao_anual_pct?`${p.retorno_locacao_anual_pct}%`:"—",K.teal],["Estrutura rec.",mapDisplay(p.estrutura_recomendada),K.pur],["Tendência",mapDisplay(p.mercado_tendencia),p.mercado_tendencia==="Alta"?K.grn:K.amb],["Demanda",mapDisplay(p.mercado_demanda),p.mercado_demanda==="Alta"?K.grn:K.amb]].filter(([,v])=>v&&v!=="—").map(([l,v,c])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${K.bd}`}}>
               <span style={{fontSize:"12px",color:K.t3}}>{l}</span><span style={{fontSize:"12.5px",fontWeight:"600",color:c}}>{v}</span>
@@ -1737,6 +1683,7 @@ for (const s of SCORES) {
 
       {/* Anotações privadas — localStorage */}
       <NotasPrivadas imovelId={p.id} />
+      </ReformaProvider>
       </>}
     </div>
     {modoAoVivo && <ModoAoVivo imovel={p} onClose={() => setModoAoVivo(false)} />}

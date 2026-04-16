@@ -32,12 +32,12 @@ export default function SimuladorLance({ p, isPhone = false }) {
   const setLanceCustom = (v) => setLanceEstudo(v)
   const custoReformaManual = custoReformaAtual
   const [custoExtra, setCustoExtra] = useState(0)
-  const [roiAlvo, setRoiAlvo] = useState(15)
-  const [showComparativo, setShowComparativo] = useState(!eMercado) // auto-abrir comparativo em leilão
+  const [roiAlvo, setRoiAlvo] = useState(20)
+  const [showComparativo, setShowComparativo] = useState(!eMercado)
 
   const sim = useMemo(() => {
     const bd = calcularBreakdownFinanceiro(lanceCustom, { ...p, custo_reforma_estimado: custoReformaManual }, eMercado)
-    const investTotal = bd.investimentoTotal + custoExtra + holdingEstudo
+    const investTotal = bd.investimentoTotal + custoExtra
     const roi = calcularROI(investTotal, mercado, aluguel)
     return { bd, investTotal, roi }
   }, [lanceCustom, custoReformaManual, custoExtra])
@@ -52,11 +52,9 @@ export default function SimuladorLance({ p, isPhone = false }) {
     if (eMercado || lance2p <= 0) return null
     const bd1 = calcularBreakdownFinanceiro(lance1p, p, false)
     const bd2 = calcularBreakdownFinanceiro(lance2p, p, false)
-    const inv1 = bd1.investimentoTotal + holdingEstudo
-    const inv2 = bd2.investimentoTotal + holdingEstudo
-    const roi1 = calcularROI(inv1, mercado, aluguel)
-    const roi2 = calcularROI(inv2, mercado, aluguel)
-    return { bd1, bd2, inv1, inv2, roi1, roi2 }
+    const roi1 = calcularROI(bd1.investimentoTotal, mercado, aluguel)
+    const roi2 = calcularROI(bd2.investimentoTotal, mercado, aluguel)
+    return { bd1, bd2, inv1: bd1.investimentoTotal, inv2: bd2.investimentoTotal, roi1, roi2 }
   }, [])
 
   const roiVal = sim.roi?.roi ?? 0
@@ -73,41 +71,32 @@ export default function SimuladorLance({ p, isPhone = false }) {
 
   return (
     <div style={{...card(), padding: 16}}>
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14}}>
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
         <div style={{fontSize: 13, fontWeight: 700, color: C.navy}}>Simulador de Lance</div>
-        {holdingEstudo > 0 && (
-          <div style={{fontSize: 9, color: C.muted}}>Holding: {fmtC(holdingEstudo)} ({HOLDING_MESES_PADRAO}m)</div>
-        )}
-      </div>
-
-      {/* Slider */}
-      <div style={{position: 'relative', marginBottom: 20, padding: '0 4px'}}>
-        <input type="range" min={minLance} max={maxLance} step={1000} value={lanceCustom}
-          onChange={e => setLanceCustom(Number(e.target.value))}
-          style={{width: '100%', accentColor: C.emerald, height: 6, cursor: 'pointer'}}
-        />
-        {/* Marcas */}
-        <div style={{position: 'relative', height: 28, marginTop: 4}}>
-          {marks.map((m, i) => {
-            const left = Math.max(2, Math.min(98, pctOf(m.val)))
-            return (
-              <div key={i} style={{position: 'absolute', left: `${left}%`, transform: 'translateX(-50%)', textAlign: 'center'}}>
-                <div style={{width: 2, height: 8, background: m.color, margin: '0 auto 2px'}} />
-                <div style={{fontSize: 8, fontWeight: 700, color: m.color, whiteSpace: 'nowrap'}}>{m.label}</div>
-                <div style={{fontSize: 8, color: '#94A3B8'}}>{fmtC(m.val)}</div>
-              </div>
-            )
-          })}
+        <div style={{fontSize: 9, color: C.muted}}>
+          Lance definido no <strong>Configuração do Estudo</strong>
+          {holdingEstudo > 0 && ` · Holding ${HOLDING_MESES_PADRAO}m`}
         </div>
       </div>
 
-      {/* Inputs manuais com formatação de moeda */}
-      <div style={{display: 'grid', gridTemplateColumns: isPhone ? '1fr 1fr' : '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 14}}>
-        <InputMoeda label="Valor do Lance" value={lanceCustom} onChange={setLanceCustom} cor="#D97706" />
+      {/* Quick-setters + Custos extras + ROI alvo */}
+      <div style={{display: 'grid', gridTemplateColumns: isPhone ? '1fr 1fr' : '1fr 1fr 1fr', gap: 10, marginBottom: 14}}>
         <div>
-          <div style={{fontSize: 9, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 3}}>Reforma (contexto)</div>
-          <div style={{padding: '8px 12px', borderRadius: 8, border: '2px solid #E2E8F020', background: '#F8FAFC', fontSize: 15, fontWeight: 800, color: C.navy, textAlign: 'right'}}>
-            {fmtC(custoReformaManual)}
+          <div style={{fontSize: 9, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 3}}>Atalhos de Lance</div>
+          <div style={{display: 'flex', gap: 3, flexWrap: 'wrap'}}>
+            {[
+              { lb: '1ª', val: lance1p },
+              !eMercado && lance2p > 0 && { lb: '2ª', val: lance2p },
+              { lb: 'MAO', val: lanceMaxROI, destaque: true },
+            ].filter(Boolean).map((b, i) => (
+              <button key={i} onClick={() => setLanceCustom(b.val)} style={{
+                padding: '6px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                border: b.destaque ? '1px solid #059669' : lanceCustom === b.val ? '1px solid #D97706' : '1px solid #E2E8F0',
+                background: b.destaque ? '#ECFDF5' : lanceCustom === b.val ? '#FEF3C7' : '#fff',
+                color: b.destaque ? '#065F46' : lanceCustom === b.val ? '#D97706' : '#64748B',
+                cursor: 'pointer', flex: 1, minWidth: 60,
+              }}>{b.lb} {fmtC(b.val)}</button>
+            ))}
           </div>
         </div>
         <InputMoeda label="Custos Extras" value={custoExtra} onChange={setCustoExtra} cor="#64748B" />

@@ -9,6 +9,7 @@ import { useState, useRef } from 'react'
 import { C, card, fmtC } from '../appConstants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
+import { CUSTOS_LEILAO, CUSTOS_MERCADO, HOLDING_MESES_PADRAO, IPTU_SOBRE_CONDO_RATIO } from '../lib/constants.js'
 
 /** Input com formatação de moeda brasileira */
 function InputMoeda({ value, onChange, label, cor, small }) {
@@ -53,6 +54,7 @@ function InputMoeda({ value, onChange, label, cor, small }) {
 
 export default function ConfigEstudo({ imovel }) {
   const p = imovel
+  const [roiAlvo, setRoiAlvo] = useState(20)
   if (!p) return null
 
   const {
@@ -66,6 +68,21 @@ export default function ConfigEstudo({ imovel }) {
   const lance2p = Math.round(avaliacao * 0.50)
   const mercado = parseFloat(p.valor_mercado_estimado) || 0
 
+  // MAO — Máximo Aceitável Oferta para ROI alvo
+  const tab = eMercado ? CUSTOS_MERCADO : CUSTOS_LEILAO
+  const txProporcional = ((tab.comissao_leiloeiro_pct || 0) + (tab.itbi_pct || 0) + (tab.advogado_pct || 0) + (tab.documentacao_pct || 0)) / 100
+  const condoMensal = parseFloat(p.condominio_mensal || 0)
+  const iptuMensal = parseFloat(p.iptu_mensal || 0) || (condoMensal > 0 ? Math.round(condoMensal * IPTU_SOBRE_CONDO_RATIO) : 0)
+  const holding = HOLDING_MESES_PADRAO * (condoMensal + iptuMensal)
+  const debitosArr = p.responsabilidade_debitos === 'arrematante' ? parseFloat(p.debitos_total_estimado || 0) : 0
+  const corretagem = mercado * 0.06
+  // Custo alvo = mercado / (1 + roi/100) para atingir ROI desejado
+  const custoAlvo = mercado > 0 ? mercado / (1 + roiAlvo / 100) : 0
+  // MAO = (custoAlvo - reforma - holding - débitos - corretagem) / (1 + txProporcional)
+  const mao = custoAlvo > 0
+    ? Math.max(0, Math.round((custoAlvo - custoReformaAtual - holding - debitosArr - corretagem) / (1 + txProporcional)))
+    : 0
+
   // Sugestão do sistema
   const sugestao = eMercado
     ? { texto: 'Preço pedido', lance: lance1p }
@@ -74,6 +91,7 @@ export default function ConfigEstudo({ imovel }) {
     : { texto: '1ª Praça', lance: lance1p }
 
   const pctAvaliacao = avaliacao > 0 ? Math.round((lanceEstudo / avaliacao) * 100) : 0
+  const acimaMAO = lanceEstudo > 0 && mao > 0 && lanceEstudo > mao
 
   const cenarios = [
     { id: 'basica', label: 'Básica', custo: reformas.basica, cor: '#3B8BD4' },
@@ -109,6 +127,35 @@ export default function ConfigEstudo({ imovel }) {
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         {/* Lance input */}
         <InputMoeda label="Lance do Estudo" value={lanceEstudo} onChange={setLanceEstudo} cor="#D97706" />
+
+        {/* MAO — Máximo Aceitável Oferta */}
+        <div style={{ flex: '0 0 auto', minWidth: 140 }}>
+          <div style={{ fontSize: 9, color: acimaMAO ? '#DC2626' : '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+            MAO p/ ROI
+            <input
+              type="number" min={5} max={50} step={5} value={roiAlvo}
+              onChange={e => setRoiAlvo(Number(e.target.value) || 20)}
+              style={{ width: 38, padding: '1px 4px', fontSize: 10, fontWeight: 700, color: '#059669', border: '1px solid #05966930', borderRadius: 3, textAlign: 'center' }}
+            />%
+          </div>
+          <div
+            onClick={() => mao > 0 && setLanceEstudo(mao)}
+            title="Clique para aplicar o MAO como lance"
+            style={{
+              padding: '8px 12px', borderRadius: 8, cursor: mao > 0 ? 'pointer' : 'default',
+              border: `2px solid ${acimaMAO ? '#DC2626' : '#059669'}30`,
+              background: acimaMAO ? '#FEF2F2' : '#ECFDF5',
+              fontSize: 15, fontWeight: 800, color: acimaMAO ? '#DC2626' : '#059669',
+              textAlign: 'right',
+            }}>
+            {mao > 0 ? fmtC(mao) : '—'}
+          </div>
+          {acimaMAO && (
+            <div style={{ fontSize: 9, color: '#DC2626', marginTop: 2, fontWeight: 600 }}>
+              ⚠️ Lance excede MAO em {fmtC(lanceEstudo - mao)}
+            </div>
+          )}
+        </div>
 
         {/* Reforma tabs */}
         <div style={{ flex: 1, minWidth: 200 }}>
