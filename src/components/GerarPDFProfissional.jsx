@@ -142,7 +142,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   doc.text([area ? `${area}m2` : null, p.quartos ? `${p.quartos}q` : null, p.suites ? `${p.suites}s` : null, p.vagas ? `${p.vagas}v` : null, p.condominio_mensal ? `Cond. ${fmt(p.condominio_mensal)}` : null].filter(Boolean).join('  |  '), 15, y); y += 6
 
   let bx = 15; bx += bdg(doc, bx, y, recLabel, recBg, recFg)
-  bx += bdg(doc, bx + 2, y, eMercado ? 'MERCADO DIRETO' : `${p.num_leilao || 1}a PRACA`, eMercado ? [219, 234, 254] : C.greenL, eMercado ? [29, 78, 216] : C.green)
+  bx += bdg(doc, bx + 2, y, eMercado ? 'MERCADO DIRETO' : `${p.praca || 1}a PRACA`, eMercado ? [219, 234, 254] : C.greenL, eMercado ? [29, 78, 216] : C.green)
   if (!eMercado && p.data_leilao) { bx += bdg(doc, bx + 2, y, `Leilao: ${new Date(p.data_leilao + 'T12:00:00').toLocaleDateString('pt-BR')}`, C.amberL, C.amber) }
 
   doc.setFontSize(42); doc.setFont('helvetica', 'bold'); doc.setTextColor(...scoreColor(score)); doc.text(score.toFixed(1), 170, y - 5, { align: 'center' })
@@ -236,7 +236,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
 
   kpi(doc, 15, y, 43, 18, eMercado ? 'Preco' : 'Lance 1aP', fmt(lance), C.amber, C.amberL)
   kpi(doc, 60, y, 43, 18, 'Custos Aq.', fmt(bd.totalCustos), C.navy, C.navyL)
-  kpi(doc, 105, y, 43, 18, 'Invest. Total', fmt(bd.investimentoTotal + holdingTotal), C.navy, C.bg)
+  kpi(doc, 105, y, 43, 18, 'Invest. Total', fmt(bd.investimentoTotal), C.navy, C.bg)
   kpi(doc, 150, y, 45, 18, 'ROI', `${roiV > 0 ? '+' : ''}${roiV}%`, roiV >= 15 ? C.green : roiV >= 0 ? C.amber : C.red, roiV >= 0 ? C.greenL : C.redL)
   y += 24
 
@@ -248,9 +248,10 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
     ['Doc + Registro', fmt(bd.documentacao.valor)],
     !eMercado && bd.advogado.valor > 0 && [`Advogado (${(bd.advogado.pct * 100).toFixed(0)}%)`, fmt(bd.advogado.valor)],
     bd.reforma > 0 && ['Reforma estimada', fmt(bd.reforma)],
-    holdingTotal > 0 && [`Holding (${HOLDING_MESES_PADRAO}m x ${fmt(holdingMensal)}/mes)`, fmt(holdingTotal)],
+    bd.holding > 0 && [`Holding (${bd.holdingMeses}m x ${fmt(bd.holdingMensal)}/mes)`, fmt(bd.holding)],
+    bd.debitosArrematante > 0 && ['Debitos (a cargo do arrematante)', fmt(bd.debitosArrematante)],
   ].filter(Boolean)
-  bRows.push([{ content: 'INVESTIMENTO TOTAL', styles: { fontStyle: 'bold', textColor: C.navy } }, { content: fmt(bd.investimentoTotal + holdingTotal), styles: { fontStyle: 'bold', textColor: C.navy } }])
+  bRows.push([{ content: 'INVESTIMENTO TOTAL', styles: { fontStyle: 'bold', textColor: C.navy } }, { content: fmt(bd.investimentoTotal), styles: { fontStyle: 'bold', textColor: C.navy } }])
   tbl({ startY: y, head: [], body: bRows, theme: 'striped', styles: { fontSize: 7.5, cellPadding: 2, textColor: C.text }, alternateRowStyles: { fillColor: C.bg }, columnStyles: { 0: { cellWidth: 75 }, 1: { cellWidth: 40, halign: 'right', fontStyle: 'bold' } }, margin: { left: 15, right: 80 }, tableWidth: 115 })
 
   const eY = y - 5
@@ -271,13 +272,12 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   if (!eMercado && lance2p > 0) {
     y = Math.max(lastY + 15, eY + 60)
     y = subH(doc, y, `Simulacao 2a Praca (50% avaliacao = ${fmt(lance2p)})`)
-    const hold2 = HOLDING_MESES_PADRAO * holdingMensal
-    const inv2 = bd2p.investimentoTotal + hold2
+    const inv2 = bd2p.investimentoTotal
     const roi2v = roi2p?.roi ?? 0
     tbl({ startY: y, head: [['', '1a Praca', '2a Praca', 'Diferenca']], body: [
       ['Lance', fmt(lance), fmt(lance2p), fmt(lance2p - lance)],
       ['Custos aquisicao', fmt(bd.totalCustos), fmt(bd2p.totalCustos), fmt(bd2p.totalCustos - bd.totalCustos)],
-      ['Investimento total', fmt(bd.investimentoTotal + holdingTotal), fmt(inv2), fmt(inv2 - bd.investimentoTotal - holdingTotal)],
+      ['Investimento total', fmt(bd.investimentoTotal), fmt(inv2), fmt(inv2 - bd.investimentoTotal)],
       ['ROI (flip)', `${roiV > 0 ? '+' : ''}${roiV}%`, `${roi2v > 0 ? '+' : ''}${roi2v}%`, `${(roi2v - roiV) > 0 ? '+' : ''}${(roi2v - roiV).toFixed(1)}pp`],
       roi.locacao && roi2p.locacao && ['Yield locacao', `${roi.locacao.yieldAnual}%`, `${roi2p.locacao.yieldAnual}%`, `+${(roi2p.locacao.yieldAnual - roi.locacao.yieldAnual).toFixed(1)}pp`],
     ].filter(Boolean), theme: 'grid', styles: { fontSize: 7, cellPadding: 2 }, headStyles: { fillColor: [88, 28, 135], textColor: C.white, fontSize: 6.5 }, alternateRowStyles: { fillColor: [250, 245, 255] }, margin: { left: 15, right: 15 } })
@@ -307,8 +307,8 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   const matrizRows = []
   // Custo reforma
   matrizRows.push([{ content: 'Custo Reforma', styles: { fontStyle: 'bold' } }, ...custoRef.map(c => fmt(c))])
-  // Invest total
-  const invests = custoRef.map(c => lance + bd.totalCustos + c + holdingTotal)
+  // Invest total = lance + custos + reforma + holding + débitos (sem duplicar)
+  const invests = custoRef.map(c => lance + bd.totalCustos + c + bd.holding + bd.debitosArrematante)
   matrizRows.push([{ content: 'Investimento Total', styles: { fontStyle: 'bold' } }, ...invests.map(v => fmt(v))])
   // Valor pos reforma
   const valoresPos = valoriz.map(v => Math.round(mercado * (1 + v / 100)))
@@ -490,7 +490,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
 
   if (aluguel > 0 && y < 245) {
     y = subH(doc, y, 'Aluguel Estimado por Cenario')
-    tbl({ startY: y, head: [['Cenario', 'Aluguel', 'Yield']], body: [['Sem reforma', 0.90], ['Basica', 1.00], ['Media', 1.08], ['Completa', 1.20]].map(([lb, ft]) => { const al = Math.round(aluguel * ft); return [lb, `${fmt(al)}/mes`, lance > 0 ? `${((al * 12) / lance * 100).toFixed(1)}%` : '--'] }), theme: 'striped', styles: { fontSize: 7.5, cellPadding: 2 }, headStyles: { fillColor: C.navy, textColor: C.white, fontSize: 7 }, alternateRowStyles: { fillColor: C.bg }, margin: { left: 15, right: 105 }, tableWidth: 90 })
+    tbl({ startY: y, head: [['Cenario', 'Aluguel', 'Yield s/ invest.']], body: [['Sem reforma', 0.90, 0], ['Basica', 1.00, custoRef[1]], ['Media', 1.08, custoRef[2]], ['Completa', 1.20, custoRef[3]]].map(([lb, ft, cr]) => { const al = Math.round(aluguel * ft); const inv = lance + bd.totalCustos + cr + bd.holding + bd.debitosArrematante; return [lb, `${fmt(al)}/mes`, inv > 0 ? `${((al * 12) / inv * 100).toFixed(1)}%` : '--'] }), theme: 'striped', styles: { fontSize: 7.5, cellPadding: 2 }, headStyles: { fillColor: C.navy, textColor: C.white, fontSize: 7 }, alternateRowStyles: { fillColor: C.bg }, margin: { left: 15, right: 105 }, tableWidth: 90 })
   }
   foot(doc, p, 6, totalPg)
 
