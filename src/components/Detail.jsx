@@ -17,7 +17,7 @@ import ConfigEstudo from './ConfigEstudo.jsx'
 import TimelineMatricula from './TimelineMatricula.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
-import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO } from '../lib/constants.js'
+import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO, CUSTOS_LEILAO, CUSTOS_MERCADO, IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO } from '../lib/constants.js'
 import CenariosReforma from './CenariosReforma.jsx'
 import { ReformaProvider, useReforma } from '../hooks/useReforma.jsx'
 import CustosReaisEditor from './CustosReaisEditor.jsx'
@@ -642,25 +642,16 @@ function AbaArremates({ imovel }) {
 // Sprint 22: ROI dinâmico sincronizado com ConfigEstudo (deve estar dentro do ReformaProvider)
 function RoiLiveBanner({ imovel }) {
   const { lanceEstudo, custoReformaAtual, cenarioSimplificado } = useReforma()
-  const { isMercadoDireto: _imd } = { isMercadoDireto: (url, t) => t === 'mercado_direto' || (url||'').includes('zapimoveis') || (url||'').includes('vivareal') }
   const eMercado = imovel?.tipo_transacao === 'mercado_direto' || (imovel?.fonte_url||'').includes('zapimoveis')
   const lance = lanceEstudo || parseFloat(imovel?.preco_pedido || imovel?.valor_minimo) || 0
   const mercado = parseFloat(imovel?.valor_mercado_estimado) || 0
   if (!lance || !mercado) return null
 
-  const { calcularBreakdownFinanceiro: calcBD } = { calcularBreakdownFinanceiro: null }
-  // Cálculo inline simplificado para o banner
-  const { CUSTOS_LEILAO: CL, CUSTOS_MERCADO: CM, IPTU_SOBRE_CONDO_RATIO: IPCR, HOLDING_MESES_PADRAO: HMP } = {
-    CUSTOS_LEILAO: { comissao_leiloeiro_pct: 5, itbi_pct: 3, advogado_pct: 5, documentacao_pct: 0.5, registro_fixo: 0 },
-    CUSTOS_MERCADO: { comissao_leiloeiro_pct: 0, itbi_pct: 3, advogado_pct: 0, documentacao_pct: 0.5, registro_fixo: 0 },
-    IPTU_SOBRE_CONDO_RATIO: 0.35,
-    HOLDING_MESES_PADRAO: 6,
-  }
-  const tab = eMercado ? CM : CL
+  const tab = eMercado ? CUSTOS_MERCADO : CUSTOS_LEILAO
   const pctTaxas = (tab.comissao_leiloeiro_pct + tab.itbi_pct + tab.advogado_pct + tab.documentacao_pct) / 100
   const condo = parseFloat(imovel?.condominio_mensal || 0)
-  const iptu = parseFloat(imovel?.iptu_mensal || 0) || (condo > 0 ? Math.round(condo * IPCR) : 0)
-  const holding = HMP * (condo + iptu)
+  const iptu = parseFloat(imovel?.iptu_mensal || 0) || (condo > 0 ? Math.round(condo * IPTU_SOBRE_CONDO_RATIO) : 0)
+  const holding = HOLDING_MESES_PADRAO * (condo + iptu)
   const debitos = imovel?.responsabilidade_debitos === 'arrematante' ? parseFloat(imovel?.debitos_total_estimado || 0) : 0
   const investTotal = lance * (1 + pctTaxas) + custoReformaAtual + holding + debitos
   const lucro = mercado * 0.94 - investTotal

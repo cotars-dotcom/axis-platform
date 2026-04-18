@@ -218,9 +218,9 @@ export async function saveImovelCompleto(imovel, userId) {
   }
 
   // ─── REDISTRIBUIÇÃO: custo_reforma_estimado → basica/media/completa ─────────
-  // Quando a IA retorna apenas custo_reforma_estimado (genérico), derivar os 3 cenários.
-  // Nunca sobrescrever se os valores específicos já estiverem calculados.
-  if (payload.custo_reforma_estimado && !payload.custo_reforma_media) {
+  // Só redistribuir se a IA não rodou gerarReformaDetalhada (que já traz valores calculados)
+  // e o payload realmente não tem os campos específicos.
+  if (payload.custo_reforma_estimado && !payload.custo_reforma_media && !payload.reforma_detalhada) {
     const areaRef = parseFloat(payload.area_privativa_m2 || payload.area_m2) || 60
     payload.custo_reforma_basica = payload.custo_reforma_basica || Math.round(areaRef * 345)
     payload.custo_reforma_media  = payload.custo_reforma_media  || payload.custo_reforma_estimado
@@ -243,63 +243,65 @@ export async function saveImovelCompleto(imovel, userId) {
           'score_liquidez','score_mercado','recomendacao','codigo_axis',
           'desconto_percentual','preco_m2_mercado','preco_m2_imovel',
           'aluguel_mensal_estimado','num_leilao','valor_mercado_estimado']
+        const camposNuncaZero = ['valor_minimo','valor_avaliacao','desconto_percentual',
+          'preco_m2_mercado','preco_m2_imovel','aluguel_mensal_estimado','valor_mercado_estimado',
+          'num_leilao','desconto_sobre_mercado_pct',
+          'custo_reforma_basica','custo_reforma_media','custo_reforma_completa',
+          'aluguel_sem_reforma','aluguel_com_reforma','fator_homogenizacao',
+          'valor_mercado_homogenizado']
+        const ATTRS_PREDIO = ['piscina','salao_festas','area_lazer','churrasqueira',
+          'academia','portaria_24h','playground']
+
+        // Campos de identidade: preservar se já foram definidos corretamente
+        const CAMPOS_IDENTIDADE = ['bairro','tipo','tipologia','cidade','estado']
+        for (const identCampo of CAMPOS_IDENTIDADE) {
+          if (atual[identCampo] && payload[identCampo] && atual[identCampo] !== payload[identCampo]) {
+            const valNovo = String(payload[identCampo])
+            const suspeito = valNovo.length > 25 || /\d{3}\.\d{3}/.test(valNovo)
+            if (suspeito) {
+              payload[identCampo] = atual[identCampo]
+              console.warn('[AXIS] Campo identidade protegido:', identCampo, '— mantendo:', atual[identCampo])
+            }
+          }
+        }
+
+        // Proteção de scores: não degradar scores bem calibrados com variação > 2.5 pts
+        const SCORES_PROTEGIDOS = ['score_localizacao','score_desconto','score_juridico','score_ocupacao','score_liquidez','score_mercado','score_total']
+        for (const s of SCORES_PROTEGIDOS) {
+          if (payload[s] != null) {
+            const v = parseFloat(payload[s])
+            if (isNaN(v) || v < 0 || v > 10) {
+              console.warn('[AXIS] Score fora do intervalo 0-10:', s, '=', payload[s], '→ clamped')
+              payload[s] = Math.max(0, Math.min(10, isNaN(v) ? 0 : v))
+            }
+          }
+          if (atual[s] != null && payload[s] != null) {
+            const diff = Math.abs(parseFloat(payload[s]) - parseFloat(atual[s]))
+            if (diff > 2.5) {
+              console.warn('[AXIS] Score protegido:', s, `${atual[s]} → ${payload[s]} (diff ${diff.toFixed(1)}) — mantendo atual`)
+              payload[s] = atual[s]
+            }
+          }
+        }
+
+        // Guard: desconto_percentual no intervalo 0-100
+        if (payload.desconto_percentual != null) {
+          const dp = parseFloat(payload.desconto_percentual)
+          if (isNaN(dp) || dp < -50 || dp > 100) {
+            console.warn('[AXIS] desconto_percentual fora do intervalo:', dp, '→ clamped')
+            payload.desconto_percentual = Math.max(-50, Math.min(100, isNaN(dp) ? 0 : dp))
+          }
+        }
+
+        // Proteção de score_total: recalcular com pesos (fonte: constants.js)
+        const pesosScore = Object.fromEntries(Object.entries(SCORE_PESOS).map(([k,v]) => [`score_${k}`, v]))
+        if (SCORES_PROTEGIDOS.some(s => payload[s] === atual[s])) {
+          const novoTotal = SCORES_PROTEGIDOS.slice(0,-1).reduce((acc,s) => acc + (parseFloat(payload[s]||0) * (pesosScore[s]||0)), 0)
+          if (novoTotal > 0) payload.score_total = parseFloat(novoTotal.toFixed(2))
+        }
+
+        // Proteção campo a campo: restaurar do banco se payload traz vazio/zero para campos críticos
         for (const campo of CAMPOS_PROTEGIDOS) {
-          // Scores podem ser zero válido; campos monetários e percentuais com zero = dado errado
-          const camposNuncaZero = ['valor_minimo','valor_avaliacao','desconto_percentual',
-            'preco_m2_mercado','preco_m2_imovel','aluguel_mensal_estimado','valor_mercado_estimado',
-            'num_leilao','desconto_sobre_mercado_pct',
-            // Atributos físicos — preservar se já preenchidos (IA pode não extrair em reanálise)
-            'custo_reforma_basica','custo_reforma_media','custo_reforma_completa',
-            'aluguel_sem_reforma','aluguel_com_reforma','fator_homogenizacao',
-            'valor_mercado_homogenizado']
-          // Campos de identidade: preservar se já foram definidos corretamente
-          const CAMPOS_IDENTIDADE = ['bairro','tipo','tipologia','cidade','estado']
-          for (const campo of CAMPOS_IDENTIDADE) {
-            if (atual[campo] && payload[campo] && atual[campo] !== payload[campo]) {
-              const valNovo = String(payload[campo])
-              const suspeito = valNovo.length > 25 || /\d{3}\.\d{3}/.test(valNovo)
-              if (suspeito) {
-                payload[campo] = atual[campo]
-                console.warn('[AXIS] Campo identidade protegido:', campo, '— mantendo:', atual[campo])
-              }
-            }
-          }
-          // Proteção de scores: não degradar scores bem calibrados com variação > 2.5 pts
-          const SCORES_PROTEGIDOS = ['score_localizacao','score_desconto','score_juridico','score_ocupacao','score_liquidez','score_mercado','score_total']
-          for (const s of SCORES_PROTEGIDOS) {
-            // Guard: forçar scores no intervalo 0-10
-            if (payload[s] != null) {
-              const v = parseFloat(payload[s])
-              if (isNaN(v) || v < 0 || v > 10) {
-                console.warn('[AXIS] Score fora do intervalo 0-10:', s, '=', payload[s], '→ clamped')
-                payload[s] = Math.max(0, Math.min(10, isNaN(v) ? 0 : v))
-              }
-            }
-            if (atual[s] != null && payload[s] != null) {
-              const diff = Math.abs(parseFloat(payload[s]) - parseFloat(atual[s]))
-              if (diff > 2.5) {
-                console.warn('[AXIS] Score protegido:', s, `${atual[s]} → ${payload[s]} (diff ${diff.toFixed(1)}) — mantendo atual`)
-                payload[s] = atual[s]
-              }
-            }
-          }
-          // Guard: desconto_percentual no intervalo 0-100
-          if (payload.desconto_percentual != null) {
-            const dp = parseFloat(payload.desconto_percentual)
-            if (isNaN(dp) || dp < -50 || dp > 100) {
-              console.warn('[AXIS] desconto_percentual fora do intervalo:', dp, '→ clamped')
-              payload.desconto_percentual = Math.max(-50, Math.min(100, isNaN(dp) ? 0 : dp))
-            }
-          }
-          // Proteção de score_total: recalcular com pesos (fonte: constants.js)
-          const pesosScore = Object.fromEntries(Object.entries(SCORE_PESOS).map(([k,v]) => [`score_${k}`, v]))
-          if (SCORES_PROTEGIDOS.some(s => payload[s] === atual[s])) {
-            const novoTotal = SCORES_PROTEGIDOS.slice(0,-1).reduce((acc,s) => acc + (parseFloat(payload[s]||0) * (pesosScore[s]||0)), 0)
-            if (novoTotal > 0) payload.score_total = parseFloat(novoTotal.toFixed(2))
-          }
-          // Para atributos booleanos do imóvel, preservar se já definidos (não null)
-          const ATTRS_PREDIO = ['piscina','salao_festas','area_lazer','churrasqueira',
-                                 'academia','portaria_24h','playground']
           const ehAtributoPreservavel = ATTRS_PREDIO.includes(campo) && atual[campo] !== null
           const novoVazio = (payload[campo] === null || payload[campo] === undefined || payload[campo] === '') && !ehAtributoPreservavel
             || (camposNuncaZero.includes(campo) && (payload[campo] === 0 || payload[campo] === '0'))
@@ -573,8 +575,8 @@ export async function getAtividades() {
 export async function logAtividade(userId, acao, entidade, entidadeId, detalhes) {
   try {
     await supabase.from('atividades').insert({
-      user_id: userId, tipo: acao, descricao: entidade,
-      imovel_id: entidadeId, metadata: detalhes
+      usuario_id: userId, acao: acao, entidade: entidade,
+      entidade_id: entidadeId, detalhes: detalhes
     })
   } catch(e) { console.warn('[AXIS supabase] Log atividade:', e.message) }
 }

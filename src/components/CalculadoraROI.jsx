@@ -84,8 +84,10 @@ export default function CalculadoraROI({ imovel }) {
   const maoFlip = calcularLanceMaximoParaROI(20, imovel, { eMercado, custoReforma: reforma, mercadoBruto: vmercadoBruto })
   const maoLocacao = (() => {
     const capRatePct = imovel.classe_ipead === 'Classe 4 - Luxo' ? 4.0 : imovel.classe_ipead === 'Classe 3 - Alto' ? 5.0 : 6.0
-    const custosFixos = reforma + debitosArr + holding + doc + advogado + registro + custoJuridico
-    return aluguelMensal > 0 ? (aluguelMensal * 12) / (capRatePct / 100) - custosFixos : 0
+    // % costs depend on the price being solved — keep them in the denominator
+    const pctCustos = (_tab.comissao_leiloeiro_pct + _tab.itbi_pct + _tab.advogado_pct + _tab.documentacao_pct) / 100
+    const custosFixos = reforma + debitosArr + holding + custoJuridico + (_tab.registro_fixo || 0)
+    return aluguelMensal > 0 ? ((aluguelMensal * 12) / (capRatePct / 100) - custosFixos) / (1 + pctCustos) : 0
   })()
   const lanceViavel = precoAquisicao <= maoFlip
 

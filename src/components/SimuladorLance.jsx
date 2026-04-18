@@ -44,7 +44,8 @@ export default function SimuladorLance({ p, isPhone = false }) {
 
   // Lance máximo para ROI alvo
   const lanceMaxROI = useMemo(() => {
-    return calcularLanceMaximoParaROI(roiAlvo, p, { eMercado, custoReforma: custoReformaManual })
+    const mercadoBruto = parseFloat(p.valor_mercado_estimado) || 0
+    return calcularLanceMaximoParaROI(roiAlvo, p, { eMercado, custoReforma: custoReformaManual, mercadoBruto })
   }, [roiAlvo, custoReformaManual])
 
   // Comparativo 1ª vs 2ª praça
