@@ -1092,6 +1092,53 @@ Retorne SOMENTE este JSON (sem texto adicional):
   }
 }
 
+// ─── REFORMA DETALHADA: gerar or\u00e7amento a partir de itens_reforma × \u00e1rea ────────
+async function gerarReformaDetalhada(area_m2, quartos) {
+  try {
+    const { supabase } = await import('./supabase.js')
+    const { data: itens } = await supabase
+      .from('itens_reforma')
+      .select('*')
+      .eq('ativo', true)
+      .order('cenario')
+      .order('ordem')
+    if (!itens || itens.length === 0) return null
+
+    const calcQtd = (item) => {
+      if (item.qtd_formula === 'area') return Math.round((area_m2 || 60) * (item.fator_area || 0))
+      if (item.qtd_formula === 'comodos') return (quartos || 2) + 1
+      return item.qtd_padrao || 1
+    }
+
+    const grupos = { basica: [], media: [], completa: [] }
+    for (const i of itens) { if (grupos[i.cenario]) grupos[i.cenario].push(i) }
+
+    const cenarios = {}
+    const itensPrev = []
+    const prazoMap = { basica: 15, media: 45, completa: 90 }
+    for (const cen of ['basica', 'media', 'completa']) {
+      const itensProprios = grupos[cen].map(i => {
+        const qtd = calcQtd(i)
+        return { item: i.item, un: i.unidade, qtd, custo: i.custo_unitario, sub: Math.round(qtd * i.custo_unitario) }
+      })
+      const todosItens = [...itensPrev, ...itensProprios]
+      const subtotal = todosItens.reduce((s, d) => s + d.sub, 0)
+      cenarios[cen] = {
+        prazo_dias: prazoMap[cen],
+        bdi_pct: 20,
+        itens: todosItens,
+        subtotal: Math.round(subtotal),
+        total: Math.round(subtotal * 1.2),
+      }
+      itensPrev.push(...itensProprios)
+    }
+    return cenarios
+  } catch(e) {
+    console.warn('[AXIS] gerarReformaDetalhada:', e.message)
+    return null
+  }
+}
+
 export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametros, criterios, onProgress, anexos, imovelId = null, imovelTitulo = null) {
   const progress = onProgress || (() => {})
 
@@ -1533,9 +1580,28 @@ Retorne APENAS JSON válido:
   "mobiliado": true/false/"semi"/null,
   "estado_conservacao": "bom/regular/ruim/reformado",
   "padrao_acabamento_visual": "popular/medio/alto/luxo",
-  "observacoes": "descrição breve do que vê nas fotos"
+  "observacoes": "descrição breve do que vê nas fotos",
+  "reforma": {
+    "estado_geral": "bom/regular/ruim/deteriorado",
+    "resumo": "duas frases sobre o estado geral e principais necessidades de reforma",
+    "itens": [
+      {"item": "pintura", "estado": "bom/regular/ruim", "acao": "ok/retocar/refazer", "prioridade": "alta/media/baixa"},
+      {"item": "piso_sala", "estado": "bom/regular/ruim", "acao": "ok/retocar/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "piso_cozinha", "estado": "bom/regular/ruim", "acao": "ok/retocar/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "piso_banheiro", "estado": "bom/regular/ruim", "acao": "ok/retocar/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "revestimento_banheiro", "estado": "bom/regular/ruim", "acao": "ok/retocar/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "bancada_cozinha", "estado": "bom/regular/ruim", "acao": "ok/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "tomadas_interruptores", "estado": "bom/regular/ruim", "acao": "ok/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "iluminacao", "estado": "bom/regular/ruim", "acao": "ok/atualizar", "prioridade": "alta/media/baixa"},
+      {"item": "portas", "estado": "bom/regular/ruim", "acao": "ok/reparar/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "janelas", "estado": "bom/regular/ruim", "acao": "ok/reparar/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "metais_loucas", "estado": "bom/regular/ruim", "acao": "ok/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "forro", "estado": "bom/regular/ruim", "acao": "ok/reparar/substituir", "prioridade": "alta/media/baixa"},
+      {"item": "armarios", "estado": "bom/regular/ruim", "acao": "ok/reparar/substituir", "prioridade": "alta/media/baixa"}
+    ]
+  }
 }
-Regras: true = claramente visível. false = claramente ausente (ex: prédio baixo sem elevador). null = impossível determinar pela foto.`
+Regras: true = claramente visível. false = claramente ausente (ex: prédio baixo sem elevador). null = impossível determinar pela foto. Avalie o estado de cada item apenas se ele for visível nas fotos — use null ou omita itens não visíveis.`
 
           // Sprint 18: Tentar proxy server-side para Vision também
           let visionData = null
@@ -1601,6 +1667,17 @@ Regras: true = claramente visível. false = claramente ausente (ex: prédio baix
               // Salvar observações da Vision
               analise._vision_observacoes = attrs.observacoes
               analise._vision_estado = attrs.estado_conservacao
+              // Salvar laudo de reforma da Vision
+              if (attrs.reforma) {
+                analise.vision_laudo = {
+                  estado_geral: attrs.reforma.estado_geral,
+                  itens_identificados: attrs.reforma.itens || [],
+                  resumo: attrs.reforma.resumo,
+                  analisado_em: new Date().toISOString(),
+                }
+                if (attrs.reforma.estado_geral) analise._vision_estado = attrs.reforma.estado_geral
+                if (attrs.reforma.resumo) analise._vision_observacoes = attrs.reforma.resumo
+              }
             }
           }
         }
@@ -1699,6 +1776,24 @@ Regras: true = claramente visível. false = claramente ausente (ex: prédio baix
         }
       }
     } catch(e) { console.warn('[AXIS] Jurimetria vara:', e.message) }
+
+  // Gerar reforma_detalhada automático (itens_reforma × área)
+  progress('📐 Calculando orçamento de reforma detalhado...')
+  try {
+    const areaCalc = analiseValidada.area_privativa_m2 || analiseValidada.area_m2 || analiseValidada.area_usada_calculo_m2
+    const quartosCalc = analiseValidada.quartos
+    const reformaDetalhada = await gerarReformaDetalhada(areaCalc, quartosCalc)
+    if (reformaDetalhada) {
+      analiseValidada.reforma_detalhada = reformaDetalhada
+      // Atualizar custo_reforma_basica/media/completa com os totais calculados
+      if (!analiseValidada.custo_reforma_basica)
+        analiseValidada.custo_reforma_basica = reformaDetalhada.basica?.total
+      if (!analiseValidada.custo_reforma_media)
+        analiseValidada.custo_reforma_media = reformaDetalhada.media?.total
+      if (!analiseValidada.custo_reforma_completa)
+        analiseValidada.custo_reforma_completa = reformaDetalhada.completa?.total
+    }
+  } catch(e) { console.warn('[AXIS] reforma_detalhada:', e.message) }
 
   // Recalcular score se a validação corrigiu algo
   const scoreFinal = (analiseValidada._erros_validacao?.length || analiseValidada._avisos_validacao?.length)

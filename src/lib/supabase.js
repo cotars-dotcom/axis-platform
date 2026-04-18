@@ -172,6 +172,8 @@ const IMOVEIS_COLS = new Set([
   'nome_condominio','parcelamento_aceito','parcelamento_detalhes',
   'coproprietarios','distribuicao_pavimentos',
   'coordenadas_lat','coordenadas_lng',
+  // Sprint 21: Reforma detalhada + Vision laudo
+  'reforma_detalhada','vision_laudo',
 ])
 
 export async function saveImovelCompleto(imovel, userId) {
@@ -213,6 +215,16 @@ export async function saveImovelCompleto(imovel, userId) {
         payload.data_leilao = null
       }
     }
+  }
+
+  // ─── REDISTRIBUIÇÃO: custo_reforma_estimado → basica/media/completa ─────────
+  // Quando a IA retorna apenas custo_reforma_estimado (genérico), derivar os 3 cenários.
+  // Nunca sobrescrever se os valores específicos já estiverem calculados.
+  if (payload.custo_reforma_estimado && !payload.custo_reforma_media) {
+    const areaRef = parseFloat(payload.area_privativa_m2 || payload.area_m2) || 60
+    payload.custo_reforma_basica = payload.custo_reforma_basica || Math.round(areaRef * 345)
+    payload.custo_reforma_media  = payload.custo_reforma_media  || payload.custo_reforma_estimado
+    payload.custo_reforma_completa = payload.custo_reforma_completa || Math.round(areaRef * 2100)
   }
 
   // ─── PROTEÇÃO DEFINITIVA NO SERVIDOR ────────────────────────────────────────

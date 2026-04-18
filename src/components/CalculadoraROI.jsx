@@ -26,7 +26,7 @@ export default function CalculadoraROI({ imovel }) {
   const comissao    = precoAquisicao * ((imovel.comissao_leiloeiro_pct ?? _tab.comissao_leiloeiro_pct) / 100)
   const itbi        = precoAquisicao * ((imovel.itbi_pct ?? _tab.itbi_pct) / 100)
   const doc         = precoAquisicao * (_tab.documentacao_pct / 100)
-  const reforma     = custoReformaAtual || parseFloat(imovel.custo_reforma_calculado || imovel.custo_reforma_previsto || 0)
+  const reforma     = custoReformaAtual
   const advogado    = precoAquisicao * (_tab.advogado_pct / 100)
   const registro    = _tab.registro_fixo ?? 0
   const custoJuridico = parseFloat(imovel.custo_juridico_estimado || 0)

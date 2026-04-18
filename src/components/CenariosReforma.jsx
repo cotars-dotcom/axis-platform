@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { C, K, fmtC, btn, card } from '../appConstants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
@@ -10,10 +10,18 @@ import {
   PRAZO_OBRA_MESES,
   detectarClasse,
 } from '../lib/reformaUnificada.js'
+import { supabase } from '../lib/supabase.js'
 
 export default function CenariosReforma({ imovel, isAdmin }) {
   const { escopoDetalhado: escopoSel, selecionarEscopo: setEscopoSel, area, preco_m2, classe, lanceEstudo } = useReforma()
   const [mostrarDetalhe, setMostrarDetalhe] = useState(false)
+  const [itensDB, setItensDB] = useState(null)
+  const [abertos, setAbertos] = useState(new Set())
+
+  useEffect(() => {
+    supabase.from('itens_reforma').select('*').eq('ativo', true).order('cenario').order('ordem')
+      .then(({ data }) => { if (data) setItensDB(data) })
+  }, [])
 
   const p = imovel || {}
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
@@ -104,6 +112,72 @@ export default function CenariosReforma({ imovel, isAdmin }) {
       }
     })
   }, [precoAquisicao, vmercado, area, classe, prazoLib, aluguelBase, avaliacao, comissao, itbi, doc, adv])
+
+  // ─── Or\u00e7amento detalhado: 3 cen\u00e1rios simplificados (acumulativos) ─────────────
+  const cenarios3 = useMemo(() => {
+    const quartos = parseInt(p.quartos) || 2
+    const calcQtd = (item) => {
+      if (item.qtd_formula === 'area') return Math.round(area * (item.fator_area || 0))
+      if (item.qtd_formula === 'comodos') return quartos + 1
+      return item.qtd_padrao || 1
+    }
+    const mkItens = (lista) => lista.map(i => {
+      const qtd = calcQtd(i)
+      return { item: i.item, un: i.unidade, qtd, custo: i.custo_unitario, sub: Math.round(qtd * i.custo_unitario) }
+    })
+
+    // Fonte 1: reforma_detalhada j\u00e1 no banco (por cen\u00e1rio, acumulativo)
+    if (p.reforma_detalhada) {
+      const rd = p.reforma_detalhada
+      return ['basica', 'media', 'completa'].map(c => {
+        const d = rd[c] || {}
+        return {
+          id: c,
+          label: c === 'basica' ? 'B\u00e1sica' : c === 'media' ? 'M\u00e9dia' : 'Completa',
+          prazo: d.prazo_dias || (c === 'basica' ? 15 : c === 'media' ? 45 : 90),
+          total: d.total || 0,
+          subtotal: d.subtotal || 0,
+          bdi: d.bdi_pct || 20,
+          itens: d.itens || [],
+        }
+      })
+    }
+
+    // Fonte 2: calcular ao vivo a partir de itens_reforma do banco
+    if (!itensDB) return null
+    const grupos = { basica: [], media: [], completa: [] }
+    for (const i of itensDB) { if (grupos[i.cenario]) grupos[i.cenario].push(i) }
+
+    // Acumular: m\u00e9dia = b\u00e1sica + pr\u00f3prios; completa = todos anteriores + pr\u00f3prios
+    const itensBas = mkItens(grupos.basica)
+    const itensMed = mkItens(grupos.media)
+    const itensCom = mkItens(grupos.completa)
+    const mkCenario = (id, label, prazo, itens) => {
+      const subtotal = itens.reduce((s, d) => s + d.sub, 0)
+      return { id, label, prazo, itens, subtotal: Math.round(subtotal), total: Math.round(subtotal * 1.2), bdi: 20 }
+    }
+    return [
+      mkCenario('basica', 'B\u00e1sica', 15, itensBas),
+      mkCenario('media', 'M\u00e9dia', 45, [...itensBas, ...itensMed]),
+      mkCenario('completa', 'Completa', 90, [...itensBas, ...itensMed, ...itensCom]),
+    ]
+  }, [itensDB, p.reforma_detalhada, area, p.quartos])
+
+  // Itens que a Vision recomendou (nomes dos itens que precisam de aten\u00e7\u00e3o)
+  const visionItens = useMemo(() => {
+    if (!p.vision_laudo?.itens_identificados) return new Set()
+    return new Set(
+      p.vision_laudo.itens_identificados
+        .filter(i => i.acao && i.acao !== 'ok')
+        .map(i => (i.item || '').toLowerCase())
+    )
+  }, [p.vision_laudo])
+
+  const toggleAberto = (id) => setAbertos(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
 
   const sel = cenarios.find(c => c.id === escopoSel) || cenarios[0]
   const semReforma = cenarios[0]
@@ -317,6 +391,101 @@ export default function CenariosReforma({ imovel, isAdmin }) {
         </div>
       )}
       </>}
+
+      {/* ─── Or\u00e7amento detalhado por cen\u00e1rio (acumulativo) ──────────────────────── */}
+      {cenarios3 && (
+        <div style={{marginTop:16, borderTop:`1px solid ${C.borderW}`, paddingTop:14}}>
+          <div style={{fontSize:11, fontWeight:600, color:C.muted, marginBottom:10}}>
+            Or\u00e7amento Detalhado (SINAPI-MG 2026)
+            {p.vision_laudo && <span style={{marginLeft:6, fontSize:10, color:'#7C3AED'}}>📸 Vision ativo</span>}
+          </div>
+          {cenarios3.map(c => {
+            const CORES = { basica:'#3B8BD4', media:'#D4A017', completa:'#D05538' }
+            const PRAZOS_LABEL = { basica:'15 dias', media:'45 dias', completa:'90 dias' }
+            const cor = CORES[c.id] || C.navy
+            const aberto = abertos.has(c.id)
+            const fmt2 = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : 'R$ 0'
+            const bdiValor = c.subtotal ? Math.round(c.total - c.subtotal) : 0
+            return (
+              <div key={c.id} style={{marginBottom:8, border:`1px solid ${cor}30`, borderRadius:10, overflow:'hidden'}}>
+                {/* Cabe\u00e7alho do cen\u00e1rio */}
+                <div style={{
+                  display:'flex', justifyContent:'space-between', alignItems:'center',
+                  padding:'10px 14px', background:`${cor}10`, cursor:'pointer'
+                }} onClick={() => toggleAberto(c.id)}>
+                  <div>
+                    <span style={{fontWeight:700, color:cor, fontSize:13}}>{c.label}</span>
+                    <span style={{color:C.muted, fontSize:11, marginLeft:8}}>
+                      {fmt2(c.total)} · {PRAZOS_LABEL[c.id]}
+                    </span>
+                  </div>
+                  <button style={{...btn('s'), fontSize:11, color:cor, background:'transparent', border:'none'}}>
+                    {aberto ? '▲ Ocultar' : '▶ Ver or\u00e7amento'}
+                  </button>
+                </div>
+
+                {/* Tabela de itens */}
+                {aberto && (
+                  <div style={{padding:'0 14px 12px'}}>
+                    {c.itens.length === 0 ? (
+                      <div style={{fontSize:11, color:C.hint, padding:'8px 0'}}>Nenhum item cadastrado para este cen\u00e1rio.</div>
+                    ) : (
+                      <table style={{width:'100%', borderCollapse:'collapse', fontSize:11, marginTop:10}}>
+                        <thead>
+                          <tr style={{background:C.surface}}>
+                            {['Item','Un','Qtd','R$/un','Subtotal'].map(h => (
+                              <th key={h} style={{
+                                padding:'5px 8px', textAlign: h === 'Item' ? 'left' : 'right',
+                                fontWeight:600, color:C.muted, fontSize:10,
+                                borderBottom:`1px solid ${C.borderW}`
+                              }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {c.itens.map((item, idx) => {
+                            const nomeKey = (item.item || '').toLowerCase()
+                            const temVision = visionItens.size > 0 && [...visionItens].some(v => nomeKey.includes(v) || v.includes(nomeKey.split(' ')[0]))
+                            return (
+                              <tr key={idx} style={{background: idx % 2 === 0 ? 'transparent' : `${C.surface}80`}}>
+                                <td style={{padding:'5px 8px', color:C.text}}>
+                                  {item.item}
+                                  {temVision && <span title="Vision recomendou aten\u00e7\u00e3o" style={{marginLeft:4, fontSize:10}}>📸</span>}
+                                </td>
+                                <td style={{padding:'5px 8px', textAlign:'right', color:C.muted}}>{item.un}</td>
+                                <td style={{padding:'5px 8px', textAlign:'right', color:C.muted}}>{item.qtd}</td>
+                                <td style={{padding:'5px 8px', textAlign:'right', color:C.muted}}>{fmt2(item.custo)}</td>
+                                <td style={{padding:'5px 8px', textAlign:'right', color:C.text, fontWeight:500}}>{fmt2(item.sub)}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{borderTop:`1px solid ${C.borderW}`}}>
+                            <td colSpan={4} style={{padding:'5px 8px', color:C.muted, fontStyle:'italic', fontSize:10}}>Subtotal materiais + m\u00e3o de obra</td>
+                            <td style={{padding:'5px 8px', textAlign:'right', color:C.text}}>{fmt2(c.subtotal)}</td>
+                          </tr>
+                          <tr>
+                            <td colSpan={4} style={{padding:'5px 8px', color:C.muted, fontStyle:'italic', fontSize:10}}>BDI {c.bdi}% (adm + lucro + impostos)</td>
+                            <td style={{padding:'5px 8px', textAlign:'right', color:C.muted}}>{fmt2(bdiValor)}</td>
+                          </tr>
+                          <tr style={{borderTop:`1px solid ${C.border}`}}>
+                            <td colSpan={4} style={{padding:'6px 8px', fontWeight:700, color:cor}}>TOTAL {c.label.toUpperCase()}</td>
+                            <td style={{padding:'6px 8px', textAlign:'right', fontWeight:700, color:cor}}>{fmt2(c.total)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {!p.reforma_detalhada && !itensDB && (
+            <div style={{fontSize:11, color:C.hint, padding:'8px 0'}}>Carregando itens de or\u00e7amento...</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
