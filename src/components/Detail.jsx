@@ -12,9 +12,10 @@ import { buscarArrematesSimilares, carregarCacheArremates } from '../lib/buscaAr
 import PainelLancamento from './PainelLancamento.jsx'
 import PainelInvestimento from './PainelInvestimento.jsx'
 import AtributosPredio from './AtributosPredio.jsx'
+import ScoreRadar from './ScoreRadar.jsx'
+import TimelineMatricula from './TimelineMatricula.jsx'
 import SimuladorLance from './SimuladorLance.jsx'
 import ConfigEstudo from './ConfigEstudo.jsx'
-import TimelineMatricula from './TimelineMatricula.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO, CUSTOS_LEILAO, CUSTOS_MERCADO, IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO, calcularLanceMaximoParaROI, calcularSobrecapitalizacao, IRPF_ISENCAO_TETO } from '../lib/constants.js'
@@ -933,6 +934,7 @@ function IsencaoIRPFBanner({ imovel }) {
 
 export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze,isAdmin,onArchive,isMobile,isPhone}) {
   const [sending,setSending]=useState(false)
+  const [showRadar, setShowRadar] = useState(false)
   const [modoAoVivo, setModoAoVivo]=useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [shareStatus, setShareStatus] = useState(null)
@@ -1621,12 +1623,21 @@ for (const s of SCORES) {
       )}
       <div style={{background:`${rc}10`,border:`1px solid ${rc}30`,borderRadius:"10px",padding:"20px",marginBottom:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"20px"}}>
-          {sc > 0 ? <ScoreRing score={sc} size={90}/>
-            : <div style={{width:90,height:90,borderRadius:'50%',border:'3px dashed #D4D4D8',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column'}}>
+          {sc > 0 ? (
+              showRadar
+                ? <div onClick={() => setShowRadar(false)} title="Clique para voltar ao gauge" style={{cursor:'pointer'}}>
+                    <ScoreRadar imovel={p} size={200} />
+                  </div>
+                : <div onClick={() => setShowRadar(true)} title="Clique para ver radar de dimensões" style={{cursor:'pointer'}}>
+                    <ScoreRing score={sc} size={90}/>
+                    <div style={{fontSize:8,color:'#64748B',textAlign:'center',marginTop:2}}>ver radar ↗</div>
+                  </div>
+            ) : (
+              <div style={{width:90,height:90,borderRadius:'50%',border:'3px dashed #D4D4D8',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column'}}>
                 <div style={{fontSize:16,fontWeight:700,color:C.muted}}>N/A</div>
                 <div style={{fontSize:8,color:C.hint}}>dados insuf.</div>
               </div>
-          }
+            )}
           <div>
             <div style={{fontSize:"11px",color:K.t3,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"4px"}}>Recomendação</div>
             <div style={{fontSize:"28px",fontWeight:"800",color:rc}}>{p.recomendacao||"—"}</div>

@@ -6,6 +6,7 @@
  */
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { saveImovelCompleto } from '../lib/supabase.js'
 import { C, card } from '../appConstants.js'
 
 const STATUS_COR = { ok: '#059669', aviso: '#D97706', erro: '#DC2626' }
@@ -16,6 +17,7 @@ export default function AbaSaudeAXIS({ isPhone = false }) {
   const [imoveis, setImoveis] = useState([])
   const [loading, setLoading] = useState(true)
   const [lastCheck, setLastCheck] = useState(null)
+  const [enrichProgress, setEnrichProgress] = useState(null)
 
   const verificar = async () => {
     setLoading(true)
@@ -44,6 +46,42 @@ export default function AbaSaudeAXIS({ isPhone = false }) {
 
   useEffect(() => { verificar() }, [])
 
+  const handleBatchEnrich = async () => {
+    if (!confirm(`Enriquecer ${imoveis.length} imóvel(is) com agentes F5? (mercado, MAO, aluguel, confidence)`)) return
+    setEnrichProgress({ total: imoveis.length, atual: 0, log: [] })
+    try {
+      const { enriquecerImovel } = await import('../lib/agenteOrquestrador.js')
+      const { data: { session } } = await supabase.auth.getSession()
+      for (let i = 0; i < imoveis.length; i++) {
+        const im = imoveis[i]
+        setEnrichProgress(prev => ({ ...prev, atual: i + 1, codigo: im.codigo_axis }))
+        try {
+          const imFull = await supabase.from('imoveis').select('*').eq('id', im.id).single()
+            .then(({ data }) => data)
+          if (!imFull) continue
+          const result = await enriquecerImovel(imFull, { forcarMercado: true, forcarReforma: true, forcarJuridico: false })
+          if (Object.keys(result.updates).length > 0) {
+            await saveImovelCompleto({ ...imFull, ...result.updates }, session?.user?.id)
+          }
+          setEnrichProgress(prev => ({
+            ...prev,
+            log: [...prev.log, `✅ ${im.codigo_axis}: ${result.log.filter(l => l.startsWith('✅')).length} campos atualizados`]
+          }))
+        } catch(e) {
+          setEnrichProgress(prev => ({
+            ...prev,
+            log: [...prev.log, `⚠️ ${im.codigo_axis}: ${e.message}`]
+          }))
+        }
+        await new Promise(r => setTimeout(r, 800)) // Nominatim rate-limit: 1 req/s
+      }
+      setEnrichProgress(prev => ({ ...prev, concluido: true }))
+      await verificar() // Recarregar dados
+    } catch(e) {
+      setEnrichProgress(prev => ({ ...prev, erro: e.message }))
+    }
+  }
+
   const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
   const diasP = data => {
     if (!data) return null
@@ -60,14 +98,53 @@ export default function AbaSaudeAXIS({ isPhone = false }) {
             Última verificação: {lastCheck.toLocaleTimeString('pt-BR')}
           </div>}
         </div>
-        <button onClick={verificar} disabled={loading}
-          style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #E2E8F0',
-            background: '#F8FAFC', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-          {loading ? '⏳ Verificando...' : '🔄 Re-verificar'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={verificar} disabled={loading}
+            style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #E2E8F0',
+              background: '#F8FAFC', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+            {loading ? '⏳ Verificando...' : '🔄 Re-verificar'}
+          </button>
+          {imoveis.length > 0 && (
+            <button onClick={handleBatchEnrich} disabled={!!enrichProgress && !enrichProgress.concluido}
+              style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #0EA5E930',
+                background: '#0EA5E912', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#0EA5E9' }}>
+              🚀 Enriquecer Carteira
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Métricas do banco */}
+      {/* Batch enricher progress */}
+      {enrichProgress && (
+        <div style={{ ...card(), padding: 14, marginBottom: 14,
+          background: enrichProgress.concluido ? '#ECFDF5' : '#F0F9FF',
+          border: `1px solid ${enrichProgress.concluido ? '#6EE7B7' : '#BAE6FD'}` }}>
+          <div style={{ fontSize: 12, fontWeight: 700,
+            color: enrichProgress.concluido ? '#065F46' : '#0369A1', marginBottom: 8 }}>
+            {enrichProgress.concluido
+              ? `✅ Enriquecimento concluído — ${imoveis.length} imóvel(is)`
+              : `🚀 Enriquecendo ${enrichProgress.atual}/${enrichProgress.total}: ${enrichProgress.codigo || '...'}`}
+          </div>
+          {enrichProgress.log.map((l, i) => (
+            <div key={i} style={{ fontSize: 10,
+              color: l.startsWith('✅') ? '#059669' : '#B45309', marginBottom: 2 }}>{l}</div>
+          ))}
+          {!enrichProgress.concluido && (
+            <div style={{ marginTop: 8, height: 4, borderRadius: 2, background: '#E0F2FE', overflow: 'hidden' }}>
+              <div style={{ width: `${(enrichProgress.atual / enrichProgress.total) * 100}%`,
+                height: '100%', background: '#0EA5E9', transition: 'width .3s' }}/>
+            </div>
+          )}
+          {enrichProgress.concluido && (
+            <button onClick={() => setEnrichProgress(null)}
+              style={{ marginTop: 6, fontSize: 9, color: '#64748B',
+                background: 'none', border: 'none', cursor: 'pointer' }}>
+              fechar
+            </button>
+          )}
+        </div>
+      )}
       {saude && saude.length > 0 && (
         <div style={{ ...card(), padding: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 10 }}>📊 Banco de Dados</div>

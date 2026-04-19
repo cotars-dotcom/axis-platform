@@ -1,179 +1,167 @@
 /**
- * AXIS — Timeline da Matrícula (Sprint 12.2)
- * Exibe atos registrais em timeline vertical com ícones por tipo
+ * AXIS — Timeline de Matrícula
+ * 
+ * Visualiza o status do processo de registro/matrícula de um imóvel
+ * em leilão judicial. Mostra as etapas e o que está completo/pendente.
  */
-import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase.js'
-import { C } from '../appConstants.js'
 
-const TIPOS = {
-  construcao:        { icon: '🏗️', cor: '#6B7280', label: 'Construção' },
-  venda:             { icon: '💰', cor: '#059669', label: 'Compra/Venda' },
-  financiamento:     { icon: '🏦', cor: '#2563EB', label: 'Financiamento' },
-  cancelamento:      { icon: '✅', cor: '#10B981', label: 'Cancelamento' },
-  indisponibilidade: { icon: '⚠️', cor: '#DC2626', label: 'Indisponibilidade' },
-  penhora:           { icon: '🔒', cor: '#DC2626', label: 'Penhora' },
-  averbacao:         { icon: '📋', cor: '#6366F1', label: 'Averbação' },
-  outro:             { icon: '📄', cor: '#6B7280', label: 'Outro' },
-}
-
-const GRAVIDADE_BG = {
-  info: 'transparent',
-  atencao: '#FEF3C710',
-  critico: '#FEF2F220',
-}
+const ETAPAS = [
+  {
+    id: 'identificacao',
+    label: 'Identificação',
+    desc: 'Imóvel identificado, número de matrícula localizado',
+    icon: '🏠',
+    campo: 'matricula_numero',
+    check: p => !!(p.matricula_numero || p.matricula_status),
+  },
+  {
+    id: 'analise_matricula',
+    label: 'Análise de Matrícula',
+    desc: 'Matrícula analisada — ônus, penhoras, hipotecas verificados',
+    icon: '📋',
+    campo: 'matricula_status',
+    check: p => p.matricula_status && p.matricula_status !== 'Não verificada',
+  },
+  {
+    id: 'penhora',
+    label: 'Penhora Averbada',
+    desc: 'Registro da penhora judicial averbado no CRI',
+    icon: '⚖️',
+    campo: 'debitos_total_estimado',
+    check: p => p.processos_ativos || parseFloat(p.debitos_total_estimado || 0) > 0,
+  },
+  {
+    id: 'edital',
+    label: 'Edital Publicado',
+    desc: 'Edital de praça publicado e prazo de 5 dias transcorrido',
+    icon: '📰',
+    campo: 'data_leilao',
+    check: p => !!p.data_leilao,
+  },
+  {
+    id: 'hasta',
+    label: 'Hasta Pública',
+    desc: 'Leilão realizado com lance vencedor',
+    icon: '🔨',
+    campo: 'status_operacional',
+    check: p => ['arrematado', 'aguardando_resultado', 'nao_arrematado'].includes(p.status_operacional),
+  },
+  {
+    id: 'auto_arrematacao',
+    label: 'Auto de Arrematação',
+    desc: 'Documento judicial gerado confirmando arrematação',
+    icon: '📄',
+    campo: null,
+    check: p => p.status_operacional === 'arrematado',
+  },
+  {
+    id: 'carta_arrematacao',
+    label: 'Carta de Arrematação',
+    desc: 'Carta emitida pelo juiz — título de posse',
+    icon: '📜',
+    campo: null,
+    check: p => p.status_operacional === 'arrematado',
+  },
+  {
+    id: 'registro_cri',
+    label: 'Registro no CRI',
+    desc: 'Imóvel registrado em nome do novo proprietário',
+    icon: '🏛️',
+    campo: null,
+    check: p => false, // Nunca automático — precisa ser informado
+  },
+]
 
 export default function TimelineMatricula({ imovel }) {
-  const [eventos, setEventos] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [expandido, setExpandido] = useState(false)
+  if (!imovel) return null
+  const eLeilao = imovel.tipo_transacao === 'leilao' || imovel.tipo_transacao === 'leilao_judicial'
+  if (!eLeilao) return null
 
-  useEffect(() => {
-    if (!imovel?.id) return
-    supabase.from('timeline_matricula')
-      .select('*')
-      .eq('imovel_id', imovel.id)
-      .order('data_evento', { ascending: true })
-      .then(({ data }) => {
-        setEventos(data || [])
-        setLoading(false)
-      })
-  }, [imovel?.id])
+  const etapas = ETAPAS.map(e => ({
+    ...e,
+    concluida: e.check(imovel),
+  }))
 
-  if (loading) return null
-  if (eventos.length === 0) return null
-
-  const criticos = eventos.filter(e => e.gravidade === 'critico')
-  const preview = eventos.slice(-5) // últimos 5 eventos
-  const lista = expandido ? eventos : preview
+  // Encontrar etapa atual (primeira não concluída)
+  const idxAtual = etapas.findIndex(e => !e.concluida)
+  const concluidas = etapas.filter(e => e.concluida).length
 
   return (
-    <div style={{
-      background: '#fff', border: `1px solid ${C.borderW}`, borderRadius: 12,
-      marginBottom: 14, overflow: 'hidden'
-    }}>
-      {/* Header */}
-      <div
-        onClick={() => setExpandido(!expandido)}
-        style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '14px 18px', cursor: 'pointer',
-          background: criticos.length > 0 ? '#FEF2F2' : '#F8FAFC',
-          borderBottom: `1px solid ${C.borderW}`
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
-            📜 Timeline da Matrícula
-          </div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
-            {eventos.length} atos · {eventos[0]?.data_evento?.substring(0,4) || '?'} — {eventos[eventos.length-1]?.data_evento?.substring(0,4) || '?'}
-            {criticos.length > 0 && (
-              <span style={{ color: '#DC2626', fontWeight: 600 }}>
-                {' '}· ⚠️ {criticos.length} indisponibilidade{criticos.length > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
+    <div style={{ padding: '14px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>
+          Progresso do Registro
         </div>
-        <span style={{ fontSize: 10, color: C.muted }}>
-          {expandido ? '▲ Recolher' : `▼ Ver ${eventos.length > 5 ? 'todos' : ''}`}
-        </span>
+        <div style={{ fontSize: 11, color: '#64748B' }}>
+          {concluidas}/{etapas.length} etapas
+        </div>
       </div>
 
-      {/* Alerta de indisponibilidades */}
-      {criticos.length > 0 && expandido && (
+      {/* Barra de progresso */}
+      <div style={{ height: 4, borderRadius: 2, background: '#E2E8F0', marginBottom: 16, overflow: 'hidden' }}>
         <div style={{
-          margin: '12px 18px 0', padding: '10px 14px', borderRadius: 8,
-          background: '#FEF2F2', border: '1px solid #FCA5A530'
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#DC2626', marginBottom: 4 }}>
-            🚨 Indisponibilidades Ativas ({criticos.length})
-          </div>
-          <div style={{ fontSize: 11, color: '#991B1B', lineHeight: 1.5 }}>
-            O imóvel possui {criticos.length} ordem{criticos.length > 1 ? 'ns' : ''} de indisponibilidade judicial ativa{criticos.length > 1 ? 's' : ''}, impedindo transações até levantamento judicial.
-          </div>
-        </div>
-      )}
+          width: `${(concluidas / etapas.length) * 100}%`,
+          height: '100%', borderRadius: 2,
+          background: concluidas === etapas.length ? '#059669' : '#3B82F6',
+          transition: 'width .5s',
+        }}/>
+      </div>
 
-      {/* Timeline */}
-      <div style={{ padding: '14px 18px', paddingLeft: 32 }}>
-        {lista.map((ev, i) => {
-          const t = TIPOS[ev.tipo] || TIPOS.outro
-          const isLast = i === lista.length - 1
+      {/* Etapas */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {etapas.map((e, i) => {
+          const isAtual = i === idxAtual
+          const cor = e.concluida ? '#059669' : isAtual ? '#3B82F6' : '#94A3B8'
+          const bg = e.concluida ? '#F0FDF4' : isAtual ? '#EFF6FF' : 'transparent'
+          const borderCor = e.concluida ? '#BBF7D0' : isAtual ? '#BFDBFE' : '#E2E8F0'
+
           return (
-            <div key={ev.id} style={{
-              position: 'relative', paddingLeft: 28, paddingBottom: isLast ? 0 : 16,
-              borderLeft: isLast ? 'none' : `2px solid ${ev.gravidade === 'critico' ? '#FCA5A550' : '#E5E7EB'}`,
-              background: GRAVIDADE_BG[ev.gravidade] || 'transparent',
-              borderRadius: ev.gravidade === 'critico' ? 6 : 0,
-              marginLeft: -1,
-            }}>
-              {/* Dot */}
-              <div style={{
-                position: 'absolute', left: -9, top: 2,
-                width: 16, height: 16, borderRadius: '50%',
-                background: ev.gravidade === 'critico' ? '#DC2626' : '#fff',
-                border: `2px solid ${t.cor}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 8,
-              }}>
-                {ev.gravidade === 'critico' && <span style={{ fontSize: 10 }}>!</span>}
+            <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 8px',
+              borderRadius: 7, background: bg, border: `1px solid ${borderCor}`, marginBottom: 4 }}>
+              {/* Ícone + linha vertical */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: 14,
+                  background: e.concluida ? '#DCFCE7' : isAtual ? '#DBEAFE' : '#F1F5F9',
+                  border: `2px solid ${cor}`,
+                }}>
+                  {e.concluida ? '✅' : isAtual ? e.icon : <span style={{ opacity: 0.4 }}>{e.icon}</span>}
+                </div>
+                {i < etapas.length - 1 && (
+                  <div style={{ width: 2, height: 8, background: e.concluida ? '#BBF7D0' : '#E2E8F0', marginTop: 2 }}/>
+                )}
               </div>
 
-              {/* Content */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
-                    <span style={{ fontSize: 12 }}>{t.icon}</span>
-                    <span style={{
-                      fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px',
-                      color: t.cor, padding: '1px 6px', borderRadius: 4,
-                      background: `${t.cor}10`, border: `1px solid ${t.cor}20`
-                    }}>
-                      {t.label}
-                    </span>
-                    {ev.registro && (
-                      <span style={{ fontSize: 9, color: C.muted, fontFamily: 'monospace' }}>{ev.registro}</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: C.navy, lineHeight: 1.4 }}>
-                    {ev.descricao}
-                  </div>
-                  {ev.partes && (
-                    <div style={{ fontSize: 10, color: C.hint, marginTop: 2 }}>
-                      👤 {ev.partes}
-                    </div>
-                  )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: isAtual ? 700 : 600, color: cor }}>
+                  {e.label}
+                  {isAtual && <span style={{ marginLeft: 6, fontSize: 9, background: '#3B82F6', color: '#fff',
+                    padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>ATUAL</span>}
                 </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 600, color: C.muted }}>
-                    {ev.data_evento ? new Date(ev.data_evento + 'T12:00').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : '—'}
-                  </div>
-                  {ev.valor > 0 && (
-                    <div style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>
-                      {ev.valor > 1000000
-                        ? `Cr$ ${Math.round(ev.valor / 1000).toLocaleString('pt-BR')}k`
-                        : `R$ ${Math.round(ev.valor).toLocaleString('pt-BR')}`}
-                    </div>
-                  )}
+                <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 1, lineHeight: 1.4 }}>
+                  {e.desc}
                 </div>
+                {/* Dado relevante */}
+                {e.concluida && e.campo && imovel[e.campo] && (
+                  <div style={{ fontSize: 9, color: '#059669', marginTop: 2, fontWeight: 600 }}>
+                    {e.campo === 'matricula_numero' && `Matrícula nº ${imovel[e.campo]}`}
+                    {e.campo === 'matricula_status' && imovel[e.campo]}
+                    {e.campo === 'data_leilao' && `Leilão: ${new Date(imovel[e.campo]+'T12:00').toLocaleDateString('pt-BR')}`}
+                    {e.campo === 'debitos_total_estimado' && parseFloat(imovel[e.campo]) > 0 &&
+                      `Débitos: R$ ${Math.round(imovel[e.campo]).toLocaleString('pt-BR')}`}
+                  </div>
+                )}
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Footer */}
-      {!expandido && eventos.length > 5 && (
-        <div
-          onClick={() => setExpandido(true)}
-          style={{
-            padding: '8px 18px', textAlign: 'center', fontSize: 10,
-            color: C.navy, fontWeight: 600, cursor: 'pointer',
-            borderTop: `1px solid ${C.borderW}`, background: '#F8FAFC'
-          }}
-        >
-          Ver todos os {eventos.length} atos registrais ▼
+      {imovel.prazo_liberacao_estimado_meses > 0 && (
+        <div style={{ marginTop: 10, padding: '6px 10px', borderRadius: 6,
+          background: '#FFFBEB', border: '1px solid #FDE68A', fontSize: 10, color: '#92400E' }}>
+          ⏱️ Prazo estimado de liberação após arrematação: <strong>{imovel.prazo_liberacao_estimado_meses} meses</strong>
         </div>
       )}
     </div>
