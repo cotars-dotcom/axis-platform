@@ -1015,18 +1015,21 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
     if (!p?.bairro && !p?.cidade) return
     import('../lib/supabase.js').then(({ supabase: sb }) => {
       sb.from('metricas_bairros')
-        .select('preco_anuncio_m2, preco_contrato_m2, yield_bruto, tendencia_12m, classe_ipead')
+        .select('preco_anuncio_m2, preco_contrato_m2, yield_bruto, tendencia_12m, classe_ipead, tempo_venda_dias, liquidez_label, vacancia_pct, aluguel_2q_tipico, aluguel_3q_tipico')
         .ilike('bairro', `%${(p.bairro||'').trim()}%`)
         .single()
         .then(({ data }) => {
-          if (data && onUpdateProp) {
-            const enriched = {
-              ...p,
-              preco_m2_mercado: p.preco_m2_mercado || data.preco_anuncio_m2 || data.preco_contrato_m2,
-              yield_bruto_pct: p.yield_bruto_pct || data.yield_bruto,
-            }
-            if (enriched.preco_m2_mercado !== p.preco_m2_mercado) {
-              // só atualiza UI, não persiste
+          if (data) {
+            // Expor dados de mercado do bairro para o painel via _metricasBairro
+            // Não persiste — só atualiza a UI local do detalhe
+            if (onUpdateProp) {
+              const enriched = {
+                ...p,
+                _metricasBairro: data,
+                preco_m2_mercado: p.preco_m2_mercado || data.preco_anuncio_m2 || data.preco_contrato_m2,
+                yield_bruto_pct: p.yield_bruto_pct || data.yield_bruto,
+              }
+              onUpdateProp(enriched)
             }
           }
         }).catch(() => {})
@@ -1566,6 +1569,36 @@ for (const s of SCORES) {
             </div>
           </div>
         )}
+      {/* Liquidez e absorção de mercado */}
+      {p._metricasBairro?.tempo_venda_dias && (
+        <div style={{...card(), marginTop:14}}>
+          <div style={{fontWeight:600, color:K.wh, marginBottom:10, fontSize:13}}>⚡ Liquidez e Absorção</div>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10}}>
+            {[
+              { label: 'Tempo médio venda', valor: `${p._metricasBairro.tempo_venda_dias} dias`,
+                cor: p._metricasBairro.tempo_venda_dias <= 60 ? K.grn : p._metricasBairro.tempo_venda_dias <= 90 ? K.amb : '#DC2626' },
+              { label: 'Liquidez', valor: p._metricasBairro.liquidez_label || '—',
+                cor: p._metricasBairro.liquidez_label === 'Alta' ? K.grn : p._metricasBairro.liquidez_label === 'Média' ? K.amb : '#DC2626' },
+              { label: 'Vacância locação', valor: p._metricasBairro.vacancia_pct ? `${p._metricasBairro.vacancia_pct}%` : '—',
+                cor: (p._metricasBairro.vacancia_pct||99) <= 5 ? K.grn : K.amb },
+            ].map(({label, valor, cor}) => (
+              <div key={label} style={{padding:'9px 10px', borderRadius:8, background:K.s2,
+                border:`1px solid ${cor}30`, textAlign:'center'}}>
+                <div style={{fontSize:9, color:K.t3, fontWeight:600, textTransform:'uppercase', marginBottom:4}}>{label}</div>
+                <div style={{fontSize:15, fontWeight:800, color:cor}}>{valor}</div>
+              </div>
+            ))}
+          </div>
+          {p.prazo_revenda_meses && (
+            <div style={{marginTop:8, fontSize:11, color:K.t3}}>
+              Prazo estimado de revenda para este imóvel: <strong style={{color:K.wh}}>{p.prazo_revenda_meses} meses</strong>
+              {p._metricasBairro.tempo_venda_dias && (
+                <span style={{color:K.t3}}> · mercado médio do bairro: {Math.round(p._metricasBairro.tempo_venda_dias/30)} meses</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {/* Comparáveis — também na aba mercado */}
       {p.comparaveis?.length>0&&<ComparaveisComFiltros comparaveis={p.comparaveis} imovel={p} isPhone={isPhone} CardComparavel={CardComparavel}/>}
       {/* Mapa de locais próximos — só quando coordenadas disponíveis */}
