@@ -297,7 +297,7 @@ export function calcularROI(investimentoTotal, valorMercado, aluguelMensal = 0) 
  * @param {number|null} iptuMensal - IPTU mensal real; se null, estima por condomínio * 0.35
  * @returns {{ condominio, iptuMensal, meses, porMes, total }}
  */
-export function calcularCustoHolding(condominio = 0, meses = 4, iptuMensal = null) {
+export function calcularCustoHolding(condominio = 0, meses = HOLDING_MESES_PADRAO, iptuMensal = null) {
   const cond = Math.round(condominio || 0)
   const iptu = iptuMensal != null ? Math.round(iptuMensal) : Math.round(cond * 0.35)
   const porMes = cond + iptu
@@ -487,7 +487,7 @@ export function calcularMatrizInvestimento(p, opts = {}) {
   const eMercado = opts.eMercado != null ? opts.eMercado : false
   const mercado = parseFloat(p.valor_mercado_estimado) || 0
   const aluguel = parseFloat(p.aluguel_mensal_estimado) || 0
-  const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 0
+  const area = parseFloat(p.area_usada_calculo_m2 || p.area_privativa_m2 || p.area_m2) || 0
   const holdingMeses = opts.holdingMeses || HOLDING_MESES_PADRAO
   const condoMensal = parseFloat(p.condominio_mensal || 0)
   const iptuMensal = parseFloat(p.iptu_mensal || 0) || (condoMensal > 0 ? Math.round(condoMensal * IPTU_SOBRE_CONDO_RATIO) : 0)
