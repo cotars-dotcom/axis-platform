@@ -69,6 +69,8 @@ export function normalizarTextoAlerta(texto) {
 
 export const scoreColor = s => s >= 7.5 ? C.emerald : s >= 6.0 ? C.mustard : s >= 4.5 ? '#E06A00' : RED
 export const scoreLabel = s => s >= 7.5 ? "FORTE" : s >= 6 ? "BOM" : s >= 4.5 ? "MÉDIO" : "FRACO"
+// scoreDisplay: converte score 0-10 para exibição 0-100 (Sprint 25)
+export const scoreDisplay = s => Math.round((s || 0) * 10)
 export const recColor = r => ({ COMPRAR: C.emerald, AGUARDAR: C.mustard, EVITAR: "#E5484D" })[r] || C.hint
 export const ESTRUTURA_MAP = { cpf_unico: 'Pessoa Física (CPF único)', cpf_multiplo: 'Múltiplos CPFs', pj: 'Pessoa Jurídica', judicial: 'Bloqueio Judicial', espolio: 'Espólio', 'espólio': 'Espólio' }
 export const LIQUIDEZ_MAP = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }

@@ -187,6 +187,12 @@ export function parseJSONResposta(texto) {
   return JSON.parse(match[0])
 }
 
+// ─── IRPF GANHO DE CAPITAL — ISENÇÃO ────────────────────────────────────────
+// Lei 9.250/1995 art. 23: isenção para venda de imóvel residencial único ≤ R$440.000
+// ou reinvestimento em outro imóvel em 180 dias (art. 39 Lei 11.196/2005).
+// O AXIS não pode verificar se é único imóvel — sinaliza como potencial isenção.
+export const IRPF_ISENCAO_TETO = 440000  // valor de venda do imóvel, não do ganho
+
 // ─── HOLDING COST ───────────────────────────────────────────────────
 export const IPTU_SOBRE_CONDO_RATIO = 0.35   // regra geral BH: IPTU ≈ 35% do condo
 export const HOLDING_MESES_PADRAO = 6          // prazo médio revenda BH (4-8m, usando 6 conservador)
@@ -261,6 +267,8 @@ export function calcularROI(investimentoTotal, valorMercado, aluguelMensal = 0) 
   if (!investimentoTotal || investimentoTotal <= 0 || !valorMercado || valorMercado <= 0) {
     return { lucro: 0, roi: 0, invalido: true, cenarios: { realista: { valor: 0, roi: 0 }, otimista: { valor: 0, roi: 0 }, vendaRapida: { valor: 0, roi: 0 } }, locacao: null }
   }
+  // Verificar potencial isenção de IRPF (Lei 9.250/1995 + Lei 11.196/2005)
+  const potencialIsencaoIRPF = valorMercado <= IRPF_ISENCAO_TETO
   // Sprint 23: deduzir corretagem (6% padrão de venda) para convergir com CalculadoraROI/RoiLiveBanner
   const CORRETAGEM_VENDA = 0.06
   const vendaLiquida = valorMercado * (1 - CORRETAGEM_VENDA)
@@ -279,6 +287,7 @@ export function calcularROI(investimentoTotal, valorMercado, aluguelMensal = 0) 
       otimista:    { valor: Math.round(valorMercado * 1.15),  roi: roiCenario(valorMercado * 1.15) },
       vendaRapida: { valor: Math.round(valorMercado * 0.90),  roi: roiCenario(valorMercado * 0.90) },
     },
+    potencialIsencaoIRPF: potencialIsencaoIRPF,
     locacao: aluguelMensal > 0 ? {
       aluguelMensal: Math.round(aluguelMensal),
       yieldAnual: Math.round((aluguelMensal * 12 / investimentoTotal) * 1000) / 10,
@@ -307,6 +316,41 @@ export function calcularCustoHolding(condominio = 0, meses = HOLDING_MESES_PADRA
     meses,
     porMes,
     total: Math.round(porMes * meses),
+  }
+}
+
+
+// ─── SOBRECAPITALIZAÇÃO ───────────────────────────────────────────────────────
+/**
+ * Detecta sobrecapitalização: quando o custo de reforma ultrapassa o teto
+ * razoável em relação ao valor de mercado pós-reforma.
+ *
+ * Regra geral de mercado BH:
+ *   - Popular:  reforma ≤ 15% do mercado
+ *   - Médio:    reforma ≤ 20% do mercado
+ *   - Alto:     reforma ≤ 25% do mercado
+ *   - Luxo:     reforma ≤ 30% do mercado (customização justifica)
+ */
+export const SOBRECAP_TETO_POR_CLASSE = {
+  'Classe 1 - Popular': 0.15,
+  'Classe 2 - Médio':   0.20,
+  'Classe 3 - Alto':    0.25,
+  'Classe 4 - Luxo':    0.30,
+  default:              0.20,
+}
+
+export function calcularSobrecapitalizacao(custoReforma, valorMercado, classeIpead = '') {
+  if (!custoReforma || !valorMercado || valorMercado <= 0) return { sobrecap: false, pct: 0, teto: 0.20 }
+  const teto = SOBRECAP_TETO_POR_CLASSE[classeIpead] || SOBRECAP_TETO_POR_CLASSE.default
+  const pct = custoReforma / valorMercado
+  return {
+    sobrecap: pct > teto,
+    pct: Math.round(pct * 1000) / 10,  // em %
+    teto: Math.round(teto * 100),       // em %
+    gravidade: pct > teto * 2 ? 'critico' : pct > teto * 1.5 ? 'alto' : 'moderado',
+    mensagem: pct > teto
+      ? `Reforma representa ${(pct*100).toFixed(0)}% do valor do imóvel (teto recomendado: ${(teto*100).toFixed(0)}%)`
+      : null,
   }
 }
 
@@ -480,6 +524,20 @@ export function calcularScoreAtributos7D(p) {
  * @param {object} opts - { lance, eMercado, holdingMeses, reformaCustos }
  * @returns {object} { cenarios: [...], melhor: { flip, locacao } }
  */
+
+// ─── VALORIZAÇÃO PÓS-REFORMA POR CLASSE IPEAD ────────────────────────────────
+// Calibrado por tipo de mercado: popular tem teto de absorção menor,
+// luxo tem retornos menores pois já começa em patamar elevado.
+// Referências: pesquisa IBAPE/SP hedônico, FipeZap variação segmento 2023-2025
+export const VALORIZACAO_REFORMA_POR_CLASSE = {
+  'Classe 1 - Popular': { basica: 2,  media: 7,  completa: 15 },
+  'Classe 2 - Médio':   { basica: 4,  media: 12, completa: 22 },
+  'Classe 3 - Alto':    { basica: 5,  media: 14, completa: 28 },
+  'Classe 4 - Luxo':    { basica: 3,  media: 10, completa: 24 },
+  // fallback quando classe não mapeada
+  default:              { basica: 4,  media: 12, completa: 22 },
+}
+
 export function calcularMatrizInvestimento(p, opts = {}) {
   if (!p) return null
 
@@ -505,11 +563,14 @@ export function calcularMatrizInvestimento(p, opts = {}) {
   const custosAquisicao = bd.totalCustos
 
   // Fatores de valorização e aluguel por cenário
+  // Calibrar valorização por classe IPEAD do imóvel
+  const classeIpead = p.classe_ipead || p.classe_ipead_label || 'Classe 2 - Médio'
+  const fvTab = VALORIZACAO_REFORMA_POR_CLASSE[classeIpead] || VALORIZACAO_REFORMA_POR_CLASSE.default
   const CENARIOS = [
-    { id: 'sem_reforma',  label: 'Sem Reforma',   fvPct: 0,   alugFator: 0.90, cor: '#8E8EA0' },
-    { id: 'basica',       label: 'Básica',         fvPct: 4,   alugFator: 1.00, cor: '#3B8BD4' },
-    { id: 'media',        label: 'Média',          fvPct: 12,  alugFator: 1.08, cor: '#D4A017' },
-    { id: 'completa',     label: 'Completa',       fvPct: 28,  alugFator: 1.20, cor: '#D05538' },
+    { id: 'sem_reforma',  label: 'Sem Reforma',   fvPct: 0,          alugFator: 0.90, cor: '#8E8EA0' },
+    { id: 'basica',       label: 'Básica',         fvPct: fvTab.basica,   alugFator: 1.00, cor: '#3B8BD4' },
+    { id: 'media',        label: 'Média',          fvPct: fvTab.media,    alugFator: 1.08, cor: '#D4A017' },
+    { id: 'completa',     label: 'Completa',       fvPct: fvTab.completa, alugFator: 1.20, cor: '#D05538' },
   ]
 
   // Custos de reforma — prioridade: opts > banco > SINAPI
@@ -538,9 +599,14 @@ export function calcularMatrizInvestimento(p, opts = {}) {
     const yieldAnual = alugMensal > 0 && investTotal > 0 ? Math.round((alugMensal * 12 / investTotal) * 1000) / 10 : 0
     const paybackAnos = alugMensal > 0 ? Math.round(investTotal / (alugMensal * 12) * 10) / 10 : 0
 
+    const sobrecap = calcularSobrecapitalizacao(custoReforma, mercadoAjustado, classeIpead)
     return {
       ...cen,
       custoReforma,
+      sobrecap: sobrecap.sobrecap,
+      sobrecapPct: sobrecap.pct,
+      sobrecapGravidade: sobrecap.gravidade,
+      sobrecapMensagem: sobrecap.mensagem,
       investTotal,
       valorPos,
       lucroFlip: Math.round(lucroFlip),

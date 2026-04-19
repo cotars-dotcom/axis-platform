@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { C, K, btn, fmtC, fmtD, card, recColor, scoreColor, scoreLabel } from "../appConstants.js"
+import { C, K, btn, fmtC, fmtD, card, recColor, scoreColor, scoreLabel, scoreDisplay } from "../appConstants.js"
 import { ArrowUpRight, Bell, TrendingUp, AlertTriangle, Package, Clock } from "lucide-react"
 import { supabase } from '../lib/supabase.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
@@ -8,12 +8,13 @@ import PainelPosLeilao from './PainelPosLeilao.jsx'
 
 // Inline ScoreRing (used by PropCard)
 function ScoreRing({score,size=80}) {
-  // Scores AXIS são sempre 0-10; usar scoreColor diretamente
+  // Score armazenado 0-10; exibido como 0-100 (Sprint 25)
   const maxVal = 10
   const c = scoreColor(score||0)
   const r = (size-10)/2
   const circ = 2*Math.PI*r
   const dash = ((score||0)/maxVal)*circ
+  const scoreNum = scoreDisplay(score)  // 0-100 para display
   return <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
     <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`${c}20`} strokeWidth={size>60?8:4}/>
@@ -21,8 +22,8 @@ function ScoreRing({score,size=80}) {
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"/>
     </svg>
     <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
-      <div style={{fontSize:size>70?"18px":"13px",fontWeight:"800",color:c,lineHeight:1}}>{(score||0).toFixed(2)}</div>
-      <div style={{fontSize:"8px",color:C.hint,textTransform:"uppercase",letterSpacing:".5px"}}>{scoreLabel(score||0)}</div>
+      <div style={{fontSize:size>70?"22px":"15px",fontWeight:"800",color:c,lineHeight:1}}>{scoreNum}</div>
+      <div style={{fontSize:"7px",color:C.hint,textTransform:"uppercase",letterSpacing:".5px"}}>{scoreLabel(score||0)}</div>
     </div>
   </div>
 }
@@ -37,14 +38,29 @@ function PropCard({p,onNav,isPhone=false}) {
   const dataLeilao = p.data_leilao ? new Date(p.data_leilao+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null
   const numLeilao = p.praca ? `${p.praca}ª PRAÇA` : p.num_leilao ? `${p.num_leilao}º LEILÃO` : null
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
+  const diasLeilao = p.data_leilao && !eMercado && p.status_operacional !== 'arquivado'
+    ? Math.ceil((new Date(p.data_leilao+'T12:00') - Date.now()) / 86400000) : null
+  const urgColor = diasLeilao !== null && diasLeilao <= 7 ? '#DC2626'
+    : diasLeilao !== null && diasLeilao <= 15 ? '#EA580C'
+    : diasLeilao !== null && diasLeilao <= 30 ? '#D97706' : null
   const scoreDelta = p.preco_m2_imovel && p.preco_m2_mercado
     ? ((1 - p.preco_m2_imovel/p.preco_m2_mercado)*100).toFixed(0) : null
 
   return <div onClick={()=>onNav("detail",{id:p.id})}
-    style={{...card(),cursor:"pointer",transition:"all .15s",padding:isPhone?"12px":"14px"}}
+    style={{...card(),cursor:"pointer",transition:"all .15s",padding:isPhone?"12px":"14px",
+      outline: urgColor ? `2px solid ${urgColor}` : undefined}}>
     onMouseEnter={e=>{e.currentTarget.style.borderColor=K.teal;e.currentTarget.style.transform="translateY(-2px)"}}
     onMouseLeave={e=>{e.currentTarget.style.borderColor=K.bd;e.currentTarget.style.transform="none"}}>
 
+    {urgColor && diasLeilao !== null && (
+      <div style={{background:urgColor,color:'#fff',fontSize:10,fontWeight:800,
+        padding:'4px 10px',borderRadius:5,marginBottom:8,display:'flex',
+        alignItems:'center',gap:6,letterSpacing:0.3}}>
+        <span>⏳</span>
+        <span>{diasLeilao <= 0 ? 'LEILÃO HOJE!' : diasLeilao === 1 ? 'LEILÃO AMANHÃ!' : `LEILÃO EM ${diasLeilao} DIAS`}</span>
+        {p.praca && <span style={{marginLeft:'auto',fontWeight:700,fontSize:9,opacity:0.9}}>{p.praca}ª PRAÇA · {dataLeilao}</span>}
+      </div>
+    )}
     {p.foto_principal && (
       <div style={{marginBottom:10,borderRadius:8,overflow:"hidden",height:isPhone?95:115,background:C.offwhite,position:"relative"}}>
         <img src={p.foto_principal} alt="" referrerPolicy="no-referrer" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.parentElement.style.display="none"}} />

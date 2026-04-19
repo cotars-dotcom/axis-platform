@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
-import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, recColor, mapDisplay, normalizarTextoAlerta, ESTRATEGIA_CONFIG, LIQUIDEZ_MAP } from "../appConstants.js"
+import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, scoreDisplay, recColor, mapDisplay, normalizarTextoAlerta, ESTRATEGIA_CONFIG, LIQUIDEZ_MAP } from "../appConstants.js"
 import { supabase, saveImovelCompleto, saveObservacao, loadApiKeys, logAtividade, criarLinkPublico, registrarResultadoLeilao, saveAvaliacao, getAvaliacoes } from "../lib/supabase.js"
 // motorIA: import dinâmico em handleReanalyze
 // trelloService: import dinâmico em handleTrello
@@ -17,7 +17,7 @@ import ConfigEstudo from './ConfigEstudo.jsx'
 import TimelineMatricula from './TimelineMatricula.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
-import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO, CUSTOS_LEILAO, CUSTOS_MERCADO, IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO, calcularLanceMaximoParaROI } from '../lib/constants.js'
+import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO, CUSTOS_LEILAO, CUSTOS_MERCADO, IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO, calcularLanceMaximoParaROI, calcularSobrecapitalizacao, IRPF_ISENCAO_TETO } from '../lib/constants.js'
 import CenariosReforma from './CenariosReforma.jsx'
 import { ReformaProvider, useReforma } from '../hooks/useReforma.jsx'
 import CustosReaisEditor from './CustosReaisEditor.jsx'
@@ -92,9 +92,9 @@ function Hdr({title,sub,actions}) {
 function ScoreRing({score,size=80}) {
   const [displayed, setDisplayed] = useState(0)
   const animRef = useRef(null)
-  const maxVal = size > 60 ? 10 : 100
+  const maxVal = 100  // Sprint 25: sempre 0-100 para display consistente
   useEffect(() => {
-    const target = score || 0
+    const target = (score || 0) * 10  // score 0-10 → display 0-100
     const start = performance.now()
     const duration = 800
     if (animRef.current) cancelAnimationFrame(animRef.current)
@@ -107,7 +107,7 @@ function ScoreRing({score,size=80}) {
     animRef.current = requestAnimationFrame(animate)
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current) }
   }, [score])
-  const c = maxVal === 10 ? scoreColor(displayed) : (displayed>=70?C.emerald:displayed>=50?C.mustard:"#E5484D")
+  const c = displayed>=75?C.emerald:displayed>=60?C.mustard:displayed>=45?"#E06A00":"#E5484D"
   const r = (size-10)/2
   const circ = 2*Math.PI*r
   const dash = (displayed/maxVal)*circ
@@ -118,8 +118,8 @@ function ScoreRing({score,size=80}) {
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"/>
     </svg>
     <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
-      <div style={{fontSize:size>70?"18px":"13px",fontWeight:"800",color:c,lineHeight:1}}>{maxVal===10?displayed.toFixed(2):displayed.toFixed(1)}</div>
-      <div style={{fontSize:"8px",color:C.hint,textTransform:"uppercase",letterSpacing:".5px"}}>{scoreLabel(displayed)}</div>
+      <div style={{fontSize:size>70?"18px":"13px",fontWeight:"800",color:c,lineHeight:1}}>{Math.round(displayed)}</div>
+      <div style={{fontSize:"8px",color:C.hint,textTransform:"uppercase",letterSpacing:".5px"}}>{scoreLabel(displayed/10)}</div>
     </div>
   </div>
 }
@@ -158,7 +158,7 @@ const tPost = async (path,key,token,body) => { const p=new URLSearchParams({key,
 
 function buildTrelloCard(p) {
   const rc = p.recomendacao||"—"
-  const score = (p.score_total||0).toFixed(2)
+  const score = Math.round((p.score_total||0) * 10).toString()  // Sprint 25: 0-100
   const emoji = rc==="COMPRAR"?"🟢":rc==="AGUARDAR"?"🟡":"🔴"
   const desc = `## ${emoji} ${rc} — Score ${score}/10
 
@@ -494,7 +494,7 @@ function ModoAoVivo({ imovel, onClose }) {
       <div style={{ textAlign:'center', padding:'20px 0' }}>
         <p style={{ margin:0, fontSize:72, fontWeight:900, color:recClr,
           lineHeight:1 }}>
-          {s.score_total?.toFixed(2) || '—'}
+          {s.score_total != null ? Math.round(s.score_total*10) : '—'}
         </p>
         <p style={{ margin:'4px 0 0', fontSize:18, fontWeight:700, color:recClr }}>
           {recLabel}
@@ -752,6 +752,122 @@ function LanceAcimaMercadoBanner({ imovel }) {
           Diferença: R$ {diff.toLocaleString('pt-BR')} antes de quaisquer custos de aquisição.
         </div>
       </div>
+    </div>
+  )
+}
+
+
+// Kill-switch jurídico: faixa vermelha proeminente quando há risco fatal
+// Diferencial AXIS vs Leilão Ninja — sinaliza ANTES do score, não enterrado
+function KillSwitchJuridicoBanner({ imovel }) {
+  const motivos = []
+  
+  // 1. Score jurídico crítico
+  if (imovel?.score_juridico != null && imovel.score_juridico < 3.5) {
+    motivos.push({ icone: '⚖️', texto: `Score jurídico crítico (${Number(imovel.score_juridico).toFixed(1)}/10) — risco alto de impedimento judicial` })
+  }
+  
+  // 2. Débitos acima de 30% do lance
+  const lance = parseFloat(imovel?.valor_minimo || imovel?.preco_pedido) || 0
+  const debitos = imovel?.responsabilidade_debitos === 'arrematante' ? parseFloat(imovel?.debitos_total_estimado || 0) : 0
+  if (lance > 0 && debitos > lance * 0.30) {
+    motivos.push({ icone: '💸', texto: `Débitos do arrematante (R$ ${debitos.toLocaleString('pt-BR')}) representam ${((debitos/lance)*100).toFixed(0)}% do lance — risco de viabilidade financeira` })
+  }
+  
+  // 3. Ocupação irregular + processo ativo
+  if (imovel?.ocupacao === 'Ocupado' && imovel?.processos_ativos) {
+    motivos.push({ icone: '🏠', texto: 'Imóvel ocupado com processo em andamento — risco de ação de reintegração prolongada (6–18 meses)' })
+  }
+  
+  // 4. Riscos presentes com keywords críticas
+  const riscosTexto = (imovel?.riscos_presentes || []).join(' ').toLowerCase()
+  if (riscosTexto.includes('penhora') && riscosTexto.includes('dupla')) {
+    motivos.push({ icone: '🔒', texto: 'Penhora dupla detectada — pode haver disputas de preferência entre credores' })
+  }
+  if (riscosTexto.includes('nulidade') || riscosTexto.includes('embarg')) {
+    motivos.push({ icone: '🛑', texto: 'Risco de nulidade ou embargo de leilão identificado nos riscos jurídicos' })
+  }
+  
+  if (motivos.length === 0) return null
+  
+  return (
+    <div style={{background:'#FEE2E2',border:'2px solid #DC2626',borderRadius:10,
+      padding:'14px 16px',marginBottom:16}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+        <span style={{fontSize:20}}>🚨</span>
+        <span style={{fontWeight:800,color:'#991B1B',fontSize:13,letterSpacing:0.2}}>
+          KILL-SWITCH JURÍDICO — Verifique antes de lançar
+        </span>
+      </div>
+      {motivos.map((m, i) => (
+        <div key={i} style={{display:'flex',alignItems:'flex-start',gap:8,
+          marginTop:i > 0 ? 6 : 0,
+          padding:'6px 10px',background:'#FEF2F2',borderRadius:6,
+          border:'1px solid #FECACA'}}>
+          <span style={{fontSize:14,flexShrink:0}}>{m.icone}</span>
+          <span style={{fontSize:11,color:'#B91C1C',lineHeight:1.5}}>{m.texto}</span>
+        </div>
+      ))}
+      <div style={{fontSize:10,color:'#B91C1C',marginTop:8,fontStyle:'italic',opacity:0.8}}>
+        Este aviso não impede o uso da plataforma. Consulte um advogado antes de arrematar.
+      </div>
+    </div>
+  )
+}
+
+// Banner de sobrecapitalização por cenário
+function SobrecapBanner({ imovel }) {
+  const mercado = parseFloat(imovel?.valor_mercado_estimado) || 0
+  const classe = imovel?.classe_ipead || imovel?.classe_ipead_label || ''
+  if (!mercado) return null
+  
+  const cenarios = [
+    { nome: 'Básica', custo: parseFloat(imovel?.custo_reforma_basica || 0) },
+    { nome: 'Média', custo: parseFloat(imovel?.custo_reforma_media || 0) },
+    { nome: 'Completa', custo: parseFloat(imovel?.custo_reforma_completa || 0) },
+  ].filter(c => c.custo > 0)
+  
+  const problemas = cenarios.map(c => ({
+    ...c,
+    ...calcularSobrecapitalizacao(c.custo, mercado, classe)
+  })).filter(c => c.sobrecap)
+  
+  if (problemas.length === 0) return null
+  
+  return (
+    <div style={{background:'#FFF7ED',border:'1px solid #FED7AA',borderRadius:8,
+      padding:'10px 14px',marginBottom:12}}>
+      <div style={{fontWeight:700,color:'#9A3412',fontSize:12,marginBottom:6}}>
+        ⚠️ Sobrecapitalização detectada
+      </div>
+      {problemas.map((p, i) => (
+        <div key={i} style={{fontSize:11,color:'#7C2D12',marginTop:i>0?4:0}}>
+          · Cenário {p.nome}: reforma representa {p.pct}% do valor de mercado (teto recomendado: {p.teto}%)
+        </div>
+      ))}
+      <div style={{fontSize:10,color:'#92400E',marginTop:6,opacity:0.8}}>
+        Sobrecapitalização reduz o retorno esperado na revenda pois o mercado não absorve o custo total da reforma.
+      </div>
+    </div>
+  )
+}
+
+// Banner potencial isenção IRPF
+function IsencaoIRPFBanner({ imovel }) {
+  const mercado = parseFloat(imovel?.valor_mercado_estimado) || 0
+  const eLeilao = imovel?.tipo_transacao === 'leilao' || imovel?.tipo_transacao === 'leilao_judicial'
+  if (!mercado || !eLeilao || mercado > IRPF_ISENCAO_TETO) return null
+  return (
+    <div style={{background:'#ECFDF5',border:'1px solid #6EE7B7',borderRadius:8,
+      padding:'8px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+      <span style={{fontSize:14}}>✅</span>
+      <div style={{flex:1}}>
+        <span style={{fontWeight:700,color:'#065F46',fontSize:11}}>Potencial isenção de IRPF</span>
+        <span style={{fontSize:10,color:'#047857',marginLeft:6}}>
+          Valor de mercado ≤ R$ 440.000 — Lei 9.250/95 pode isentar o ganho de capital
+        </span>
+      </div>
+      <span style={{fontSize:9,color:'#059669',opacity:0.7}}>Consulte contador</span>
     </div>
   )
 }
@@ -1525,6 +1641,9 @@ for (const s of SCORES) {
       {/* ═══ ReformaProvider: sincroniza cenário de reforma entre painéis ═══ */}
       <ReformaProvider imovel={p}>
         {/* Sprint 23: alertas pré-análise financeira */}
+        <KillSwitchJuridicoBanner imovel={p} />
+        <IsencaoIRPFBanner imovel={p} />
+        <SobrecapBanner imovel={p} />
         <DadosInsuficientesBanner imovel={p} />
         <LanceAcimaMercadoBanner imovel={p} />
         <LanceAlertaBanner imovel={p} />
