@@ -6,7 +6,7 @@ import { useIsMobile } from "./hooks/useIsMobile.js"
 const LazyBuscaGPT = lazy(() => import('./components/BuscaGPT.jsx'))
 import { useAuth } from "./lib/AuthContext.jsx"
 import Login from "./pages/Login.jsx"
-import { supabase, getImoveis, deleteImovel } from "./lib/supabase.js"
+import { supabase, getImoveis, deleteImovel, persistApiKeys, verificarImovelDuplicado, getDocumentosJuridicos, salvarDocumentoJuridico, getBancoArquivados, desarquivarImovel, saveImovelCompleto, gerarAxisId, arquivarImovel, signOut } from "./lib/supabase.js"
 import { detectarTipoTransacao, isMercadoDireto } from "./lib/detectarFonte.js"
 const LazyTarefas = lazy(() => import('./pages/Tarefas.jsx'))
 const LazySharedViewer = lazy(() => import('./components/SharedViewer.jsx'))
@@ -514,7 +514,7 @@ function ApiKeyModal({onClose, session}) {
    if(ok)localStorage.setItem("axis-openai-key",ok)
    if(session?.user?.id&&(k||geminiKey||deepseekKey)){
      setSaving(true)
-     try{const{persistApiKeys}=await import('./lib/supabase.js');await persistApiKeys(session.user.id,{claudeKey:k,openaiKey:ok,geminiKey:geminiKey||'',deepseekKey:deepseekKey||''})}catch(e){console.warn('[AXIS] save keys:',e)}finally{setSaving(false)}
+     try{await persistApiKeys(session.user.id,{claudeKey:k,openaiKey:ok,geminiKey:geminiKey||'',deepseekKey:deepseekKey||''})}catch(e){console.warn('[AXIS] save keys:',e)}finally{setSaving(false)}
    }
    onClose()
  }
@@ -757,7 +757,6 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
     if(!hasKey && !hasGemini && !hasDeepseek){setError("Configure ao menos uma chave de IA nas Configurações (⚙️): Gemini (grátis), DeepSeek ou Claude.");return}
     // Verificar permissão de uso da API
     try {
-      const { supabase } = await import('./lib/supabase.js')
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: perfil } = await supabase.from('profiles').select('pode_usar_api, role').eq('id', user.id).single()
@@ -773,7 +772,6 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
       if(localDup){setDuplicado(localDup);return}
       // 2. Verificar no Supabase
       try {
-        const{verificarImovelDuplicado}=await import('./lib/supabase.js')
         const dups=await verificarImovelDuplicado(urlNorm)
         if(dups?.length>0){setDuplicado(dups[0]);return}
       } catch(e){console.warn('[AXIS] Verificação Supabase falhou, usando local:',e.message)}
@@ -1262,7 +1260,6 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
     if (!gKey && !cKey) { setLoteProgresso('⚠️ Configure Gemini ou Claude em Admin → API Keys'); setLoteProcessando(false); return }
 
     let ok = 0, errs = 0, docsTotal = 0
-    const { getDocumentosJuridicos, salvarDocumentoJuridico } = await import('./lib/supabase.js')
     const { analisarTextoJuridicoGemini, baixarViaJina } = await import('./lib/agenteJuridico.js')
 
     for (const imovel of selecionados) {
@@ -1465,7 +1462,6 @@ function BancoArquivados({ session, isAdmin, isPhone }) {
   async function carregar() {
     setLoading(true)
     try {
-      const { getBancoArquivados } = await import('./lib/supabase.js')
       const data = await getBancoArquivados()
       setArquivados(data)
     } catch {}
@@ -1475,7 +1471,6 @@ function BancoArquivados({ session, isAdmin, isPhone }) {
   async function desarquivar(id) {
     if (!isAdmin) return
     try {
-      const { desarquivarImovel } = await import('./lib/supabase.js')
       await desarquivarImovel(id)
       setArquivados(prev => prev.filter(p => p.id !== id))
     } catch(e) { alert('Erro ao desarquivar: ' + e.message) }
@@ -1754,7 +1749,6 @@ export default function App() {
         if(!localStorage.getItem('axis-migracao-concluida')){
           const local=JSON.parse(localStorage.getItem('axis-props')||'[]')
           if(local.length>0){
-            const{saveImovelCompleto}=await import('./lib/supabase.js')
             let ok=0
             for(const im of local){try{await saveImovelCompleto(im,session.user.id);ok++}catch(e){ console.warn("[AXIS] Sync falhou:", im.codigo_axis, e.message?.substring(0,60)) }}
             if(ok>0) localStorage.setItem('axis-migracao-concluida','true')
@@ -1789,7 +1783,6 @@ export default function App() {
     // Gerar código AXIS único
     if(!p.codigo_axis) {
       try {
-        const{gerarAxisId}=await import('./lib/supabase.js')
         p.codigo_axis=await gerarAxisId(p.cidade)
       } catch(e) {
         console.warn('[AXIS] Fallback codigo_axis:',e.message)
@@ -1800,7 +1793,6 @@ export default function App() {
     let salvoNoBanco = false
     if(session) {
       try {
-        const{saveImovelCompleto}=await import('./lib/supabase.js')
         const salvo=await saveImovelCompleto(p,session.user.id)
         // Usar dados confirmados pelo Supabase
         p = salvo
@@ -1830,7 +1822,6 @@ export default function App() {
     const motivo=prompt('Motivo do arquivamento (opcional):')
     if(motivo===null) return
     try {
-      const{arquivarImovel}=await import('./lib/supabase.js')
       await arquivarImovel(imovelId,motivo||'Arquivado pelo administrador',session?.user?.id)
       setProps(prev=>prev.filter(p=>p.id!==imovelId))
       const sel=vp.id===imovelId
@@ -1936,7 +1927,7 @@ export default function App() {
       padding:'8px 12px',borderRadius:8,border:'none',cursor:'pointer',
       background:'transparent',color:'rgba(255,255,255,0.45)',fontSize:13,fontWeight:400,textAlign:'left',
     }}><Settings size={15} /> Config</button>}
-    <div onClick={async()=>{if(confirm('Sair?')){const{signOut}=await import('./lib/supabase.js');await signOut()}}}
+    <div onClick={async()=>{if(confirm('Sair?')){await signOut()}}}
       style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',cursor:'pointer',borderRadius:8,marginTop:4}}>
       <div style={{width:30,height:30,borderRadius:'50%',background:`${C.emerald}25`,border:`1px solid ${C.emerald}50`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C.emerald}}>
         {(profile?.nome||'U')[0].toUpperCase()}

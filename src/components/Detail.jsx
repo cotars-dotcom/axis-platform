@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, recColor, mapDisplay, normalizarTextoAlerta, ESTRATEGIA_CONFIG, LIQUIDEZ_MAP } from "../appConstants.js"
-import { supabase } from "../lib/supabase.js"
+import { supabase, saveImovelCompleto, saveObservacao, loadApiKeys, logAtividade, criarLinkPublico, registrarResultadoLeilao, saveAvaliacao, getAvaliacoes } from "../lib/supabase.js"
 // motorIA: import dinâmico em handleReanalyze
 // trelloService: import dinâmico em handleTrello
 import CalculadoraROI from "./CalculadoraROI.jsx"
@@ -871,7 +871,6 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
         const resultado = await buscarFotosImovel({ fonte_url: p.fonte_url, id: p.id }, geminiKey)
         if (resultado.fotos?.length > 0 || resultado.foto_principal) {
           if (onUpdateProp) onUpdateProp(p.id, { ...p, fotos: resultado.fotos, foto_principal: resultado.foto_principal })
-          const { saveImovelCompleto } = await import('../lib/supabase.js')
           const { data: { session } } = await supabase.auth.getSession()
           saveImovelCompleto({ ...p, fotos: resultado.fotos, foto_principal: resultado.foto_principal }, session?.user?.id).catch(() => {})
         }
@@ -885,7 +884,6 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
     setSalvandoObs(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      const { saveObservacao } = await import('../lib/supabase.js')
       const nova = await saveObservacao({ imovel_id: p.id, texto: novaObs.trim(), user_id: user?.id })
       setObs(prev => [nova, ...prev])
       setNovaObs('')
@@ -902,7 +900,6 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { loadApiKeys } = await import('../lib/supabase.js')
         const keys = await loadApiKeys(user.id)
         // Sobrescrever localStorage com banco (banco é fonte da verdade)
         if (keys.geminiKey) { geminiKey = keys.geminiKey; localStorage.setItem('axis-gemini-key', geminiKey) }
@@ -1005,7 +1002,6 @@ for (const s of SCORES) {
       // Salvar no Supabase — buscar session corretamente
       try {
         const { data:{ session:sess } } = await supabase.auth.getSession()
-        const { saveImovelCompleto } = await import('../lib/supabase.js')
         await saveImovelCompleto(merged, sess?.user?.id)
         const modeloUsado = novaAnalise._modelo_usado || 'desconhecido'
         const avisoModelo = modeloUsado.includes('fallback') ? ' (análise parcial — Gemini indisponível, configure a chave)' : ''
@@ -1015,7 +1011,6 @@ for (const s of SCORES) {
           setTimeout(() => setMsg('💡 Vá em Jurídico → Documentos para baixar e analisar o edital e matrícula.'), 2500)
         }
         try {
-          const { logAtividade } = await import('../lib/supabase.js')
           const { data:{ session: sess2 } } = await supabase.auth.getSession()
           if (sess2?.user?.id) logAtividade(sess2.user.id, 'reanalise', 'imovel', p.id, { titulo: p.titulo })
         } catch(e) { console.warn("[AXIS Detail]", e.message?.substring(0,60)) }
@@ -1173,7 +1168,6 @@ for (const s of SCORES) {
         {isAdmin&&<button style={{...btn("s"),background:'#EBF4FF',color:'#002B80',border:'1px solid #002B8030',fontSize:11.5,fontWeight:600}}
           onClick={async()=>{
             try {
-              const { criarLinkPublico } = await import('../lib/supabase.js')
               const { data:{session} } = await supabase.auth.getSession()
               const result = await criarLinkPublico(p.id, session?.user?.id)
               const url = `${window.location.origin}/#/share/${result.token}`
@@ -1217,7 +1211,6 @@ for (const s of SCORES) {
                 onClick={async () => {
                   if (!confirm('Confirmar: imóvel NÃO foi arrematado?')) return
                   try {
-                    const { registrarResultadoLeilao } = await import('../lib/supabase.js')
                     const { data:{session} } = await supabase.auth.getSession()
                     await registrarResultadoLeilao(p.id, 'nao_arrematado', session?.user?.id)
                     if (onArchive) onArchive(p.id)
@@ -1229,7 +1222,6 @@ for (const s of SCORES) {
                 onClick={async () => {
                   if (!confirm('Confirmar: imóvel foi ARREMATADO?')) return
                   try {
-                    const { registrarResultadoLeilao } = await import('../lib/supabase.js')
                     const { data:{session} } = await supabase.auth.getSession()
                     await registrarResultadoLeilao(p.id, 'arrematado', session?.user?.id)
                     if (onArchive) onArchive(p.id)
@@ -1272,7 +1264,6 @@ for (const s of SCORES) {
           onFotosAtualizadas={async (fotos, foto_principal) => {
             // Salvar fotos no banco
             try {
-              const { saveImovelCompleto } = await import('../lib/supabase.js')
               const { data:{ session } } = await supabase.auth.getSession()
               await saveImovelCompleto({ ...p, fotos, foto_principal }, session?.user?.id)
               if (onUpdateProp) onUpdateProp(p.id, { ...p, fotos, foto_principal })
@@ -1771,7 +1762,6 @@ for (const s of SCORES) {
           {['COMPRAR','AGUARDAR','EVITAR'].map(op => (
             <button key={op} onClick={async () => {
               const { data:{ user } } = await supabase.auth.getUser()
-              const { saveAvaliacao, getAvaliacoes } = await import('../lib/supabase.js')
               await saveAvaliacao({ imovel_id: p.id, user_id: user?.id, nota: op === 'COMPRAR' ? 5 : op === 'AGUARDAR' ? 3 : 1, comentario: op })
               getAvaliacoes(p.id).then(setAvaliacoes).catch(()=>{})
               setMinhaAvaliacao(op)

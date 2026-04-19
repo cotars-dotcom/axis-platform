@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { C } from "../appConstants.js"
-import { supabase } from "../lib/supabase.js"
+import { supabase, getConvites, getUsuarios, getUsoChamadas, criarConvite, revogarConvite, atualizarRoleUsuario, toggleAtivoUsuario } from "../lib/supabase.js"
 import AbaDiagnostico from "./AbaDiagnostico.jsx" 
 import AbaGastosAPI from "./AbaGastosAPI.jsx"
 
@@ -21,7 +21,6 @@ export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isP
   async function carregarDados() {
     setLoading(true)
     try {
-      const { getConvites, getUsuarios } = await import('../lib/supabase.js')
       const [c, u] = await Promise.all([getConvites(), getUsuarios()])
       setConvites(c); setUsuarios(u)
     } catch(e) { setMsg('Erro ao carregar: ' + e.message) }
@@ -31,7 +30,6 @@ export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isP
   async function carregarCustos() {
     setLoadingCustos(true)
     try {
-      const { getUsoChamadas } = await import('../lib/supabase.js')
       const rows = await getUsoChamadas({ dias: 30 })
       if (rows.length === 0) { setUsoChamadas(null); return }
       const totalUsd = rows.reduce((s, r) => s + (r.custo_usd || 0), 0)
@@ -57,7 +55,6 @@ export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isP
     if (!novoConvite.nome) { setMsg('Informe o nome do convidado'); return }
     setLoading(true)
     try {
-      const { criarConvite } = await import('../lib/supabase.js')
       const token = await criarConvite(
         novoConvite.email || '',
         novoConvite.nome,
@@ -75,7 +72,6 @@ export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isP
   async function revogar(id) {
     if (!confirm('Revogar este convite?')) return
     try {
-      const { revogarConvite } = await import('../lib/supabase.js')
       await revogarConvite(id)
       await carregarDados()
     } catch(e) { setMsg('Erro: ' + e.message) }
@@ -83,7 +79,6 @@ export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isP
 
   async function alterarRole(userId, role) {
     try {
-      const { atualizarRoleUsuario } = await import('../lib/supabase.js')
       await atualizarRoleUsuario(userId, role)
       await carregarDados()
     } catch(e) { setMsg('Erro: ' + e.message) }
@@ -91,7 +86,6 @@ export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isP
 
   async function toggleAtivo(userId, ativo) {
     try {
-      const { toggleAtivoUsuario } = await import('../lib/supabase.js')
       await toggleAtivoUsuario(userId, !ativo)
       await carregarDados()
     } catch(e) { setMsg('Erro: ' + e.message) }
