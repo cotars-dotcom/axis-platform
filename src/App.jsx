@@ -856,6 +856,19 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
         data.alertas = [...(data.alertas || []), '[AVISO] Score zerado — análise incompleta, verifique os dados']
       }
       onSave(property)
+      // F5: enriquecimento pós-análise (agentes silenciosos — falha não bloqueia)
+      try {
+        setStep('🚀 Agentes F5 enriquecendo dados...')
+        const { enriquecerImovel } = await import('./lib/agenteOrquestrador.js')
+        const result = await enriquecerImovel(property, { forcarMercado: true, forcarReforma: false, forcarJuridico: false })
+        if (Object.keys(result.updates).length > 0) {
+          const enriquecido = { ...property, ...result.updates }
+          // Salva no banco via onSave (que faz upsert por ID)
+          onSave(enriquecido)
+        }
+      } catch (eEnrich) {
+        console.warn('[AXIS F5] Enriquecimento pós-análise falhou (não-bloqueante):', eEnrich.message)
+      }
     } catch(e){
       // Mostrar erro detalhado para o usuário saber o que falhou
       const errMsg = e.message || 'Erro na análise.'

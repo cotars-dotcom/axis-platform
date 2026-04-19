@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { C, K, btn, fmtC, fmtD, card, recColor, scoreColor, scoreLabel, scoreDisplay } from "../appConstants.js"
+import { calcularConfidence } from "../lib/agenteConfidenceBadge.js"
 import { ArrowUpRight, Bell, TrendingUp, AlertTriangle, Package, Clock } from "lucide-react"
 import { supabase } from '../lib/supabase.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
@@ -45,6 +46,7 @@ function PropCard({p,onNav,isPhone=false}) {
     : diasLeilao !== null && diasLeilao <= 30 ? '#D97706' : null
   const scoreDelta = p.preco_m2_imovel && p.preco_m2_mercado
     ? ((1 - p.preco_m2_imovel/p.preco_m2_mercado)*100).toFixed(0) : null
+  const conf = calcularConfidence(p)
 
   return <div onClick={()=>onNav("detail",{id:p.id})}
     style={{...card(),cursor:"pointer",transition:"all .15s",padding:isPhone?"12px":"14px",
@@ -122,7 +124,21 @@ function PropCard({p,onNav,isPhone=false}) {
       </div>
     )}
 
-    <div style={{fontSize:"9.5px",color:K.t3,marginTop:6,display:'flex',justifyContent:'space-between'}}>
+    {/* Barra de confiança + MAO locação */}
+    <div style={{marginTop:6,display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+      <div style={{flex:1,height:3,borderRadius:2,background:`${K.s2}`,overflow:'hidden'}}>
+        <div style={{width:`${conf.score}%`,height:'100%',borderRadius:2,
+          background:conf.score>=75?'#059669':conf.score>=50?'#D97706':'#DC2626',
+          transition:'width .4s'}}/>
+      </div>
+      <span style={{fontSize:9,color:conf.score>=75?'#059669':conf.score>=50?'#D97706':'#DC2626',fontWeight:700,flexShrink:0}}>
+        {conf.score}%
+      </span>
+      {p.mao_locacao>0&&<span style={{fontSize:9,color:'#7C3AED',fontWeight:700,flexShrink:0,marginLeft:4}}>
+        📍 {fmtM(p.mao_locacao)}
+      </span>}
+    </div>
+    <div style={{fontSize:"9.5px",color:K.t3,marginTop:4,display:'flex',justifyContent:'space-between'}}>
       <span>{fmtD(p.createdAt)}</span>
       <span>{p.modalidade_leilao||p.modalidade||'—'}</span>
     </div>

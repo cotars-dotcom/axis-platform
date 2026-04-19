@@ -263,6 +263,8 @@ ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;marg
         ['Retorno revenda', p.retorno_venda_pct ? '+' + p.retorno_venda_pct + '%' : null],
         ['Estrutura', p.estrutura_recomendada],
         ['Estratégia', p.estrategia_recomendada === 'aguardar_2a_praca' ? '⏳ Aguardar 2ª praça' : p.estrategia_recomendada],
+        ['Confiança análise', p.confidence_score ? p.confidence_score + '/100' : null],
+        ['2ª Praça', p.data_leilao_2 ? `${new Date(p.data_leilao_2+'T12:00').toLocaleDateString('pt-BR')} · mín. ${fmt(p.valor_minimo_2)}` : null],
       ].filter(([,v]) => v && v !== '—').map(([l,v]) =>
         '<div class="row"><span class="row-l">' + l + '</span><span class="row-v">' + v + '</span></div>'
       ).join('')}
