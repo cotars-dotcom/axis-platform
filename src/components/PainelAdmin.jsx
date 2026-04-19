@@ -105,7 +105,7 @@ export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isP
       </p>
       <div style={{ display:'flex', gap:4, marginBottom:24,
         borderBottom:`1px solid ${C.borderW}`, paddingBottom:0 }}>
-        {[['convites','🔗 Convites'],['usuarios','👥 Usuários'],['custos','💰 Custos API'],['gastos','📊 Gastos IA'],['diagnostico','🔬 Diagnóstico'],['saude','🩺 Saúde']].map(([k,l]) => (
+        {[['convites','🔗 Convites'],['usuarios','👥 Usuários'],['custos','💰 Custos API'],['gastos','📊 Gastos IA'],['diagnostico','🔬 Diagnóstico'],['saude','🩺 Saúde'],['competitivo','⚔️ vs Ninja']].map(([k,l]) => (
           <button key={k} onClick={() => { setAba(k); if(k==='custos') carregarCustos() }} style={{
             padding:'8px 20px', border:'none', background:'none',
             fontSize:13.5, fontWeight: aba===k ? 700 : 400,
@@ -392,6 +392,7 @@ export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isP
       {aba === 'gastos' && <AbaGastosAPI isPhone={isPhone}/>}
       {aba === 'diagnostico' && <AbaDiagnostico session={session} isPhone={isPhone}/>}
       {aba === 'saude' && <AbaSaudeAXIS isPhone={isPhone}/>}
+      {aba === 'competitivo' && <AbaDiagnosticoCompetitivo/>}
     </div>
   )
 }

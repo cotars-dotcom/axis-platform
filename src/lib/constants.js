@@ -525,6 +525,19 @@ export function calcularScoreAtributos7D(p) {
  * @returns {object} { cenarios: [...], melhor: { flip, locacao } }
  */
 
+
+// ─── NORMALIZAÇÃO DE CLASSE IPEAD ─────────────────────────────────────────────
+// Banco usa: "Medio", "Popular", "Alto", "Luxo"
+// constants usa: "Classe 2 - Médio", "Classe 1 - Popular", etc.
+export function normalizarClasseIPEAD(raw) {
+  if (!raw) return 'Classe 2 - Médio'
+  const r = String(raw).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (r.includes('popular') || r.includes('1'))  return 'Classe 1 - Popular'
+  if (r.includes('luxo') || r.includes('4'))     return 'Classe 4 - Luxo'
+  if (r.includes('alto') || r.includes('3'))     return 'Classe 3 - Alto'
+  return 'Classe 2 - Médio'  // médio / medio / default
+}
+
 // ─── VALORIZAÇÃO PÓS-REFORMA POR CLASSE IPEAD ────────────────────────────────
 // Calibrado por tipo de mercado: popular tem teto de absorção menor,
 // luxo tem retornos menores pois já começa em patamar elevado.
@@ -564,7 +577,7 @@ export function calcularMatrizInvestimento(p, opts = {}) {
 
   // Fatores de valorização e aluguel por cenário
   // Calibrar valorização por classe IPEAD do imóvel
-  const classeIpead = p.classe_ipead || p.classe_ipead_label || 'Classe 2 - Médio'
+  const classeIpead = normalizarClasseIPEAD(p.classe_ipead || p.classe_ipead_label)
   const fvTab = VALORIZACAO_REFORMA_POR_CLASSE[classeIpead] || VALORIZACAO_REFORMA_POR_CLASSE.default
   const CENARIOS = [
     { id: 'sem_reforma',  label: 'Sem Reforma',   fvPct: 0,          alugFator: 0.90, cor: '#8E8EA0' },
