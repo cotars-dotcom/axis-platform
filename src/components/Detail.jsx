@@ -17,7 +17,7 @@ import ConfigEstudo from './ConfigEstudo.jsx'
 import TimelineMatricula from './TimelineMatricula.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
-import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO, CUSTOS_LEILAO, CUSTOS_MERCADO, IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO } from '../lib/constants.js'
+import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO, CUSTOS_LEILAO, CUSTOS_MERCADO, IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO, calcularLanceMaximoParaROI } from '../lib/constants.js'
 import CenariosReforma from './CenariosReforma.jsx'
 import { ReformaProvider, useReforma } from '../hooks/useReforma.jsx'
 import CustosReaisEditor from './CustosReaisEditor.jsx'
@@ -464,7 +464,15 @@ function CardComparavel({item:c, K, isPhone, imovel}) {
 function ModoAoVivo({ imovel, onClose }) {
   const s = imovel
   const rec = s.recomendacao
-  const recClr = rec === 'COMPRAR' ? C.emerald : rec === 'AGUARDAR' ? C.mustard : RED
+  // Sprint 23: cores dedicadas para INVIAVEL (vermelho escuro) e DADOS_INSUFICIENTES (cinza)
+  const recClr =
+    rec === 'INVIAVEL'            ? '#7F1D1D' :
+    rec === 'DADOS_INSUFICIENTES' ? '#6B7280' :
+    rec === 'COMPRAR'             ? C.emerald :
+    rec === 'AGUARDAR'            ? C.mustard : RED
+  const recLabel = rec === 'INVIAVEL' ? '⛔ INVIÁVEL'
+    : rec === 'DADOS_INSUFICIENTES' ? '❓ DADOS INSUF.'
+    : (rec || 'AGUARDAR')
   return (
     <div style={{
       position:'fixed', inset:0, zIndex:2000,
@@ -489,7 +497,7 @@ function ModoAoVivo({ imovel, onClose }) {
           {s.score_total?.toFixed(2) || '—'}
         </p>
         <p style={{ margin:'4px 0 0', fontSize:18, fontWeight:700, color:recClr }}>
-          {rec || 'AGUARDAR'}
+          {recLabel}
         </p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, flex:1 }}>
@@ -673,6 +681,76 @@ function RoiLiveBanner({ imovel }) {
         <div style={{fontSize:22,fontWeight:800,color:roiColor,lineHeight:1}}>{roi >= 0 ? '+' : ''}{roi.toFixed(1)}%</div>
         <div style={{fontSize:9,color:roiColor,fontWeight:600}}>ROI flip</div>
         <div style={{fontSize:10,color:lucro>=0?'#065F46':'#991B1B',fontWeight:600}}>{fmtV(Math.abs(lucro))}</div>
+      </div>
+    </div>
+  )
+}
+
+// Sprint 23: Banner quando lance > MAO flip (dentro do ReformaProvider)
+function LanceAlertaBanner({ imovel }) {
+  const { lanceEstudo, custoReformaAtual } = useReforma()
+  const eMercado = imovel?.tipo_transacao === 'mercado_direto' || (imovel?.fonte_url||'').includes('zapimoveis') || (imovel?.fonte_url||'').includes('vivareal')
+  const lance = lanceEstudo || parseFloat(imovel?.valor_minimo || imovel?.preco_pedido) || 0
+  const mercadoBruto = parseFloat(imovel?.valor_mercado_estimado) || 0
+  if (!lance || !mercadoBruto) return null
+  const mao = calcularLanceMaximoParaROI(20, imovel, {
+    eMercado, custoReforma: custoReformaAtual, mercadoBruto
+  })
+  if (mao <= 0 || lance <= mao) return null
+  const pct = (((lance - mao) / mao) * 100).toFixed(1)
+  return (
+    <div style={{background:'#FEF2F2',border:'1px solid #FCA5A5',borderRadius:8,
+      padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
+      <span style={{fontSize:18}}>⚠️</span>
+      <div style={{flex:1}}>
+        <div style={{fontWeight:700,color:'#991B1B',fontSize:12}}>
+          Lance {pct}% acima do MAO (ROI 20%)
+        </div>
+        <div style={{fontSize:11,color:'#B91C1C',marginTop:2}}>
+          MAO flip: R$ {mao.toLocaleString('pt-BR')} · Lance atual: R$ {lance.toLocaleString('pt-BR')}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Sprint 23: Banner quando sem valor_minimo em leilão
+function DadosInsuficientesBanner({ imovel }) {
+  const eLeilao = imovel?.tipo_transacao === 'leilao' || imovel?.tipo_transacao === 'leilao_judicial'
+  if (!eLeilao || imovel?.valor_minimo) return null
+  return (
+    <div style={{background:'#FEF3C7',border:'1px solid #FCD34D',borderRadius:8,
+      padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
+      <span style={{fontSize:18}}>❓</span>
+      <div style={{flex:1}}>
+        <div style={{fontWeight:700,color:'#92400E',fontSize:12}}>
+          Sem preço de lance definido
+        </div>
+        <div style={{fontSize:11,color:'#78350F',marginTop:2}}>
+          Análise financeira indisponível até cadastrar o valor mínimo do leilão.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Sprint 23: Banner quando lance > mercado (desconto negativo)
+function LanceAcimaMercadoBanner({ imovel }) {
+  const lance = parseFloat(imovel?.valor_minimo || imovel?.preco_pedido) || 0
+  const mercado = parseFloat(imovel?.valor_mercado_estimado) || 0
+  if (!lance || !mercado || lance <= mercado) return null
+  const diff = lance - mercado
+  return (
+    <div style={{background:'#FEE2E2',border:'1px solid #FCA5A5',borderRadius:8,
+      padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
+      <span style={{fontSize:18}}>🔴</span>
+      <div style={{flex:1}}>
+        <div style={{fontWeight:700,color:'#991B1B',fontSize:12}}>
+          Lance R$ {lance.toLocaleString('pt-BR')} acima do mercado estimado R$ {mercado.toLocaleString('pt-BR')}
+        </div>
+        <div style={{fontSize:11,color:'#B91C1C',marginTop:2}}>
+          Diferença: R$ {diff.toLocaleString('pt-BR')} antes de quaisquer custos de aquisição.
+        </div>
       </div>
     </div>
   )
@@ -1455,6 +1533,10 @@ for (const s of SCORES) {
       {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && <PainelLeilao imovel={p} isAdmin={isAdmin} />}
       {/* ═══ ReformaProvider: sincroniza cenário de reforma entre painéis ═══ */}
       <ReformaProvider imovel={p}>
+        {/* Sprint 23: alertas pré-análise financeira */}
+        <DadosInsuficientesBanner imovel={p} />
+        <LanceAcimaMercadoBanner imovel={p} />
+        <LanceAlertaBanner imovel={p} />
         {/* Sprint 22: Alerta jurídico alto antes do estudo financeiro */}
         {(p.score_juridico != null && p.score_juridico < 4) && (
           <div style={{padding:'10px 14px',borderRadius:8,marginBottom:12,

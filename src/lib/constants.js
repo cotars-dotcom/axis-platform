@@ -233,8 +233,10 @@ export function calcularBreakdownFinanceiro(lance, imovel = {}, eMercado = false
   const debitosArrematante = imovel.responsabilidade_debitos === 'arrematante'
     ? parseFloat(imovel.debitos_total_estimado || 0)
     : 0
+  // Sprint 23: custo jurídico (due diligence, análise processual) entra no investimento
+  const custoJuridico = parseFloat(imovel.custo_juridico_estimado || 0)
   const totalCustos = comissao + itbi + doc + advogado
-  const investimentoTotal = lance + totalCustos + reforma + holding + debitosArrematante
+  const investimentoTotal = lance + totalCustos + reforma + holding + debitosArrematante + custoJuridico
   
   return {
     lance,
@@ -247,6 +249,7 @@ export function calcularBreakdownFinanceiro(lance, imovel = {}, eMercado = false
     holdingMensal: Math.round(holdingMensal),
     holdingMeses,
     debitosArrematante: Math.round(debitosArrematante),
+    custoJuridico: Math.round(custoJuridico),
     totalCustos: Math.round(totalCustos),
     investimentoTotal: Math.round(investimentoTotal),
     pctCustosSobreLance: ((totalCustos / lance) * 100).toFixed(1),
@@ -258,17 +261,23 @@ export function calcularROI(investimentoTotal, valorMercado, aluguelMensal = 0) 
   if (!investimentoTotal || investimentoTotal <= 0 || !valorMercado || valorMercado <= 0) {
     return { lucro: 0, roi: 0, invalido: true, cenarios: { realista: { valor: 0, roi: 0 }, otimista: { valor: 0, roi: 0 }, vendaRapida: { valor: 0, roi: 0 } }, locacao: null }
   }
-  const lucro = valorMercado - investimentoTotal
+  // Sprint 23: deduzir corretagem (6% padrão de venda) para convergir com CalculadoraROI/RoiLiveBanner
+  const CORRETAGEM_VENDA = 0.06
+  const vendaLiquida = valorMercado * (1 - CORRETAGEM_VENDA)
+  const lucro = vendaLiquida - investimentoTotal
   const roi = (lucro / investimentoTotal) * 100
   const safeRoi = v => Math.max(-100, Math.min(999, Math.round(v * 10) / 10))
-  
+
+  const roiCenario = (valor) =>
+    safeRoi(((valor * (1 - CORRETAGEM_VENDA) - investimentoTotal) / investimentoTotal) * 100)
+
   return {
     lucro: Math.round(lucro),
     roi: safeRoi(roi),
     cenarios: {
-      realista: { valor: Math.round(valorMercado), roi: safeRoi(roi) },
-      otimista: { valor: Math.round(valorMercado * 1.15), roi: safeRoi(((valorMercado * 1.15 - investimentoTotal) / investimentoTotal) * 100) },
-      vendaRapida: { valor: Math.round(valorMercado * 0.9), roi: safeRoi(((valorMercado * 0.9 - investimentoTotal) / investimentoTotal) * 100) },
+      realista:    { valor: Math.round(valorMercado),         roi: roiCenario(valorMercado) },
+      otimista:    { valor: Math.round(valorMercado * 1.15),  roi: roiCenario(valorMercado * 1.15) },
+      vendaRapida: { valor: Math.round(valorMercado * 0.90),  roi: roiCenario(valorMercado * 0.90) },
     },
     locacao: aluguelMensal > 0 ? {
       aluguelMensal: Math.round(aluguelMensal),

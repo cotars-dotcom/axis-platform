@@ -5,6 +5,7 @@
  */
 
 import { supabase } from './supabase.js'
+import { IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO } from './constants.js'
 
 // ─── MOTOR DE CÁLCULO INTERNO (sem API) ─────────────────────────────────────
 
@@ -18,21 +19,24 @@ function calcularCustos(lance, params) {
   return { comissao, itbi, doc, adv, reg }
 }
 
-function calcularCenario(lance, vmercado, reforma, juridico, params) {
+function calcularCenario(lance, vmercado, reforma, juridico, params, extras = {}) {
   const c = calcularCustos(lance, params)
-  const { corretagem_venda, irpf_ganho_capital, margem_seguranca_mao } = params.custos_percentuais || params.thresholds || {}
   const corr_pct  = params.custos_percentuais.corretagem_venda
   const irpf_pct  = params.custos_percentuais.irpf_ganho_capital
-  const custoTotal = lance + c.comissao + c.itbi + c.doc + c.adv + c.reg + reforma + (juridico||0)
+  // Sprint 23: débitos do arrematante e holding entram em todo cenário
+  const debitos   = parseFloat(extras.debitos || 0)
+  const holding   = parseFloat(extras.holding || 0)
+  const custoTotal = lance + c.comissao + c.itbi + c.doc + c.adv + c.reg + reforma + (juridico||0) + debitos + holding
   const irpf      = Math.max(0, (vmercado - custoTotal) * irpf_pct)
   const corretagem = vmercado * corr_pct
   const lucro     = vmercado - custoTotal - irpf - corretagem
   const roi       = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0
-  const mao       = vmercado * params.thresholds.margem_seguranca_mao - (c.comissao + c.itbi + c.doc + c.adv + c.reg + reforma + (juridico||0))
+  const mao       = vmercado * params.thresholds.margem_seguranca_mao - (c.comissao + c.itbi + c.doc + c.adv + c.reg + reforma + (juridico||0) + debitos + holding)
   return {
     custo_total: Math.round(custoTotal), irpf: Math.round(irpf),
     corretagem: Math.round(corretagem), lucro: Math.round(lucro),
     roi: parseFloat(roi.toFixed(1)), mao: Math.round(mao),
+    debitos: Math.round(debitos), holding: Math.round(holding),
     viavel: lance <= mao
   }
 }
@@ -54,7 +58,8 @@ export async function gerarAnalise(imovel) {
     custo_reforma_calculado: reforma, custo_juridico_estimado: juridico,
     comparaveis, area_m2, preco_m2_imovel, preco_m2_mercado,
     num_leilao, data_leilao, classe_ipead, aluguel_mensal_estimado: aluguel,
-    prazo_liberacao_estimado_meses: prazoLib
+    prazo_liberacao_estimado_meses: prazoLib,
+    condominio_mensal, iptu_mensal, debitos_total_estimado, responsabilidade_debitos
   } = imovel
 
   const avaliacao  = parseFloat(aval) || 0
@@ -63,17 +68,25 @@ export async function gerarAnalise(imovel) {
   const reformaVal = parseFloat(reforma) || 0
   const jurVal     = parseFloat(juridico) || 0
 
+  // Sprint 23: débitos a cargo do arrematante e holding entram em todo cenário
+  const debitos = responsabilidade_debitos === 'arrematante'
+    ? parseFloat(debitos_total_estimado || 0) : 0
+  const condoM = parseFloat(condominio_mensal || 0)
+  const iptuM  = parseFloat(iptu_mensal || 0) || Math.round(condoM * IPTU_SOBRE_CONDO_RATIO)
+  const holding = HOLDING_MESES_PADRAO * (condoM + iptuM)
+  const extras = { debitos, holding }
+
   // 2. Projeção 2º leilão
   const hist = regraLeilao.historico_arrematacao || {}
   const lance2Piso    = avaliacao * (hist.piso_legal_pct / 100)
   const lance2Esp     = avaliacao * (hist.media_historica_pct / 100)
   const lance2Comp    = avaliacao * (hist.cenario_competitivo_pct / 100)
 
-  // 3. Cenários de ROI
-  const c1  = calcularCenario(lancePrin, vMercado, reformaVal, jurVal, params)
-  const c2p = calcularCenario(lance2Piso, vMercado, reformaVal, jurVal, params)
-  const c2e = calcularCenario(lance2Esp,  vMercado, reformaVal, jurVal, params)
-  const c2c = calcularCenario(lance2Comp, vMercado, reformaVal, jurVal, params)
+  // 3. Cenários de ROI (com débitos + holding incluídos — Sprint 23)
+  const c1  = calcularCenario(lancePrin, vMercado, reformaVal, jurVal, params, extras)
+  const c2p = calcularCenario(lance2Piso, vMercado, reformaVal, jurVal, params, extras)
+  const c2e = calcularCenario(lance2Esp,  vMercado, reformaVal, jurVal, params, extras)
+  const c2c = calcularCenario(lance2Comp, vMercado, reformaVal, jurVal, params, extras)
 
   const cenarios = [
     { label: `${num_leilao || 1}º Leilão (atual)`, lance: Math.round(lancePrin), ...c1 },

@@ -242,7 +242,9 @@ export async function saveImovelCompleto(imovel, userId) {
           'score_localizacao','score_desconto','score_juridico','score_ocupacao',
           'score_liquidez','score_mercado','recomendacao','codigo_axis',
           'desconto_percentual','preco_m2_mercado','preco_m2_imovel',
-          'aluguel_mensal_estimado','num_leilao','valor_mercado_estimado']
+          'aluguel_mensal_estimado','num_leilao','valor_mercado_estimado',
+          // Sprint 23: proteger reforma calculada (evitar sobrescrita em reanálise sem reforma_detalhada)
+          'custo_reforma_basica','custo_reforma_media','custo_reforma_completa','reforma_detalhada']
         const camposNuncaZero = ['valor_minimo','valor_avaliacao','desconto_percentual',
           'preco_m2_mercado','preco_m2_imovel','aluguel_mensal_estimado','valor_mercado_estimado',
           'num_leilao','desconto_sobre_mercado_pct',
@@ -339,6 +341,41 @@ if (atual.comparaveis?.length > 2) {
       }
     } catch(e) { console.warn('[AXIS Supabase] Proteção campos:', e.message) }
   }
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // ─── SPRINT 23: Recomendação e lance_viavel automáticos ────────────────────
+  // Regras:
+  //   - valor_minimo ausente em leilão → DADOS_INSUFICIENTES
+  //   - mao_flip < 0 && mao_locacao < 0 → INVIAVEL
+  //   - lance > mao_flip (ambos > 0) → AGUARDAR + lance_viavel = false
+  //   - caso contrário, preserva recomendacao do payload/banco
+  try {
+    const lance = parseFloat(payload.valor_minimo || 0)
+    const maoFlip = parseFloat(payload.mao_flip || 0)
+    const maoLoc  = parseFloat(payload.mao_locacao || 0)
+    const eLeilao = payload.tipo_transacao === 'leilao' || payload.tipo_transacao === 'leilao_judicial'
+
+    if (eLeilao && !lance) {
+      payload.recomendacao = 'DADOS_INSUFICIENTES'
+      payload.motivo_recomendacao = 'Sem preço de lance definido'
+      payload.lance_viavel = null
+      payload.investimento_total = null
+      payload.roi_estimado = null
+      payload.preco_m2_imovel = null
+    } else if (maoFlip < 0 && maoLoc < 0) {
+      payload.recomendacao = 'INVIAVEL'
+      payload.motivo_recomendacao = 'MAO negativo em flip e locação — inviável a qualquer lance'
+      payload.lance_viavel = false
+    } else if (lance > 0 && maoFlip > 0 && lance > maoFlip) {
+      payload.lance_viavel = false
+      if (payload.recomendacao === 'COMPRAR') {
+        payload.recomendacao = 'AGUARDAR'
+        payload.motivo_recomendacao = 'Lance acima do MAO — aguardar 2ª praça'
+      }
+    } else if (lance > 0 && maoFlip > 0) {
+      payload.lance_viavel = true
+    }
+  } catch(e) { console.warn('[AXIS Supabase] Auto recomendação:', e.message) }
   // ────────────────────────────────────────────────────────────────────────────
 
   console.debug('[AXIS Supabase] Salvando imóvel:', payload.id, payload.titulo || '(sem título)')
@@ -574,9 +611,14 @@ export async function getAtividades() {
 
 export async function logAtividade(userId, acao, entidade, entidadeId, detalhes) {
   try {
+    // Schema real da tabela atividades: user_id, tipo, descricao, imovel_id, metadata
+    // (Fix 3 do commit f1e8f2c tinha introduzido colunas inexistentes — revertido no Sprint 23)
     await supabase.from('atividades').insert({
-      usuario_id: userId, acao: acao, entidade: entidade,
-      entidade_id: entidadeId, detalhes: detalhes
+      user_id: userId,
+      tipo: acao,
+      descricao: entidade,
+      imovel_id: entidadeId,
+      metadata: detalhes
     })
   } catch(e) { console.warn('[AXIS supabase] Log atividade:', e.message) }
 }
