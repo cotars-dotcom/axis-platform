@@ -1066,6 +1066,30 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
     setSalvandoObs(false)
   }
 
+  const [enriquecendo, setEnriquecendo] = useState(false)
+  const [enrichLog, setEnrichLog] = useState(null)
+
+  const handleEnriquecer = async () => {
+    if (!isAdmin) return
+    if (!confirm('Rodar todos os agentes (mercado, reforma, aluguel, Datajud, MAO, confidence) e salvar no banco?')) return
+    setEnriquecendo(true); setEnrichLog(null)
+    try {
+      const { enriquecerImovel } = await import('../lib/agenteOrquestrador.js')
+      const { saveImovelCompleto } = await import('../lib/supabase.js')
+      const result = await enriquecerImovel(p, { forcarMercado: true, forcarReforma: true, forcarJuridico: true })
+      if (Object.keys(result.updates).length > 0) {
+        const { data: { session } } = await supabase.auth.getSession()
+        await saveImovelCompleto({ ...p, ...result.updates }, session?.user?.id)
+        if (onUpdateProp) onUpdateProp({ ...p, ...result.updates })
+      }
+      setEnrichLog(result.log)
+    } catch(e) {
+      setEnrichLog([`❌ Erro: ${e.message}`])
+    } finally {
+      setEnriquecendo(false)
+    }
+  }
+
   const handleReanalyze=async()=>{
     if(!p?.fonte_url){setMsg("⚠️ Imóvel sem URL de origem para reanalisar");return}
     // Buscar chaves — localStorage primeiro, banco como fallback
@@ -1238,6 +1262,22 @@ for (const s of SCORES) {
                   localStorage.getItem("axis-api-key")?"🔄 Reanalisar (Claude)":"🔄 Reanalisar"}
               </button>
             </>}
+        {isAdmin&&<div style={{position:'relative',display:'inline-block'}}>
+          <button
+            style={{...btn("s"),background:'#0EA5E912',color:'#0EA5E9',border:'1px solid #0EA5E930'}}
+            onClick={handleEnriquecer} disabled={enriquecendo}>
+            {enriquecendo ? '⏳ Enriquecendo...' : '🚀 Enriquecer (F5)'}
+          </button>
+        {enrichLog && (
+          <div style={{position:'absolute',top:'100%',left:0,zIndex:100,
+            background:'#0F172A',border:'1px solid #334155',borderRadius:8,
+            padding:'10px 14px',minWidth:260,maxWidth:380,marginTop:4}}>
+            <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',marginBottom:6}}>Log de enriquecimento:</div>
+            {enrichLog.map((l,i) => <div key={i} style={{fontSize:10,color:l.startsWith('✅')?'#4ADE80':'#FCA5A5',marginBottom:2}}>{l}</div>)}
+            <button onClick={()=>setEnrichLog(null)} style={{fontSize:9,color:'#64748B',background:'none',border:'none',cursor:'pointer',marginTop:4}}>fechar</button>
+          </div>
+        )}
+        </div>}
         {isAdmin&&<button style={btn("trello")} onClick={sendTrello} disabled={sending}>{sending?"Enviando...":"🔷 Trello"}</button>}
         {/* Share/Export menu */}
         <div style={{position:'relative',display:'inline-block'}}>
@@ -1325,6 +1365,29 @@ for (const s of SCORES) {
                   textAlign:'left'}}>
                   <span style={{fontSize:18}}>📅</span>
                   <div><div>Adicionar ao Calendário</div><div style={{fontSize:10,color:C.muted,fontWeight:400}}>Google Calendar · {p.data_leilao ? new Date(p.data_leilao+'T12:00').toLocaleDateString('pt-BR') : ''}</div></div>
+                </button>
+              )}
+              {/* 2ª Praça ao Calendário — só se data_leilao_2 existir */}
+              {p.data_leilao_2 && !isMercadoDireto(p.fonte_url, p.tipo_transacao) && (
+                <button onClick={() => {
+                  const [y,m,d] = p.data_leilao_2.split('-')
+                  const dtStart = `${y}${m}${d}T090000`
+                  const dtEnd   = `${y}${m}${d}T170000`
+                  const titulo  = encodeURIComponent(`🔨 2ª Praça ${p.codigo_axis||''} — ${p.titulo?.substring(0,40)||'Imóvel'}`)
+                  const desc    = encodeURIComponent(`2ª Praça · Lance mín: R$ ${Math.round(p.valor_minimo_2||0).toLocaleString('pt-BR')} (50% aval.)\nLeiloeiro: ${p.leiloeiro||'—'}\n${p.fonte_url||''}`)
+                  const loc     = encodeURIComponent(`${p.endereco||''} ${p.bairro||''}, ${p.cidade||''} ${p.estado||''}`)
+                  window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${dtStart}/${dtEnd}&details=${desc}&location=${loc}`, '_blank')
+                  setShowShareMenu(false)
+                }} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 12px',
+                  border:'none',background:'#FEF3C780',cursor:'pointer',borderRadius:8,fontSize:13,
+                  color:'#92400E',fontWeight:600,textAlign:'left'}}>
+                  <span style={{fontSize:18}}>📅</span>
+                  <div>
+                    <div>2ª Praça ao Calendário</div>
+                    <div style={{fontSize:10,color:'#B45309',fontWeight:400}}>
+                      Google Calendar · {new Date(p.data_leilao_2+'T12:00').toLocaleDateString('pt-BR')} · mín. R$ {Math.round(p.valor_minimo_2||0).toLocaleString('pt-BR')}
+                    </div>
+                  </div>
                 </button>
               )}
               {shareStatus && (

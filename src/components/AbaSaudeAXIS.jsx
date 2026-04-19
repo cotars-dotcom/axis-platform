@@ -20,13 +20,12 @@ export default function AbaSaudeAXIS({ isPhone = false }) {
   const verificar = async () => {
     setLoading(true)
     try {
-      // 1. View de saúde
+      // 1. View de saúde (múltiplas linhas: metrica, valor, status)
       const { data: saudeData } = await supabase
         .from('vw_saude_axis')
-        .select('*')
-        .limit(1)
-        .single()
-      setSaude(saudeData)
+        .select('metrica, valor, status')
+        .order('metrica')
+      setSaude(saudeData || [])
 
       // 2. Estado dos imóveis ativos
       const { data: imoveisData } = await supabase
@@ -69,21 +68,24 @@ export default function AbaSaudeAXIS({ isPhone = false }) {
       </div>
 
       {/* Métricas do banco */}
-      {saude && (
+      {saude && saude.length > 0 && (
         <div style={{ ...card(), padding: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 10 }}>📊 Banco de Dados</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
-            {Object.entries(saude).filter(([k]) => !k.startsWith('_')).map(([k, v]) => {
-              const isOk = String(v).toLowerCase().includes('ok') || String(v).toLowerCase().includes('🟢')
-              const isErr = String(v).toLowerCase().includes('erro') || String(v).toLowerCase().includes('🔴')
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 8 }}>
+            {(saude || []).map(row => {
+              const isOk = (row.status || '').includes('🟢') || (row.status || '').includes('OK')
+              const isErr = (row.status || '').includes('🔴') || (row.status || '').includes('erro')
               const cor = isOk ? '#059669' : isErr ? '#DC2626' : '#334155'
               return (
-                <div key={k} style={{ padding: '7px 10px', borderRadius: 7, background: '#F8FAFC',
+                <div key={row.metrica} style={{ padding: '7px 10px', borderRadius: 7, background: '#F8FAFC',
                   border: `1px solid ${cor}25`, borderLeft: `3px solid ${cor}` }}>
                   <div style={{ fontSize: 9, color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>
-                    {k.replace(/_/g, ' ')}
+                    {(row.metrica || '').replace(/_/g, ' ')}
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: cor }}>{String(v)}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: cor }}>{row.valor}</div>
+                    {row.status && row.status !== '—' && <div style={{ fontSize: 10, color: cor }}>{row.status}</div>}
+                  </div>
                 </div>
               )
             })}
