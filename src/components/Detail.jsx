@@ -1452,6 +1452,16 @@ for (const s of SCORES) {
                 <span style={{fontSize:18}}>🖨️</span>
                 <div><div>Imprimir / PDF</div><div style={{fontSize:10,color:C.muted,fontWeight:400}}>Salvar como PDF pelo navegador</div></div>
               </button>
+              <button onClick={async () => {
+                const { abrirDecisaoPDF } = await import('./ExportarDecisaoPDF.jsx')
+                abrirDecisaoPDF(p)
+                setShowShareMenu(false)
+              }} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 12px',
+                border:'none',background:p.lance_maximo_definido?'#F0FDF4':'none',cursor:'pointer',borderRadius:8,fontSize:13,color:p.lance_maximo_definido?'#059669':C.muted,fontWeight:600,
+                textAlign:'left'}}>
+                <span style={{fontSize:18}}>🎯</span>
+                <div><div>Decisão de Lance PDF</div><div style={{fontSize:10,color:C.muted,fontWeight:400}}>1 página · lance + ROI + cenários</div></div>
+              </button>
               <button onClick={() => {
                 import('../lib/supabase.js').then(({ exportarAnaliseJSON }) => { exportarAnaliseJSON(p) })
                 setShowShareMenu(false)
@@ -2008,7 +2018,7 @@ for (const s of SCORES) {
           </div>
         )}
         {/* Sprint 18: Configuração global do estudo (lance + reforma) */}
-        <ResumoPreLeilao imovel={p} />
+        <ResumoPreLeilao imovel={p} onUpdate={() => onUpdateProp && onUpdateProp({...p})} />
         <ConfigEstudo imovel={p} />
         {/* Sprint 22: ROI dinâmico — sincronizado com lance e reforma do ConfigEstudo */}
         <RoiLiveBanner imovel={p} />
