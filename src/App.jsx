@@ -15,6 +15,7 @@ const LazySharedViewer = lazy(() => import('./components/SharedViewer.jsx'))
 import { LayoutDashboard, TrendingUp, Package, ShieldCheck, FileText, BarChart3, Settings, Search, Bell, AlertTriangle, ArrowUpRight, Plus, MessageSquare, Scale, CheckSquare, LogOut } from "lucide-react"
 import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, recColor, mapDisplay, normalizarTextoAlerta, ESTRATEGIA_CONFIG, ESTRUTURA_MAP, LIQUIDEZ_MAP, TENDENCIA_MAP, DEMANDA_MAP } from "./appConstants.js"
 import { MULT_CUSTO_RAPIDO } from "./lib/constants.js"
+import CompararImoveis from './components/CompararImoveis.jsx'
 
 const LazyDashboard = lazy(() => import("./components/Dashboard.jsx"))
 const LazyDetail = lazy(() => import("./components/Detail.jsx"))
@@ -1249,6 +1250,7 @@ function PainelPortfolio({ props: imoveis, isMobile, isPhone, onNav }) {
 // ── LISTA ─────────────────────────────────────────────────────────────────────
 function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
   const isPhoneL = useIsMobile(480)
+  const [showComparador, setShowComparador] = useState(false)
   const [q,setQ]=useState(""), [filter,setFilter]=useState("todos"), [sort,setSort]=useState("score")
   const [syncingTrello,setSyncingTrello]=useState(false)
   const [syncMsg,setSyncMsg]=useState("")
@@ -1368,6 +1370,14 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
             {loteProcessando ? '⏳ Processando...' : `🤖 Analisar Docs (${selIds.size})`}
           </button>
         )}
+        {selIds.size === 2 && (
+          <button style={{...btn("s"),fontSize:11,padding:'5px 12px',
+            background:'linear-gradient(135deg,#0EA5E9,#7C3AED)',
+            color:'#fff',border:'none',fontWeight:700}}
+            onClick={() => setShowComparador(true)}>
+            ⚖️ Comparar
+          </button>
+        )}
       </div>
       {list.length===0?<div style={{textAlign:"center",padding:"40px",color:K.t3}}><div style={{fontSize:"32px",marginBottom:"10px"}}>🔍</div><div>Nenhum imóvel encontrado</div></div>
       :<div style={{display:"grid",gridTemplateColumns:isPhoneL?"1fr":"repeat(auto-fill,minmax(300px,1fr))",gap:"12px"}}>
@@ -1385,11 +1395,17 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
           <PropCard p={p} onNav={onNav}/>
         </div>)}
       </div>}
+      {showComparador && selIds.size === 2 && (
+        <CompararImoveis
+          imoveis={props.filter(p => selIds.has(p.id))}
+          onClose={() => setShowComparador(false)}
+        />
+      )}
     </div>
   </div>
 }
 
-// ── COMPARATIVO ───────────────────────────────────────────────────────────────
+// ── COMPARATIVO ────────────────────────────────────────────────────────────────
 function Comparativo({props}) {
   const [sel,setSel]=useState([])
   const top=[...props].sort((a,b)=>(b.score_total||0)-(a.score_total||0)).slice(0,8)
