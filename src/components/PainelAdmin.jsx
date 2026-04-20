@@ -391,7 +391,7 @@ export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isP
       )}
       {aba === 'gastos' && <AbaGastosAPI isPhone={isPhone}/>}
       {aba === 'diagnostico' && <AbaDiagnostico session={session} isPhone={isPhone}/>}
-      {aba === 'saude' && <AbaSaudeAXIS isPhone={isPhone}/>}
+      {aba === 'saude' && <AbaSaudeAXIS isPhone={isPhone} onNav={onNav}/>}
       {aba === 'competitivo' && <AbaDiagnosticoCompetitivo/>}
     </div>
   )

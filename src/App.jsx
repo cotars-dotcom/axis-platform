@@ -1993,7 +1993,7 @@ export default function App() {
     {view==="arquivados"&&<BancoArquivados session={session} isAdmin={isAdmin} isPhone={isPhone}/>}
     {view==="portfolio"&&isAdmin&&<PainelPortfolio props={props} isMobile={isMobile} isPhone={isPhone} onNav={nav}/>}
     {view==="manual"&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyManualAxis isMobile={isMobile}/></Suspense>}
-    {view==="admin"&&isAdmin&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyPainelAdmin session={session} imoveis={props} isPhone={isPhone}/></Suspense>}
+    {view==="admin"&&isAdmin&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyPainelAdmin session={session} imoveis={props} isPhone={isPhone} onNav={nav}/></Suspense>}
     </div>
 
     {toast&&<div style={{position:"fixed",bottom:"16px",right:"16px",background:C.white,color:C.text,padding:"12px 20px",borderRadius:"10px",fontSize:"13px",fontWeight:"600",zIndex:9999,boxShadow:"0 8px 32px rgba(0,33,128,0.15)",maxWidth:"340px",border:`1px solid ${C.borderW}`}}>{toast.msg}</div>}

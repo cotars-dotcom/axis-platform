@@ -12,7 +12,7 @@ import { C, card } from '../appConstants.js'
 const STATUS_COR = { ok: '#059669', aviso: '#D97706', erro: '#DC2626' }
 const STATUS_ICO = { ok: '🟢', aviso: '🟡', erro: '🔴' }
 
-export default function AbaSaudeAXIS({ isPhone = false }) {
+export default function AbaSaudeAXIS({ isPhone = false, onNav = null }) {
   const [saude, setSaude] = useState(null)
   const [imoveis, setImoveis] = useState([])
   const [loading, setLoading] = useState(true)
@@ -199,7 +199,12 @@ export default function AbaSaudeAXIS({ isPhone = false }) {
                       background: urgente ? '#FFFBEB' : 'transparent'
                     }}>
                       <td style={{ padding: '5px 8px', fontWeight: 700, fontFamily: 'monospace', color: '#002B80' }}>
-                        {im.codigo_axis}
+                        {onNav
+                          ? <span onClick={() => onNav('detail', {id: im.id})}
+                              style={{cursor:'pointer',textDecoration:'underline',textUnderlineOffset:2}}>
+                              {im.codigo_axis}
+                            </span>
+                          : im.codigo_axis}
                       </td>
                       <td style={{ padding: '5px 8px', color: '#334155' }}>{im.bairro}</td>
                       <td style={{ padding: '5px 8px' }}>
