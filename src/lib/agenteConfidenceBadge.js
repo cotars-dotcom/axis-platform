@@ -1,3 +1,5 @@
+import { normalizarClasseIPEAD } from './constants.js'
+
 /**
  * AXIS — Agente de Confidence Badge
  * 
@@ -72,6 +74,7 @@ const DIMENSOES = [
     label: 'Estimativa de reforma',
     peso: 10,
     check: (p) => {
+      const classeOk = normalizarClasseIPEAD(p.classe_ipead) !== 'Classe 2 - Médio' || p.classe_ipead
       if (p.custo_reforma_media > 0) return { score: 100, motivo: 'Reforma estimada por cenário' }
       if (p.custo_reforma_estimado > 0) return { score: 70, motivo: 'Reforma estimada globalmente' }
       return { score: 20, motivo: 'Sem estimativa de reforma' }

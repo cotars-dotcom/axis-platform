@@ -14,6 +14,7 @@ import PainelInvestimento from './PainelInvestimento.jsx'
 import AtributosPredio from './AtributosPredio.jsx'
 import ScoreRadar from './ScoreRadar.jsx'
 import TimelineMatricula from './TimelineMatricula.jsx'
+import MapaCalorBairros from './MapaCalorBairros.jsx'
 import SimuladorLance from './SimuladorLance.jsx'
 import ConfigEstudo from './ConfigEstudo.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
@@ -1599,6 +1600,18 @@ for (const s of SCORES) {
               )}
             </div>
           )}
+        </div>
+      )}
+      {/* Mapa de Calor de Bairros BH */}
+      {abaDetalhe === 'mercado' && (
+        <div style={{...card(), marginTop:14, padding:14}}>
+          <div style={{fontWeight:600, color:K.wh, fontSize:13, marginBottom:10}}>
+            🗺️ Mapa de Mercado — Bairros BH
+          </div>
+          <MapaCalorBairros onBairroClick={(b) => {
+            // Destacar bairro selecionado — future: filtrar comparáveis por bairro
+            console.debug('[AXIS] Bairro selecionado:', b.bairro)
+          }} />
         </div>
       )}
       {/* Comparáveis — também na aba mercado */}

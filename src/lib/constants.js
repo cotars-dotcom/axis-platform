@@ -341,7 +341,8 @@ export const SOBRECAP_TETO_POR_CLASSE = {
 
 export function calcularSobrecapitalizacao(custoReforma, valorMercado, classeIpead = '') {
   if (!custoReforma || !valorMercado || valorMercado <= 0) return { sobrecap: false, pct: 0, teto: 0.20 }
-  const teto = SOBRECAP_TETO_POR_CLASSE[classeIpead] || SOBRECAP_TETO_POR_CLASSE.default
+  const classeNorm = normalizarClasseIPEAD(classeIpead)
+  const teto = SOBRECAP_TETO_POR_CLASSE[classeNorm] || SOBRECAP_TETO_POR_CLASSE.default
   const pct = custoReforma / valorMercado
   return {
     sobrecap: pct > teto,

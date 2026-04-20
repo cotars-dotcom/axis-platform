@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/healthcheck",
+      "schedule": "0 11 * * 1"
+    }
+  ],
+  "functions": {
+    "api/healthcheck.js": {
+      "maxDuration": 30
+    }
+  }
+}
