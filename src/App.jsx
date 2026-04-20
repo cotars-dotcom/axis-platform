@@ -1252,6 +1252,8 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
   const isPhoneL = useIsMobile(480)
   const [showComparador, setShowComparador] = useState(false)
   const [q,setQ]=useState(""), [filter,setFilter]=useState("todos"), [sort,setSort]=useState("score")
+  const [filterTipo,setFilterTipo]=useState("todos") // leilao | mercado
+  const [filterUrgente,setFilterUrgente]=useState(false) // apenas leilão ≤30 dias
   const [syncingTrello,setSyncingTrello]=useState(false)
   const [syncMsg,setSyncMsg]=useState("")
   // Sprint 10: Multi-select para análise em lote
@@ -1259,8 +1261,18 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
   const [loteProcessando, setLoteProcessando] = useState(false)
   const [loteProgresso, setLoteProgresso] = useState('')
   let list=[...props]
-  if(q) list=list.filter(p=>`${p.titulo} ${p.cidade} ${p.tipo}`.toLowerCase().includes(q.toLowerCase()))
+  if(q) list=list.filter(p=>`${p.titulo} ${p.cidade} ${p.tipo} ${p.bairro}`.toLowerCase().includes(q.toLowerCase()))
   if(filter!=="todos") list=list.filter(p=>p.recomendacao===filter.toUpperCase())
+  if(filterTipo==="leilao") list=list.filter(p=>p.tipo_transacao==='leilao'||p.tipo_transacao==='leilao_judicial')
+  if(filterTipo==="mercado") list=list.filter(p=>p.tipo_transacao==='mercado_direto')
+  if(filterUrgente) {
+    const hoje=Date.now()
+    list=list.filter(p=>{
+      const d1=p.data_leilao?Math.ceil((new Date(p.data_leilao+'T12:00')-hoje)/86400000):null
+      const d2=p.data_leilao_2?Math.ceil((new Date(p.data_leilao_2+'T12:00')-hoje)/86400000):null
+      return (d1!==null&&d1>=0&&d1<=30)||(d2!==null&&d2>=0&&d2<=30)
+    })
+  }
   list.sort((a,b)=>sort==="score"?(b.score_total||0)-(a.score_total||0):sort==="desconto"?(b.desconto_percentual||0)-(a.desconto_percentual||0):sort==="valor"?(a.valor_minimo||0)-(b.valor_minimo||0):new Date(b.createdAt)-new Date(a.createdAt))
 
   const toggleSel = (id) => setSelIds(prev => {
@@ -1359,6 +1371,19 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
         <select style={{...inp(),width:"auto",cursor:"pointer"}} value={sort} onChange={e=>setSort(e.target.value)}>
           <option value="score">Maior Score</option><option value="desconto">Maior Desconto</option><option value="valor">Menor Valor</option><option value="data">Mais Recente</option>
         </select>
+        <select style={{...inp(),width:"auto",cursor:"pointer"}} value={filterTipo} onChange={e=>setFilterTipo(e.target.value)}>
+          <option value="todos">Todos tipos</option>
+          <option value="leilao">🔨 Leilão</option>
+          <option value="mercado">🏠 Mercado</option>
+        </select>
+        <button
+          onClick={()=>setFilterUrgente(f=>!f)}
+          style={{...btn("s"),fontSize:11,padding:'5px 10px',
+            background:filterUrgente?'#DC262615':'transparent',
+            color:filterUrgente?'#DC2626':'#64748B',
+            border:`1px solid ${filterUrgente?'#DC262640':'#E2E8F0'}`}}>
+          ⏳ {filterUrgente?'Urgentes ✓':'Urgentes'}
+        </button>
         {/* Sprint 10: Toggle seleção e ações em lote */}
         <button style={{...btn("s"),fontSize:11,padding:'5px 10px',background:selIds.size?'#002B8015':'transparent',color:'#002B80',border:'1px solid #002B8030'}}
           onClick={toggleAll}>
