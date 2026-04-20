@@ -53,10 +53,10 @@ function PropCard({p,onNav,isPhone=false}) {
   const conf = calcularConfidence(p)
 
   return <div onClick={()=>onNav("detail",{id:p.id})}
+    onMouseEnter={e=>{e.currentTarget.style.borderColor=K.teal;e.currentTarget.style.transform="translateY(-2px)"}}
+    onMouseLeave={e=>{e.currentTarget.style.borderColor=K.bd;e.currentTarget.style.transform="none"}}
     style={{...card(),cursor:"pointer",transition:"all .15s",padding:isPhone?"12px":"14px",
       outline: urgColor ? `2px solid ${urgColor}` : undefined}}>
-    onMouseEnter={e=>{e.currentTarget.style.borderColor=K.teal;e.currentTarget.style.transform="translateY(-2px)"}}
-    onMouseLeave={e=>{e.currentTarget.style.borderColor=K.bd;e.currentTarget.style.transform="none"}}>
 
     {urgColor && diasUrgente !== null && (
       <div style={{background:urgColor,color:'#fff',fontSize:10,fontWeight:800,
