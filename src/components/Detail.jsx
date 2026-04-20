@@ -16,6 +16,7 @@ import ScoreRadar from './ScoreRadar.jsx'
 import TimelineMatricula from './TimelineMatricula.jsx'
 import GraficoROIHorizonte from './GraficoROIHorizonte.jsx'
 import PainelYieldModalidades from './PainelYieldModalidades.jsx'
+import ResumoPreLeilao from './ResumoPreLeilao.jsx'
 import MapaCalorBairros from './MapaCalorBairros.jsx'
 import GraficoTendencia from './GraficoTendencia.jsx'
 import SimuladorLance from './SimuladorLance.jsx'
@@ -1943,6 +1944,7 @@ for (const s of SCORES) {
           </div>
         )}
         {/* Sprint 18: Configuração global do estudo (lance + reforma) */}
+        <ResumoPreLeilao imovel={p} />
         <ConfigEstudo imovel={p} />
         {/* Sprint 22: ROI dinâmico — sincronizado com lance e reforma do ConfigEstudo */}
         <RoiLiveBanner imovel={p} />
