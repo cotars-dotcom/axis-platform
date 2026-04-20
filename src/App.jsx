@@ -17,6 +17,7 @@ import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, recColor
 import { MULT_CUSTO_RAPIDO } from "./lib/constants.js"
 import CompararImoveis from './components/CompararImoveis.jsx'
 
+const LazyProximosLeiloes = lazy(() => import('./components/ProximosLeiloes.jsx'))
 const LazyDashboard = lazy(() => import("./components/Dashboard.jsx"))
 const LazyDetail = lazy(() => import("./components/Detail.jsx"))
 const LazyPainelAdmin = lazy(() => import("./components/PainelAdmin.jsx"))
@@ -1913,7 +1914,7 @@ export default function App() {
     ...(isAdmin?[{icon:MessageSquare,l:'Busca GPT',v:'busca'}]:[]),
     {icon:Package,l:'Imóveis',v:'imoveis'},
     {icon:BarChart3,l:'Gráficos',v:'graficos'},
-    {icon:Scale,l:'Comparar',v:'comparar'},
+    {icon:Scale,l:'Comparar',v:'comparar'},{icon:Bell,l:'Leiloes',v:'leiloes'},
     {icon:CheckSquare,l:'Tarefas',v:'tarefas'},
     {icon:FileText,l:'Arquivados',v:'arquivados'},
     {icon:FileText,l:'Manual',v:'manual'},
@@ -1927,7 +1928,7 @@ export default function App() {
     ...(isAdmin?[{i:'🤖',l:'Busca GPT',v:'busca'}]:[]),
     {i:'📋',l:'Imóveis',v:'imoveis'},
     {i:'📊',l:'Gráficos',v:'graficos'},
-    {i:'⚖️',l:'Comparar',v:'comparar'},
+    {i:'⚖️',l:'Comparar',v:'comparar'},{i:'🔨',l:'Leiloes',v:'leiloes'},
     {i:'✅',l:'Tarefas',v:'tarefas'},
     {i:'🏦',l:'Arquivados',v:'arquivados'},
     {i:'📖',l:'Manual',v:'manual'},
@@ -2012,6 +2013,7 @@ export default function App() {
       {view==="imoveis"&&<Lista props={props} onNav={nav} onDelete={delProp} trello={trello} onUpdateProp={(id,updates)=>setProps(ps=>ps.map(p=>p.id===id?{...p,...updates}:p))}/>}
       {view==="detail"&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyDetail p={selP} onDelete={delProp} onNav={nav} trello={trello} onUpdateProp={(id,updates)=>setProps(ps=>ps.map(p=>p.id===id?{...p,...updates}:p))} isAdmin={isAdmin} onArchive={handleArquivar} isMobile={isMobile} isPhone={isPhone} onReanalyze={(id,updates)=>setProps(ps=>ps.map(p=>p.id===id?{...p,...updates}:p))}/></Suspense>}
       {view==="comparar"&&<Comparativo props={props}/>}
+      {view==="leiloes"&&<Suspense fallback={<div style={{padding:40,textAlign:'center',color:C.muted}}>Carregando...</div>}><LazyProximosLeiloes imoveis={props} onNav={nav}/></Suspense>}
     {view==="busca"&&(isAdmin?<LazyBuscaGPT onAnalisar={(link)=>{nav("novo");setTimeout(()=>{},100)}}/>:<AcessoNegado mensagem="Busca com IA é restrita ao administrador."/>)}
     {view==="graficos"&&<div><div style={{padding:isPhone?"16px":"22px 28px 16px",borderBottom:`1px solid ${C.borderW}`,background:C.white}}><div style={{fontWeight:700,fontSize:19,color:C.text}}>Gráficos</div></div><div style={{padding:isPhone?"16px":"20px 28px"}}><Suspense fallback={<div style={{padding:40,textAlign:'center',color:C.muted}}>Carregando gráficos...</div>}><Charts properties={props}/></Suspense></div></div>}
     {view==="tarefas"&&<LazyTarefas/>}
