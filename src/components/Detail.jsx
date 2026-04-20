@@ -15,6 +15,7 @@ import AtributosPredio from './AtributosPredio.jsx'
 import ScoreRadar from './ScoreRadar.jsx'
 import TimelineMatricula from './TimelineMatricula.jsx'
 import MapaCalorBairros from './MapaCalorBairros.jsx'
+import GraficoTendencia from './GraficoTendencia.jsx'
 import SimuladorLance from './SimuladorLance.jsx'
 import ConfigEstudo from './ConfigEstudo.jsx'
 import PainelRentabilidade from './PainelRentabilidade.jsx'
@@ -1551,6 +1552,16 @@ for (const s of SCORES) {
             {p._score_axis_patrimonial && (
               <div style={{marginTop:6,padding:'6px 10px',borderRadius:6,background:'#ECFDF5',border:'1px solid #A7F3D0',fontSize:11,color:'#065F46'}}>
                 🎯 Score AXIS patrimonial: <strong>{p._score_axis_patrimonial}</strong> (yield×40% + tendência×35% + demanda×25%)
+              </div>
+            )}
+            {p._dados_bairro_axis?.tendencia12m != null && p._dados_bairro_axis?.precoContratoM2 && (
+              <div style={{marginTop:8,display:'flex',justifyContent:'center'}}>
+                <GraficoTendencia
+                  tendencia_12m={p._dados_bairro_axis.tendencia12m}
+                  precoAtual={p._dados_bairro_axis.precoContratoM2}
+                  label={p.bairro}
+                  width={200} height={55}
+                />
               </div>
             )}
             <div style={{marginTop:6,fontSize:9,color:'#94A3B8'}}>

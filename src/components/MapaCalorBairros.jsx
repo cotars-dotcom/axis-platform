@@ -5,6 +5,7 @@
  * Usa dados de metricas_bairros do banco.
  */
 import { useState, useEffect } from 'react'
+import GraficoTendencia from './GraficoTendencia.jsx'
 import { supabase } from '../lib/supabase.js'
 
 const COR_LIQUIDEZ = {
@@ -158,6 +159,17 @@ export default function MapaCalorBairros({ onBairroClick = null }) {
               </div>
             ))}
           </div>
+          {selecionado.tendencia_12m != null && selecionado.preco_contrato_m2 && (
+            <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }}>
+              <GraficoTendencia
+                tendencia_12m={parseFloat(selecionado.tendencia_12m)}
+                precoAtual={parseFloat(selecionado.preco_contrato_m2)}
+                label={selecionado.bairro}
+                width={200}
+                height={55}
+              />
+            </div>
+          )}
         </div>
       )}
 
