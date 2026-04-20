@@ -1943,7 +1943,31 @@ export default function App() {
     <div style={{color:C.muted,fontWeight:"500",fontSize:"14px",marginTop:8}}>Carregando...</div>
   </div>
 
-  return <ErrorBoundary><div style={{display:"flex",minHeight:"100dvh",background:C.offwhite,color:C.text,fontFamily:"'Inter',system-ui,sans-serif",fontSize:"14px",overflow:"hidden"}}>
+  // Imóvel com leilão mais urgente (≤15 dias)
+  const imovelUrgente = (() => {
+    const hoje = Date.now()
+    return props.find(p => {
+      const d1 = p.data_leilao ? Math.ceil((new Date(p.data_leilao+'T12:00')-hoje)/86400000) : null
+      const d2 = p.data_leilao_2 ? Math.ceil((new Date(p.data_leilao_2+'T12:00')-hoje)/86400000) : null
+      return (d1!==null&&d1>=0&&d1<=15)||(d2!==null&&d2>=0&&d2<=15)
+    })
+  })()
+
+  return <ErrorBoundary><div style={{display:"flex",flexDirection:"column",minHeight:"100dvh",background:C.offwhite,color:C.text,fontFamily:"'Inter',system-ui,sans-serif",fontSize:"14px",overflow:"hidden"}}>
+    {/* Banner urgência leilão */}
+    {imovelUrgente && view !== 'detail' && (() => {
+      const hoje = Date.now()
+      const d1 = imovelUrgente.data_leilao ? Math.ceil((new Date(imovelUrgente.data_leilao+'T12:00')-hoje)/86400000) : null
+      const d2 = imovelUrgente.data_leilao_2 ? Math.ceil((new Date(imovelUrgente.data_leilao_2+'T12:00')-hoje)/86400000) : null
+      const dias = (d1!==null&&d1>=0&&d1<=15) ? d1 : d2
+      const praca = (d1!==null&&d1>=0&&d1<=15) ? '1ª' : '2ª'
+      return <div onClick={()=>nav('detail',{id:imovelUrgente.id})}
+        style={{cursor:'pointer',background:dias<=7?'#DC2626':'#EA580C',color:'#fff',
+          padding:'6px 20px',textAlign:'center',fontSize:12,fontWeight:700,
+          letterSpacing:.3,flexShrink:0,zIndex:100}}>
+        🚨 {imovelUrgente.codigo_axis} — {praca} praça em {dias===0?'HOJE!':dias===1?'AMANHÃ!':dias+'d'} — clique para ver decisão de lance
+      </div>
+    })()}
     <style>{`*{box-sizing:border-box;}::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:${C.offwhite};}::-webkit-scrollbar-thumb{background:${C.border};border-radius:2px;}select option{background:${C.white};}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}a:hover{opacity:.8;}`}</style>
 
     {showTrello&&<TrelloModal config={trello} onSave={saveTrello} onClose={()=>setShowTrello(false)}/>}
