@@ -378,6 +378,48 @@ ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;marg
   <div style="font-size:9px;color:#999">SINAPI-MG 2026 · Classe ${classe.replace(/_/g, ' ')}</div>
 </div>
 
+<!-- SEÇÃO DE DECISÃO (mostrada quando leilão próximo) -->
+${(() => {
+  const hoje = Date.now()
+  const d1 = p.data_leilao ? Math.ceil((new Date(p.data_leilao+'T12:00') - hoje) / 86400000) : null
+  const d2 = p.data_leilao_2 ? Math.ceil((new Date(p.data_leilao_2+'T12:00') - hoje) / 86400000) : null
+  const temProximo = (d1 !== null && d1 >= 0 && d1 <= 30) || (d2 !== null && d2 >= 0 && d2 <= 30)
+  if (!temProximo) return ''
+  const aval = parseFloat(p.valor_avaliacao || p.valor_minimo) || 0
+  const maoFlip = parseFloat(p.mao_flip) || 0
+  const maoLoc = parseFloat(p.mao_locacao) || 0
+  const partes = []
+  if (d1 !== null && d1 >= 0) partes.push('1a Praca em ' + d1 + 'd (' + p.data_leilao + ')')
+  if (d2 !== null && d2 >= 0) partes.push('2a Praca em ' + d2 + 'd (' + p.data_leilao_2 + ')')
+  const cenarios2 = aval > 0 ? [
+    { label: '50% piso', lance: Math.round(aval*0.50), prob: '15%' },
+    { label: '57% esperado', lance: Math.round(aval*0.57), prob: '55%' },
+    { label: '65% competitivo', lance: Math.round(aval*0.65), prob: '30%' },
+  ] : []
+  const maoV2ok = p.valor_minimo_2 && parseFloat(p.valor_minimo_2) <= maoFlip
+  const cenariosHtml = cenarios2.map(c =>
+    '<div style="flex:1;background:#1E293B;padding:8px;border-radius:7px;text-align:center">' +
+    '<div style="font-size:9px;color:#94A3B8">' + c.label + '</div>' +
+    '<div style="font-size:14px;font-weight:800;color:#F1F5F9">' + fmt(c.lance) + '</div>' +
+    '<div style="font-size:9px;color:#64748B">' + c.prob + ' prob.</div></div>'
+  ).join('')
+  return '<div style="background:#0F172A;border-radius:10px;padding:16px;margin-bottom:14px">' +
+    '<div style="font-size:13px;font-weight:800;color:#F59E0B;margin-bottom:12px">⏳ DECISÃO DE LANCE — ' + partes.join(' · ') + '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">' +
+    '<div style="background:#1E293B;padding:10px;border-radius:7px">' +
+    '<div style="font-size:9px;color:#94A3B8">MAO FLIP (ROI 20%)</div>' +
+    '<div style="font-size:20px;font-weight:800;color:#4ADE80">' + fmt(maoFlip) + '</div>' +
+    (p.valor_minimo_2 ? '<div style="font-size:10px;color:' + (maoV2ok?'#4ADE80':'#F87171') + '">' + (maoV2ok?'✅ 2a praca dentro':'⚠️ 2a praca acima') + ' do MAO</div>' : '') +
+    '</div>' +
+    '<div style="background:#1E293B;padding:10px;border-radius:7px">' +
+    '<div style="font-size:9px;color:#94A3B8">MAO LOCAÇÃO (yield 6%)</div>' +
+    '<div style="font-size:20px;font-weight:800;color:#A78BFA">' + fmt(maoLoc) + '</div>' +
+    '</div></div>' +
+    (cenarios2.length > 0 ? '<div style="font-size:10px;color:#94A3B8;margin-bottom:8px">CENÁRIOS 2a PRAÇA</div>' +
+    '<div style="display:flex;gap:8px">' + cenariosHtml + '</div>' : '') +
+    '</div>'
+})()}
+
 <!-- TAB: Detalhe -->
 <div class="tab-content" id="tab-detalhe">
   <div class="section-divider">📋 Detalhamento</div>

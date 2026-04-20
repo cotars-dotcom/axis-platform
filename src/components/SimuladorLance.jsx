@@ -6,6 +6,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { C, card, fmtC } from '../appConstants.js'
 import { calcularBreakdownFinanceiro, calcularROI, calcularLanceMaximoParaROI, calcularPreditorConcorrencia, HOLDING_MESES_PADRAO, IPTU_SOBRE_CONDO_RATIO } from '../lib/constants.js'
+import { calcularConfidence } from '../lib/agenteConfidenceBadge.js'
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 import { InputMoeda } from './ConfigEstudo.jsx'
@@ -82,9 +83,20 @@ export default function SimuladorLance({ p, isPhone = false }) {
     <div style={{...card(), padding: 16}}>
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
         <div style={{fontSize: 13, fontWeight: 700, color: C.navy}}>Simulador de Lance</div>
-        <div style={{fontSize: 9, color: C.muted}}>
-          Lance definido no <strong>Configuração do Estudo</strong>
-          {holdingEstudo > 0 && ` · Holding ${HOLDING_MESES_PADRAO}m`}
+        <div style={{display:'flex', alignItems:'center', gap:6}}>
+          {(() => {
+            const conf = calcularConfidence(p)
+            const cor = conf.score >= 75 ? '#059669' : conf.score >= 50 ? '#D97706' : '#DC2626'
+            return (
+              <div style={{fontSize:9, fontWeight:700, color:cor, background:`${cor}12`,
+                border:`1px solid ${cor}30`, padding:'1px 6px', borderRadius:3}}>
+                🎯 {conf.score}/100
+              </div>
+            )
+          })()}
+          <div style={{fontSize: 9, color: C.muted}}>
+            Lance no <strong>Estudo</strong>{holdingEstudo > 0 && ` · Holding ${HOLDING_MESES_PADRAO}m`}
+          </div>
         </div>
       </div>
 
