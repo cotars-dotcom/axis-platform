@@ -193,7 +193,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   if (p.sintese_executiva) {
     y = subH(doc, y, 'Sintese Executiva')
     doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.text)
-    const sl = doc.splitTextToSize(p.sintese_executiva, 175); doc.text(sl.slice(0, 6), 15, y); y += Math.min(sl.length, 6) * 3.8 + 4
+    const sl = doc.splitTextToSize(p.sintese_executiva || '', 175); doc.text(sl.slice(0, 6), 15, y); y += Math.min(sl.length, 6) * 3.8 + 4
   }
 
   if (p.justificativa) {
@@ -218,13 +218,13 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   if (p.positivos?.length && y < 235) {
     y = subH(doc, y, 'Pontos Positivos')
     doc.setFontSize(7.5); doc.setTextColor(...C.green)
-    const pos = (typeof p.positivos === 'string' ? JSON.parse(p.positivos) : p.positivos).slice(0, 5)
+    const pos = (Array.isArray(p.positivos) ? p.positivos : (p.positivos ? (() => { try { return JSON.parse(p.positivos) } catch { return [] } })() : [])).slice(0, 5)
     pos.forEach(item => { const l = doc.splitTextToSize(`[+]  ${item}`, 175); doc.text(l, 15, y); y += l.length * 3.5 + 1.5 }); y += 2
   }
   if (p.negativos?.length && y < 265) {
     y = subH(doc, y, 'Pontos de Atencao')
     doc.setFontSize(7.5); doc.setTextColor(...C.red)
-    const neg = (typeof p.negativos === 'string' ? JSON.parse(p.negativos) : p.negativos).slice(0, 5)
+    const neg = (Array.isArray(p.negativos) ? p.negativos : (p.negativos ? (() => { try { return JSON.parse(p.negativos) } catch { return [] } })() : [])).slice(0, 5)
     neg.forEach(item => { const l = doc.splitTextToSize(`[!]  ${item}`, 175); doc.text(l, 15, y); y += l.length * 3.5 + 1.5 })
   }
   foot(doc, p, 2, totalPg)
@@ -486,7 +486,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
 
   if (p.comparaveis?.length > 0 && y < 210) {
     y = subH(doc, y, `Comparaveis de Mercado (${p.comparaveis.length})`)
-    tbl({ startY: y, head: [['Endereco', 'Area', 'Q', 'Preco', 'R$/m2']], body: p.comparaveis.slice(0, 8).map(c => [(c.descricao || c.endereco || '--').substring(0, 50), c.area_m2 ? `${c.area_m2}m2` : '--', c.quartos || '--', c.valor ? fmt(c.valor) : '--', c.preco_m2 ? `R$ ${Math.round(c.preco_m2).toLocaleString('pt-BR')}` : '--']), theme: 'striped', styles: { fontSize: 6.5, cellPadding: 2 }, headStyles: { fillColor: C.navy, textColor: C.white, fontSize: 6.5 }, alternateRowStyles: { fillColor: C.bg }, margin: { left: 15, right: 15 } })
+    tbl({ startY: y, head: [['Endereco', 'Area', 'Q', 'Preco', 'R$/m2']], body: (Array.isArray(p.comparaveis) ? p.comparaveis : []).slice(0, 8).map(c => [(c.descricao || c.endereco || '--').substring(0, 50), c.area_m2 ? `${c.area_m2}m2` : '--', c.quartos || '--', c.valor ? fmt(c.valor) : '--', c.preco_m2 ? `R$ ${Math.round(c.preco_m2).toLocaleString('pt-BR')}` : '--']), theme: 'striped', styles: { fontSize: 6.5, cellPadding: 2 }, headStyles: { fillColor: C.navy, textColor: C.white, fontSize: 6.5 }, alternateRowStyles: { fillColor: C.bg }, margin: { left: 15, right: 15 } })
     y = lastY + 8
   }
 

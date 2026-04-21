@@ -298,7 +298,7 @@ ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;marg
   ${p.sintese_executiva ? `
   <div class="card" style="margin-bottom:14px;background:#F0F4FF;border-color:#C7D4F8">
     <div class="card-t" style="color:#1D4ED8">📋 Síntese</div>
-    <div style="font-size:12px;line-height:1.6;color:#333">${p.sintese_executiva}</div>
+    <div style="font-size:12px;line-height:1.6;color:#333">${p.sintese_executiva || 'Síntese não gerada ainda.'}</div>
   </div>` : ''}
 
   <!-- Alertas -->
@@ -488,7 +488,7 @@ ${(() => {
   ${p.justificativa ? `
   <div class="card" style="margin-bottom:14px">
     <div class="card-t">💬 Justificativa</div>
-    <div style="font-size:11px;line-height:1.6;color:#333">${p.justificativa}</div>
+    <div style="font-size:11px;line-height:1.6;color:#333">${p.justificativa || ''}</div>
   </div>` : ''}
 </div>
 

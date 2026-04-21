@@ -1769,7 +1769,7 @@ export default function App() {
   const [apiOk,setApiKey]=useState(localStorage.getItem("axis-api-key"))
   const isMobile = useIsMobile(900)
   const isPhone  = useIsMobile(480)
-  useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("parametros_score").select("*");if(pr)setParametrosBanco(pr);const{data:cr}=await supabase.from("criterios_avaliacao").select("*");if(cr)setCriteriosBanco(cr)}catch(e){console.warn("parametros:",e)}}lp()
+  useEffect(()=>{async function lp(){try{const{data:pr}=await supabase.from("parametros_score").select("*");if(pr)setParametrosBanco(pr)}catch(e){console.warn("parametros:",e)}}lp()
   // Seed automático de dados de referência (só se tabelas estiverem vazias)
   import('./lib/supabase.js').then(({ seedMercadoRegional, seedRiscosJuridicos }) => {
     seedMercadoRegional().catch(() => {})
