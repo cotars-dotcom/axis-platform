@@ -177,7 +177,7 @@ export default function MapaCalorBairros({ onBairroClick = null }) {
       <div style={{ marginTop: 10, display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 10, color: '#94A3B8' }}>
         <span>🟢 Alta: venda ≤60d</span>
         <span>🟡 Média: venda 61-90d</span>
-        <span>🔴 Baixa: venda >90d</span>
+        <span>🔴 Baixa: venda &gt;90d</span>
         <span style={{ marginLeft: 'auto' }}>Fonte: FipeZAP/IPEAD/QuintoAndar 2025-26</span>
       </div>
     </div>

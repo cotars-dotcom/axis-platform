@@ -3,7 +3,8 @@ import { C, RED, ESTRATEGIA_CONFIG } from "../appConstants.js"
 import { isMercadoDireto } from '../lib/detectarFonte.js'
 import {
   CUSTOS_LEILAO, CUSTOS_MERCADO, calcularFatorHomogeneizacao,
-  IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO, calcularLanceMaximoParaROI, normalizarClasseIPEAD,
+  IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO, calcularLanceMaximoParaROI,
+  normalizarClasseIPEAD, areaUsada,
 } from '../lib/constants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 
@@ -50,7 +51,7 @@ export default function CalculadoraROI({ imovel }) {
   const vmercado = usarHomogeneizado ? vmercadoAjustado : vmercadoBruto
 
   // Badge: valor ajustado acima da média do bairro
-  const areaImovel = parseFloat(imovel.area_privativa_m2 || imovel.area_m2) || 1
+  const areaImovel = areaUsada(imovel) || 1
   const precoM2Mercado = parseFloat(imovel.preco_m2_mercado) || 0
   const ajustadoAcimaDaMed = precoM2Mercado > 0 && (vmercadoAjustado / areaImovel) > precoM2Mercado * 1.10
 

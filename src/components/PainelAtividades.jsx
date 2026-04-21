@@ -94,7 +94,7 @@ export default function PainelAtividades({ imovelId }) {
       </div>
       {atividades.length > 4 && (
         <button onClick={() => setExpandido(!expandido)}
-          style={{ marginTop: 6, fontSize: 10, color: K.t3, background: 'none',
+          style={{ marginTop: 6, fontSize: 10, color: K.t3,
             border: 'none', cursor: 'pointer', padding: '2px 8px', borderRadius: 4,
             background: K.s2, width: '100%' }}>
           {expandido ? '▲ Menos' : `▼ Ver todas (${atividades.length})`}

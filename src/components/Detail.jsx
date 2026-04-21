@@ -1037,7 +1037,7 @@ export default function Detail({p,onDelete,onNav,trello,onUpdateProp,onReanalyze
   useEffect(() => {
     if (!p?.id) return
     const tipo = (p.tipo || p.tipologia || 'apartamento').toLowerCase()
-    const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 0
+    const area = (parseFloat(p.area_usada_calculo_m2 || p.area_privativa_m2 || p.area_m2)) || 0
     const precoRef = parseFloat(p.preco_pedido || p.valor_minimo) || 0
     const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
     import('../lib/supabase.js').then(async ({ supabase: sb }) => {

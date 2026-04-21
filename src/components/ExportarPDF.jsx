@@ -20,7 +20,7 @@ function gerarHTML(p) {
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
   const rec = recBadge(p.recomendacao)
   const score = (p.score_total || 0).toFixed(1)
-  const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 0
+  const area = parseFloat(p.area_usada_calculo_m2 || p.area_privativa_m2 || p.area_m2) || 0
   const classe = detectarClasse(parseFloat(p.preco_m2_mercado) || 7000)
 
   // Calcular reformas com viabilidade
