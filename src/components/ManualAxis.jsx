@@ -427,6 +427,14 @@ export default function ManualAxis({ isMobile }) {
               {icon:'⏰',t:'Pós-Leilão Auto (Sprint 10)',cor:P.red,txt:'PainelPosLeilao no Dashboard detecta leilões vencidos e próximos (D-14). Botões Arrematado/Não Arrematado direto, sem abrir o imóvel.'},
               {icon:'🔗',t:'Link Público (Sprint 10)',cor:P.purple,txt:'Compartilhe análise via link sem login — token de 16 chars, validade 30 dias. Viewer completo com Score 6D, KPIs, síntese. Rota: /#/share/:token.'},
               {icon:'🤖',t:'Análise em Lote (Sprint 10)',cor:P.emerald,txt:'Multi-select na lista de imóveis + botão "Analisar Docs". Loop automático: texto salvo → Jina fallback → Gemini. Progresso em tempo real.'},
+              {icon:'⚖️',t:'Agente Jurídico IA (Sprint 11)',cor:P.purple,txt:'Upload de PDFs do edital e matrícula. Análise com Claude Vision: extração de ônus, dívidas, processos, score jurídico 0-10. Timeline da matrícula com histórico de alienações.'},
+              {icon:'🏗️',t:'Reforma Inteligente SINAPI (Sprint 21)',cor:P.red,txt:'Cenários Básico/Médio/Completo com itens reais do SINAPI-MG 2026. Custo por m², viabilidade por cenário, análise de sobrecapitalização. Reformas calibradas por padrão de acabamento.'},
+              {icon:'🎯',t:'Score Radar + Confidence (Sprint 25)',cor:P.navy,txt:'Radar visual das 6 dimensões do score (Loc/Desc/Jur/Ocup/Liq/Merc). Badge de confiança 0-100% com diagnóstico de fraquezas. Escala unificada 0-100 no display.'},
+              {icon:'📊',t:'Índice AXIS + MAO Duplo (Sprint 27)',cor:P.emerald,txt:'MAO flip (ROI 20%) e MAO locação (yield 6%) calculados separadamente. Débitos do arrematante incorporados no MAO. Faixa vermelha kill-switch quando score jurídico crítico.'},
+              {icon:'🏠',t:'Yield Airbnb por Bairro (Sprint 28)',cor:P.amber,txt:'PainelYieldModalidades com 3 cenários: residencial, corporativo e Airbnb. Buritis, Gutierrez, Belvedere e outros bairros elegíveis com fator multiplicador por demanda turística.'},
+              {icon:'⏳',t:'Próximos Leilões + Countdown (Sprint 33)',cor:P.red,txt:'Vista dedicada com countdown em tempo real para 1ª e 2ª praça. Semáforo urgência: vermelho ≤7d, laranja ≤15d, amarelo ≤30d. Banner global no topo quando há leilão ≤15 dias.'},
+              {icon:'⚖️',t:'Consulta Datajud CNJ (Sprint 35)',cor:P.purple,txt:'Botão no card de processo — consulta a API pública do CNJ em 1 clique. Exibe classe, vara, movimentos relevantes (hasta, penhora, extinção) e auto-preenche vara_judicial.'},
+              {icon:'🎯',t:'Decisão de Lance (Sprint 35)',cor:P.emerald,txt:'Painel no Resumo Pré-Leilão para registrar lance máximo, estratégia (flip/locação/híbrido) e ver ROI em tempo real. Exporta PDF A4 executivo com 1 página de decisão para imprimir.'},
             ].map(({icon,t,cor,txt}) => (
               <Box key={t} style={{ borderLeft:`3px solid ${cor}` }}>
                 <div style={{ fontSize:18, marginBottom:4 }}>{icon}</div>
