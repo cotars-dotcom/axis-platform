@@ -8,7 +8,7 @@
  */
 
 const ANOS = [1, 2, 3, 5]
-const SELIC_ANUAL = 10.5  // % — taxa Selic abr/2026
+const SELIC_ANUAL = 14.75  // % — taxa Selic abr/2026 (Copom 18/03/2026)
 
 function projetarROI(p, lanceEstudo, custoReformaAtual, holdingMeses = 6) {
   const lance = lanceEstudo || parseFloat(p.valor_minimo || p.preco_pedido) || 0

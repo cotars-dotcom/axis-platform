@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react"
+import React, { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { C, K, RED, btn, inp, card, fmtC, fmtD, scoreColor, scoreLabel, scoreDisplay, recColor, mapDisplay, normalizarTextoAlerta, ESTRATEGIA_CONFIG, LIQUIDEZ_MAP } from "../appConstants.js"
 import { supabase, saveImovelCompleto, saveObservacao, loadApiKeys, logAtividade, criarLinkPublico, registrarResultadoLeilao, saveAvaliacao, getAvaliacoes } from "../lib/supabase.js"
 // motorIA: import dinâmico em handleReanalyze
@@ -38,15 +38,15 @@ class SectionErrorBoundary extends React.Component {
   static getDerivedStateFromError() { return { hasError: true } }
   componentDidCatch(err) { console.warn('[AXIS Detail]', this.props.nome, err.message) }
   render() {
-    if (this.state.hasError) return (
-      <div style={{padding:'10px 14px',borderRadius:8,background:'#FEF2F2',
-        border:'1px solid #FECACA',fontSize:12,color:'#991B1B',marginBottom:8}}>
-        ⚠️ Erro ao carregar {this.props.nome || 'seção'}.{' '}
-        <button onClick={()=>this.setState({hasError:false})}
-          style={{color:'#DC2626',background:'none',border:'none',cursor:'pointer',fontWeight:600,textDecoration:'underline'}}>
-          Tentar novamente
-        </button>
-      </div>
+    if (this.state.hasError) return React.createElement('div',
+      {style:{padding:'10px 14px',borderRadius:8,background:'#FEF2F2',
+        border:'1px solid #FECACA',fontSize:12,color:'#991B1B',marginBottom:8}},
+      '⚠️ Erro ao carregar ', this.props.nome || 'seção', '. ',
+      React.createElement('button',
+        {onClick:()=>this.setState({hasError:false}),
+         style:{color:'#DC2626',background:'none',border:'none',cursor:'pointer',fontWeight:600,textDecoration:'underline'}},
+        'Tentar novamente'
+      )
     )
     return this.props.children
   }
@@ -896,7 +896,7 @@ function ConfidencePanel({ imovel }) {
 
 // Accordion de alertas informativos (não-críticos) — colapsável para não poluir o topo
 function AlertasInfoAccordion({ imovel }) {
-  const [aberto, setAberto] = React.useState(false)
+  const [aberto, setAberto] = useState(false)
 
   // Verificar se há algum alerta informativo relevante
   const temAvalInflada = (() => {
