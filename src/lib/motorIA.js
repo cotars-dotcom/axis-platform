@@ -19,7 +19,7 @@ import { getBairroDadosOnline } from './agenteValorMercado.js'
 import { calcularCustoReforma, verificarSobrecapitalizacao } from '../data/custos_reforma.js'
 import { calcularCustoJuridico } from '../data/riscos_juridicos.js'
 
-import { SCORE_PESOS, CLAUDE_MODEL, ANTHROPIC_VERSION, calcularScoreTotal, calcularCustosAquisicao } from './constants.js'
+import { SCORE_PESOS, CLAUDE_MODEL, ANTHROPIC_VERSION, calcularScoreTotal, calcularCustosAquisicao, areaUsada } from './constants.js'
 
 const GPT_MODEL_MARKET  = 'gpt-4o-mini'   // comparáveis e pesquisa de mercado (~16x mais barato)
 const GPT_MODEL_COMPLEX = 'gpt-4o'        // fallback se mini falhar ou retornar sem dados
@@ -1390,7 +1390,7 @@ DADOS DE BAIRRO (parcial):
     const mercadoFinal = regiaoFinal ? getMercado(regiaoFinal) : dadosMercado
     if (mercadoFinal) {
       if (!analise.preco_m2_mercado) analise.preco_m2_mercado = mercadoFinal.preco_m2_venda_medio
-      if (!analise.aluguel_mensal_estimado && analise.area_m2)
+      if (!analise.aluguel_mensal_estimado && areaUsada(analise))
         analise.aluguel_mensal_estimado = mercadoFinal.preco_m2_locacao * analise.area_m2
       if (!analise.mercado_tendencia) analise.mercado_tendencia = mercadoFinal.tendencia
       if (!analise.mercado_demanda) analise.mercado_demanda = mercadoFinal.demanda
@@ -1477,18 +1477,18 @@ DADOS DE BAIRRO (parcial):
     }
     // Calibrar valor_mercado_homogenizado — aplicar sobre preço ANÚNCIO, não contrato
     // Evita dupla penalização: contrato já embute ~15-20% de desconto
-    if (dadosBairroCalib.precoAnuncioM2 && analise.area_m2 && !analise.valor_mercado_homogenizado) {
+    if (dadosBairroCalib.precoAnuncioM2 && areaUsada(analise) && !analise.valor_mercado_homogenizado) {
       const fh = analise.fator_homogenizacao || 1.0
-      analise.valor_mercado_homogenizado = Math.round(dadosBairroCalib.precoAnuncioM2 * analise.area_m2 * fh)
-    } else if (dadosBairroCalib.precoContratoM2 && analise.area_m2 && !analise.valor_mercado_homogenizado) {
+      analise.valor_mercado_homogenizado = Math.round(dadosBairroCalib.precoAnuncioM2 * areaUsada(analise) * fh)
+    } else if (dadosBairroCalib.precoContratoM2 && areaUsada(analise) && !analise.valor_mercado_homogenizado) {
       // Fallback: se só tem contrato, NÃO aplicar fator (já está descontado)
-      analise.valor_mercado_homogenizado = Math.round(dadosBairroCalib.precoContratoM2 * analise.area_m2)
+      analise.valor_mercado_homogenizado = Math.round(dadosBairroCalib.precoContratoM2 * areaUsada(analise))
     }
     // Calibrar aluguel com dados reais do bairro
-    if (dadosBairroCalib.precoContratoM2 && analise.area_m2 && !analise.aluguel_mensal_estimado) {
+    if (dadosBairroCalib.precoContratoM2 && areaUsada(analise) && !analise.aluguel_mensal_estimado) {
       const yieldMensal = (dadosBairroCalib.yieldBruto || 5.5) / 100 / 12
       analise.aluguel_mensal_estimado = Math.round(
-        dadosBairroCalib.precoContratoM2 * analise.area_m2 * (analise.fator_homogenizacao || 1.0) * yieldMensal
+        dadosBairroCalib.precoContratoM2 * areaUsada(analise) * (analise.fator_homogenizacao || 1.0) * yieldMensal
       )
     }
   }
@@ -1704,8 +1704,8 @@ Regras: true = claramente visível. false = claramente ausente (ex: prédio baix
     if ((analise.vagas || 0) === 0) fh *= 0.90
     analise.fator_homogenizacao = fh < 1.0 ? parseFloat(fh.toFixed(4)) : null
     // Recalcular valor de mercado homogeneizado
-    if (dadosBairroCalib?.precoAnuncioM2 && analise.area_m2) {
-      analise.valor_mercado_homogenizado = Math.round(dadosBairroCalib.precoAnuncioM2 * analise.area_m2 * (fh < 1 ? fh : 1))
+    if (dadosBairroCalib?.precoAnuncioM2 && areaUsada(analise)) {
+      analise.valor_mercado_homogenizado = Math.round(dadosBairroCalib.precoAnuncioM2 * areaUsada(analise) * (fh < 1 ? fh : 1))
     }
     analise.score_total = calcularScore(analise, parametros)
   }

@@ -12,6 +12,11 @@ export const safeFloat = (v, def = 0) => {
 }
 /** Clamp score no intervalo 0-10 */
 export const clampScore = (v) => Math.max(0, Math.min(10, safeFloat(v, 0)))
+
+/** Cadeia canônica de área para cálculos financeiros */
+export const areaUsada = (p) =>
+  parseFloat(p?.area_usada_calculo_m2 || p?.area_privativa_m2 || p?.area_m2) || 0
+
 /** Clamp percentual no intervalo razoável (-100% a 999%) */
 const clampPct = (v) => Math.max(-100, Math.min(999, safeFloat(v, 0)))
 
