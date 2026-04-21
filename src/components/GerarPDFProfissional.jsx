@@ -76,10 +76,13 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
 
   const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
   const area = parseFloat(p.area_privativa_m2 || p.area_m2) || 0
-  const lance = parseFloat(p.preco_pedido || p.valor_minimo) || 0
+  const lanceOriginal = parseFloat(p.preco_pedido || p.valor_minimo) || 0
+  // Usar lance da 2ª praça na capa quando recomendação é AGUARDAR (mais relevante)
+  const tem2aP = !eMercado && parseFloat(p.valor_minimo_2) > 0
+  const lance = tem2aP && p.recomendacao === 'AGUARDAR' ? parseFloat(p.valor_minimo_2) : lanceOriginal
   const mercado = parseFloat(p.valor_mercado_estimado) || 0
   const aluguel = parseFloat(p.aluguel_mensal_estimado) || 0
-  const avaliacao = parseFloat(p.valor_avaliacao) || lance
+  const avaliacao = parseFloat(p.valor_avaliacao) || lanceOriginal
   const bd = calcularBreakdownFinanceiro(lance, p, eMercado)
   const roi = calcularROI(bd.investimentoTotal, mercado, aluguel)
   const condoMensal = parseFloat(p.condominio_mensal || 0)
@@ -111,8 +114,8 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   const recBg = p.recomendacao === 'COMPRAR' ? C.greenL : p.recomendacao === 'EVITAR' ? C.redL : C.amberL
   const recFg = p.recomendacao === 'COMPRAR' ? C.green : p.recomendacao === 'EVITAR' ? C.red : C.amber
 
-  // Simulacao 2a praca
-  const lance2p = Math.round(avaliacao * 0.50)
+  // Simulacao 2a praca — usar valor real do banco, fallback para 50% da avaliação
+  const lance2p = parseFloat(p.valor_minimo_2) > 0 ? parseFloat(p.valor_minimo_2) : Math.round(avaliacao * 0.50)
   const bd2p = calcularBreakdownFinanceiro(lance2p, p, eMercado)
   const roi2p = calcularROI(bd2p.investimentoTotal, mercado, aluguel)
 
@@ -150,15 +153,24 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   doc.setFontSize(7); doc.setTextColor(...C.gray); doc.text('SCORE AXIS', 175, y + 1, { align: 'center' })
   y += 10
 
-  kpi(doc, 15, y, 56, 22, eMercado ? 'Preco Pedido' : 'Lance Minimo', fmt(lance), C.amber, C.amberL)
+  const lanceLabel = eMercado ? 'Preco Pedido' : (tem2aP && p.recomendacao === 'AGUARDAR' ? '2a Praca (min.)' : '1a Praca (min.)')
+  kpi(doc, 15, y, 56, 22, lanceLabel, fmt(lance), C.amber, C.amberL)
   kpi(doc, 77, y, 56, 22, 'Mercado Estimado', fmt(mercado), C.navy, C.navyL)
   kpi(doc, 139, y, 56, 22, 'Aluguel Estimado', aluguel ? `${fmt(aluguel)}/mes` : '--', C.purple, C.purpleL)
   y += 28
   const roiV = roi?.roi ?? 0
-  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.gray); doc.text('ROI Estimado:', 15, y)
+  const roiLabel = tem2aP && p.recomendacao === 'AGUARDAR' ? 'ROI (2a praca):' : 'ROI Estimado:'
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.gray); doc.text(roiLabel, 15, y)
   doc.setTextColor(...(roiV >= 15 ? C.green : roiV >= 0 ? C.amber : C.red)); doc.text(`${roiV > 0 ? '+' : ''}${roiV}%`, 45, y)
-  const desc = parseFloat(p.desconto_sobre_mercado_pct_calculado || p.desconto_sobre_mercado_pct) || 0
-  if (desc > 0) { doc.setTextColor(...C.gray); doc.text('Desconto:', 70, y); doc.setTextColor(...C.green); doc.text(`-${desc.toFixed(0)}%`, 91, y) }
+  // Desconto sobre mercado real (não sobre avaliação judicial)
+  const descMercado = mercado > 0 && lance > 0 ? Math.round((1 - lance / mercado) * 100) : 0
+  if (descMercado > 0) {
+    doc.setTextColor(...C.gray); doc.text('Desc. s/ mercado:', 70, y)
+    doc.setTextColor(...C.green); doc.text(`${descMercado}%`, 101, y)
+  } else if (descMercado < 0) {
+    doc.setTextColor(...C.gray); doc.text('Acima do mercado:', 70, y)
+    doc.setTextColor(...C.red); doc.text(`+${Math.abs(descMercado)}%`, 101, y)
+  }
   if (!eMercado) { doc.setTextColor(...C.gray); doc.text('Avaliacao:', 110, y); doc.setTextColor(...C.navy); doc.text(fmt(avaliacao), 133, y) }
   foot(doc, p, 1, totalPg)
 
@@ -207,7 +219,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
 
   if (p.alertas?.length) {
     y = subH(doc, y, 'Alertas')
-    const alertas = (Array.isArray(p.alertas) ? p.alertas : []).slice(0, 5).map(a => typeof a === 'string' ? a : a.texto || '')
+    const alertas = (Array.isArray(p.alertas) ? p.alertas : []).slice(0, 5).map(a => (typeof a === 'string' ? a : a.texto || '').replace(/^\[ATENCAO\]\s*/i,'').replace(/^\[INFO\]\s*/i,'').trim())
     doc.setFillColor(...C.amberL); const al = alertas.map(a => doc.splitTextToSize(`  ${a}`, 172))
     const ah = al.reduce((s, l) => s + l.length, 0) * 3.8 + 4
     doc.roundedRect(15, y - 2, 180, ah, 1.5, 1.5, 'F')
@@ -469,7 +481,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
     ['Preco/m2 imovel', p.preco_m2_imovel ? `R$ ${Math.round(p.preco_m2_imovel).toLocaleString('pt-BR')}/m2` : '--'],
     ['Preco/m2 mercado', p.preco_m2_mercado ? `R$ ${Math.round(p.preco_m2_mercado).toLocaleString('pt-BR')}/m2` : '--'],
     ['Desconto s/ mercado', pct(p.desconto_sobre_mercado_pct_calculado || p.desconto_sobre_mercado_pct)],
-    ['Yield bruto', p.yield_bruto_pct ? `${p.yield_bruto_pct}% a.a.` : '--'],
+    ['Yield bruto', p.yield_bruto_pct ? `${parseFloat(p.yield_bruto_pct).toFixed(1)}% a.a.` : '--'],
     ['Tendencia', p.mercado_tendencia || '--'],
     ['Demanda', p.mercado_demanda || '--'],
     ['Tempo revenda', p.prazo_revenda_meses ? `${p.prazo_revenda_meses} meses` : '--'],
