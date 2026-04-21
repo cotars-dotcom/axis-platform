@@ -52,6 +52,23 @@ function PropCard({p,onNav,isPhone=false}) {
     ? ((1 - p.preco_m2_imovel/p.preco_m2_mercado)*100).toFixed(0) : null
   const conf = calcularConfidence(p)
 
+  // Imóvel sem dados suficientes — card simplificado com CTA
+  if (p.recomendacao === 'DADOS_INSUFICIENTES') {
+    return <div onClick={()=>onNav("detail",{id:p.id})}
+      style={{...card(),cursor:"pointer",padding:"12px 14px",
+        background:'#F9FAFB',border:'1.5px dashed #CBD5E1',opacity:0.85,
+        display:'flex',flexDirection:'column',gap:6}}>
+      <div style={{display:'flex',alignItems:'center',gap:6}}>
+        <span style={{fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:4,
+          background:'#F1F5F9',color:'#64748B',textTransform:'uppercase'}}>❓ Dados Insuf.</span>
+        {p.codigo_axis&&<span style={{fontSize:9,fontWeight:700,color:'#94A3B8',fontFamily:'monospace'}}>{p.codigo_axis}</span>}
+      </div>
+      <div style={{fontWeight:700,fontSize:13,color:'#475569',lineHeight:1.3}}>{p.titulo||'Imóvel sem título'}</div>
+      <div style={{fontSize:10,color:'#94A3B8'}}>📍 {[p.bairro,p.cidade].filter(Boolean).join(', ')||'Localização não informada'}</div>
+      <div style={{fontSize:11,color:'#3B82F6',fontWeight:600,marginTop:2}}>→ Completar dados para análise</div>
+    </div>
+  }
+
   return <div onClick={()=>onNav("detail",{id:p.id})}
     onMouseEnter={e=>{e.currentTarget.style.borderColor=K.teal;e.currentTarget.style.transform="translateY(-2px)"}}
     onMouseLeave={e=>{e.currentTarget.style.borderColor=K.bd;e.currentTarget.style.transform="none"}}
@@ -376,7 +393,7 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
   const forte=propsAnalised.filter(p=>(p.score_total||0)>=7.5).length
   const avg=total?(propsAnalised.reduce((s,p)=>s+(p.score_total||0),0)/total).toFixed(2):"0"
   const avgPct=total?Math.round((propsAnalised.reduce((s,p)=>s+(p.score_total||0),0)/total)*10):0
-  const recentes=[...props].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,4)
+  const recentes=[...propsAnalised].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,4)
   // Card 3: priorizar imóvel com leilão mais próximo (urgente > score alto)
   const hoje = Date.now()
   const diasP = (d) => d ? Math.ceil((new Date(d+'T12:00') - hoje) / 86400000) : null
@@ -393,7 +410,7 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
   const topAlerta = propComLeilao || [...props].filter(p=>p.recomendacao!=="EVITAR").sort((a,b)=>(b.score_total||0)-(a.score_total||0))[0]
   const alertaDias = topAlerta ? Math.min(...[diasP(topAlerta.data_leilao), diasP(topAlerta.data_leilao_2)].filter(x => x !== null && x >= 0).concat([999])) : null
   const alertaUrgente = alertaDias !== null && alertaDias <= 30
-  const totalValor=props.reduce((s,p)=>s+(p.valor_minimo||0),0)
+  const totalValor=propsAnalised.reduce((s,p)=>s+(p.valor_minimo||0),0)
   const fmtM=v=>{if(v>=1e6)return`R$ ${(v/1e6).toFixed(1)}M`;if(v>=1e3)return`R$ ${(v/1e3).toFixed(0)}K`;return`R$ ${v}`}
   const [leads, setLeads] = useState([])
   const [buscando, setBuscando] = useState(false)
@@ -409,8 +426,23 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
     finally { setBuscando(false) }
   }
 
+  const semDados = props.filter(p => p.recomendacao === 'DADOS_INSUFICIENTES')
+
   return <div style={{background:C.bg,minHeight:"100%"}}>
     <AxisHeader profile={prof} imoveis={props} onNav={onNav} isPhone={isPhone} isMobile={isMobile}/>
+    {semDados.length > 0 && (
+      <div style={{margin:isPhone?'12px 14px 0':'16px 32px 0',padding:'8px 14px',borderRadius:8,
+        background:'#FEFCE8',border:'1px solid #FDE68A',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+        <span style={{fontSize:12,fontWeight:700,color:'#92400E'}}>⚠️ {semDados.length} imóvel{semDados.length>1?'is':''} com dados insuficientes:</span>
+        {semDados.map(p => (
+          <button key={p.id} onClick={()=>onNav('detail',{id:p.id})}
+            style={{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:4,cursor:'pointer',
+              background:'#FEF3C7',border:'1px solid #F59E0B',color:'#78350F'}}>
+            {p.codigo_axis} — completar dados
+          </button>
+        ))}
+      </div>
+    )}
     <div style={{padding:isPhone?"16px 14px":"28px 32px",display:"flex",flexDirection:"column",gap:isPhone?14:20}}>
       {/* Linha 1: 3 colunas — Patrimônio | Valorização | Alertas */}
       <div style={{display:"grid",gridTemplateColumns:isPhone?"1fr":isMobile?"repeat(2,1fr)":"1fr 1fr 1fr",gap:isPhone?12:18}}>
