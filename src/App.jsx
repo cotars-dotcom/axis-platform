@@ -1974,6 +1974,8 @@ export default function App() {
     {showApiKey&&<ApiKeyModal onClose={()=>setShowApiKey(false)} session={session}/>}
     {showTrelloModal&&<ModalAuditoriaTrello config={trello||JSON.parse(localStorage.getItem('axis-trello')||'{}')} imoveis={props} onClose={()=>setShowTrelloModal(false)}/>}
 
+{/* LAYOUT: row wrapper para sidebar + main ficarem lado a lado abaixo do banner */}
+<div style={{display:'flex',flex:1,overflow:'hidden',minHeight:0}}>
 {/* SIDEBAR — fixa 200px */}
 <aside className="axis-sidebar" style={{
   width:200,minWidth:200,height:'100dvh',position:'sticky',top:0,
@@ -2046,6 +2048,7 @@ export default function App() {
     {view==="manual"&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyManualAxis isMobile={isMobile}/></Suspense>}
     {view==="admin"&&isAdmin&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyPainelAdmin session={session} imoveis={props} isPhone={isPhone} onNav={nav}/></Suspense>}
     </div>
+</div>{/* FIM row wrapper sidebar+main */}
 
     {toast&&<div style={{position:"fixed",bottom:"16px",right:"16px",background:C.white,color:C.text,padding:"12px 20px",borderRadius:"10px",fontSize:"13px",fontWeight:"600",zIndex:9999,boxShadow:"0 8px 32px rgba(0,33,128,0.15)",maxWidth:"340px",border:`1px solid ${C.borderW}`}}>{toast.msg}</div>}
     <MobileNav items={navItems} activeKey={view} onNavigate={(v)=>nav(v)}/>

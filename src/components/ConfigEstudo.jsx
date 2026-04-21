@@ -223,8 +223,8 @@ export default function ConfigEstudo({ imovel }) {
           <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
             {[
               lance1p > 0 && { label: '1ª Praça', val: lance1p, cor: '#D97706' },
-              p.valor_minimo_2 > 0 && { label: '2ª Praça', val: parseFloat(p.valor_minimo_2), cor: '#7C3AED' },
-              !p.valor_minimo_2 && avaliacao > 0 && { label: '50% aval.', val: Math.round(avaliacao * 0.50), cor: '#7C3AED' },
+              parseFloat(p.valor_minimo_2 || 0) > 0 && { label: '2ª Praça', val: parseFloat(p.valor_minimo_2), cor: '#7C3AED' },
+              !parseFloat(p.valor_minimo_2 || 0) && avaliacao > 0 && { label: '50% aval.', val: Math.round(avaliacao * 0.50), cor: '#7C3AED' },
               avaliacao > 0 && { label: '57%', val: Math.round(avaliacao * 0.57), cor: '#3B82F6' },
               avaliacao > 0 && { label: '65%', val: Math.round(avaliacao * 0.65), cor: '#D97706' },
               mao > 0 && { label: 'MAO flip', val: mao, cor: '#059669' },
