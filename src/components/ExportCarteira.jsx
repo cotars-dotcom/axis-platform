@@ -13,8 +13,10 @@ const pct = v => v != null ? `${Number(v).toFixed(1)}%` : '—'
 // ── EXPORT EXCEL ─────────────────────────────────────────────────────
 async function exportarExcel(imoveis) {
   const XLSX = await import('xlsx')
+  // Excluir imóveis sem dados suficientes da exportação
+  const imoveisValidos = imoveis.filter(p => p.recomendacao !== 'DADOS_INSUFICIENTES')
   
-  const rows = imoveis.map(p => ({
+  const rows = imoveisValidos.map(p => ({
     'Código': p.codigo_axis || '',
     'Título': p.titulo || '',
     'Cidade': p.cidade || '',
@@ -79,14 +81,14 @@ async function exportarExcel(imoveis) {
   
   // Aba de resumo
   const resumo = [
-    { 'Métrica': 'Total de Imóveis', 'Valor': imoveis.length },
-    { 'Métrica': 'Score Médio', 'Valor': (imoveis.reduce((s, p) => s + (p.score_total || 0), 0) / imoveis.length).toFixed(2) },
-    { 'Métrica': 'Patrimônio Monitorado', 'Valor': fmt(imoveis.reduce((s, p) => s + (p.valor_minimo || 0), 0)) },
-    { 'Métrica': 'COMPRAR', 'Valor': imoveis.filter(p => p.recomendacao === 'COMPRAR').length },
-    { 'Métrica': 'AGUARDAR', 'Valor': imoveis.filter(p => p.recomendacao === 'AGUARDAR').length },
-    { 'Métrica': 'EVITAR', 'Valor': imoveis.filter(p => p.recomendacao === 'EVITAR').length },
-    { 'Métrica': 'Leilão', 'Valor': imoveis.filter(p => !isMercadoDireto(p.fonte_url, p.tipo_transacao)).length },
-    { 'Métrica': 'Mercado Direto', 'Valor': imoveis.filter(p => isMercadoDireto(p.fonte_url, p.tipo_transacao)).length },
+    { 'Métrica': 'Total de Imóveis', 'Valor': imoveisValidos.length },
+    { 'Métrica': 'Score Médio', 'Valor': imoveisValidos.length ? (imoveisValidos.reduce((s, p) => s + (p.score_total || 0), 0) / imoveisValidos.length).toFixed(2) : '—' },
+    { 'Métrica': 'Patrimônio Monitorado', 'Valor': fmt(imoveisValidos.reduce((s, p) => s + (p.valor_minimo || 0), 0)) },
+    { 'Métrica': 'COMPRAR', 'Valor': imoveisValidos.filter(p => p.recomendacao === 'COMPRAR').length },
+    { 'Métrica': 'AGUARDAR', 'Valor': imoveisValidos.filter(p => p.recomendacao === 'AGUARDAR').length },
+    { 'Métrica': 'EVITAR', 'Valor': imoveisValidos.filter(p => p.recomendacao === 'EVITAR').length },
+    { 'Métrica': 'Leilão', 'Valor': imoveisValidos.filter(p => !isMercadoDireto(p.fonte_url, p.tipo_transacao)).length },
+    { 'Métrica': 'Mercado Direto', 'Valor': imoveisValidos.filter(p => isMercadoDireto(p.fonte_url, p.tipo_transacao)).length },
     { 'Métrica': 'Gerado em', 'Valor': new Date().toLocaleString('pt-BR') },
   ]
   const wsResumo = XLSX.utils.json_to_sheet(resumo)
