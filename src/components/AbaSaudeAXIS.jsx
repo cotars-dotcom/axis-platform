@@ -4,7 +4,7 @@
  * Consulta vw_saude_axis e exibe métricas de saúde do banco + alertas.
  * Acessível em Admin → 🩺 Saúde
  */
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { saveImovelCompleto } from '../lib/supabase.js'
 import { C, card } from '../appConstants.js'

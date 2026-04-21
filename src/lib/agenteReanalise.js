@@ -205,7 +205,8 @@ Retorne APENAS JSON com os campos atualizados:
   const match = clean.match(/\{[\s\S]*\}/)
   if (!match) throw new Error('Gemini não retornou JSON válido')
 
-  const deltaRaw = JSON.parse(match[0])
+  let deltaRaw
+  try { deltaRaw = JSON.parse(match[0]) } catch { return { updates: {}, log: ['❌ JSON inválido na resposta do agente'] } }
   // Garantir que scores estão no range 0-10 (proteção contra alucinação)
   const SCORE_CAMPOS = ['score_localizacao','score_desconto','score_juridico','score_ocupacao','score_liquidez','score_mercado']
   const delta = { ...deltaRaw }

@@ -495,7 +495,7 @@ ${(() => {
 <!-- TAB: Refs (comparáveis) -->
 ${p.comparaveis?.length ? `
 <div class="tab-content" id="tab-refs">
-  <div class="section-divider">🏘️ Comparáveis (${p.comparaveis.length})</div>
+  <div class="section-divider">🏘️ Comparáveis (${(p.comparaveis||[]).length})</div>
   ${(Array.isArray(p.comparaveis) ? p.comparaveis : []).slice(0, 5).map(c => `
   <div class="comp">
     <div>

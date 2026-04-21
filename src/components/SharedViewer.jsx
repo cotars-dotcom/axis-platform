@@ -191,7 +191,7 @@ export default function SharedViewer({ token }) {
 
         {/* ALERTAS */}
         {p.alertas?.length > 0 && <div style={card({background:'#FFFBEB',borderColor:'#FDE68A'})}>{secTitle('Alertas','🚨')}
-          {(typeof p.alertas==='string'?JSON.parse(p.alertas):p.alertas).slice(0,8).map((a,i) => {
+          {(typeof p.alertas==='string'?(()=>{try{return JSON.parse(p.alertas)}catch{return []}})():Array.isArray(p.alertas)?p.alertas:[]).slice(0,8).map((a,i) => {
             const txt = typeof a==='string'?a:a.texto||''
             return <div key={i} style={{ fontSize:11.5,color:'#78350F',marginBottom:4,lineHeight:1.5 }}>• {txt}</div>
           })}
@@ -285,7 +285,7 @@ export default function SharedViewer({ token }) {
 
         {/* COMPARÁVEIS */}
         {p.comparaveis?.length > 0 && <div style={card()}>{secTitle(`Comparáveis (${p.comparaveis.length})`,'🏘️')}
-          {(typeof p.comparaveis==='string'?JSON.parse(p.comparaveis):p.comparaveis).slice(0,6).map((c,i) => (
+          {(typeof p.comparaveis==='string'?(()=>{try{return JSON.parse(p.comparaveis)}catch{return []}})():Array.isArray(p.comparaveis)?p.comparaveis:[]).slice(0,6).map((c,i) => (
             <div key={i} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:i<Math.min(p.comparaveis.length,6)-1?'1px solid #f5f5f5':'none' }}>
               <div><div style={{ fontSize:11,fontWeight:600,color:C.navy }}>{c.descricao||c.endereco||'—'}</div>
               <div style={{ fontSize:10,color:C.muted }}>{[c.area_m2?`${c.area_m2}m²`:null,c.quartos?`${c.quartos}q`:null,c.preco_m2?`R$ ${Math.round(c.preco_m2).toLocaleString('pt-BR')}/m²`:null].filter(Boolean).join(' · ')}</div></div>
@@ -298,11 +298,11 @@ export default function SharedViewer({ token }) {
         <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:10,marginBottom:14 }}>
           {p.positivos?.length > 0 && <div style={{ background:'#ECFDF5',border:'1px solid #A7F3D0',borderRadius:10,padding:'12px 14px' }}>
             <div style={{ fontSize:11,fontWeight:700,color:'#065F46',marginBottom:6 }}>✅ Pontos Fortes</div>
-            {(typeof p.positivos==='string'?JSON.parse(p.positivos):p.positivos).slice(0,5).map((x,i) => <div key={i} style={{ fontSize:11.5,color:'#064E3B',marginBottom:3,lineHeight:1.5 }}>• {x}</div>)}
+            {(typeof p.positivos==='string'?(()=>{try{return JSON.parse(p.positivos)}catch{return []}})():Array.isArray(p.positivos)?p.positivos:[]).slice(0,5).map((x,i) => <div key={i} style={{ fontSize:11.5,color:'#064E3B',marginBottom:3,lineHeight:1.5 }}>• {x}</div>)}
           </div>}
           {p.negativos?.length > 0 && <div style={{ background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:10,padding:'12px 14px' }}>
             <div style={{ fontSize:11,fontWeight:700,color:'#991B1B',marginBottom:6 }}>⚠️ Pontos de Atenção</div>
-            {(typeof p.negativos==='string'?JSON.parse(p.negativos):p.negativos).slice(0,5).map((x,i) => <div key={i} style={{ fontSize:11.5,color:'#7F1D1D',marginBottom:3,lineHeight:1.5 }}>• {x}</div>)}
+            {(typeof p.negativos==='string'?(()=>{try{return JSON.parse(p.negativos)}catch{return []}})():Array.isArray(p.negativos)?p.negativos:[]).slice(0,5).map((x,i) => <div key={i} style={{ fontSize:11.5,color:'#7F1D1D',marginBottom:3,lineHeight:1.5 }}>• {x}</div>)}
           </div>}
         </div>
 

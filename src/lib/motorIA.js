@@ -226,7 +226,7 @@ export async function pesquisarMercadoGPT(url, cidade, tipo, openaiKey, quartos 
       .from('cache_mercado')
       .select('dados, atualizado_em')
       .eq('chave', cacheKey)
-      .single()
+      .maybeSingle()
     if (cached?.atualizado_em) {
       const horas = (Date.now() - new Date(cached.atualizado_em)) / 3_600_000
       if (horas < 72) {
@@ -1780,7 +1780,7 @@ Regras: true = claramente visível. false = claramente ausente (ex: prédio baix
           .or(`vara_nome.ilike.%${varaJudicial.split(' ').slice(0,3).join(' ')}%,tipo_justica.eq.${tipoJustica}`)
           .order('vara_nome', { ascending: false })
           .limit(1)
-          .single()
+          .maybeSingle()
         if (juri?.tempo_total_ciclo_dias) {
           analiseValidada.prazo_liberacao_estimado_meses = Math.round(juri.tempo_total_ciclo_dias / 30)
           analiseValidada.jurimetria_vara = juri.vara_nome

@@ -219,12 +219,13 @@ export async function salvarAnalise(analise, userId) {
 }
 
 export async function carregarAnalise(imovelId) {
+  // maybeSingle() retorna null se não encontrado (não lança erro como single())
   const { data } = await supabase
     .from('analises_leilao')
     .select('*')
     .eq('imovel_id', imovelId)
     .order('gerado_em', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
   return data
 }

@@ -44,7 +44,7 @@ Para cada imóvel retorne SOMENTE JSON válido (sem markdown):
   const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
   const match = txt.replace(/\`\`\`json|\`\`\`/g,'').trim().match(/\{[\s\S]*\}/)
   if (!match) throw new Error('JSON inválido')
-  return JSON.parse(match[0])
+  try { return JSON.parse(match[0]) } catch { return null }
 }
 
 async function buscarComGPT(query, openaiKey) {
