@@ -93,3 +93,23 @@ Deno-based. Three functions: `ai-proxy` (routes AI calls, holds API keys), `get-
 ### Key Architectural Constraint
 
 `Detail.jsx` is the main property analysis view and imports nearly every analysis component. It uses `ReformaProvider`/`useReforma` context for renovation state. When adding a new analysis panel, register it inside `Detail.jsx` as a lazy import where appropriate.
+
+## Known Issues & Invariants (Diagnóstico Sprint 36)
+
+### Invariants imutáveis
+- `imoveis.id` is TEXT (not UUID) — e.g. `"cetqa0tmnp0wjqi"`. Never compare as UUID.
+- Area chain: always `area_usada_calculo_m2 || area_privativa_m2 || area_m2` (use `areaUsada(p)` from constants.js).
+- Score scale is **0–10** throughout — `score_total = 6.4` means 6.4/10. `CompararImoveis` used to show ×10 — this is fixed in sprint36a.
+- Risk IDs in `riscos_presentes` must match exactly: `ocupacao_fiduciaria`, `penhora_adicional`, `remicao_embargos_pos_arrematacao`, etc. See `src/data/riscos_juridicos.js` for the full list. Do not invent IDs.
+- Arrays from DB (`positivos`, `negativos`, `alertas`, `riscos_presentes`, `fotos`) may arrive as JSON strings — always wrap with `toArr()` (defined in `Detail.jsx`) or `normalizarImovel()` (supabase.js).
+
+### DB health notes
+- `riscos_imovel` backfilled in sprint36b from `riscos_presentes` — 14 rows across 7 properties. Auto-populated on every `saveImovelCompleto()` going forward.
+- `sprint_24_changelog` dropped — do not reference.
+- `agent_cache`, `atualizacoes_mercado`, `criterios_avaliacao`, `csv_imports`, `trello_sync_log` have 0 rows — features planned but never activated.
+- `metricas_bairros` (32 rows) is the live source for neighborhood data. `mercado_regional` (16 rows) is the fallback. `metricas_bairros_bh.js` is a static snapshot — update when market data changes.
+
+### Files over 500 lines (split candidates)
+- `Detail.jsx` — 2358 lines. Owns all property analysis panels. Split is desirable but risky without tests.
+- `motorIA.js` — 1833 lines. Mixed responsibilities: scraping, scoring, calibration, synthesis.
+- `supabase.js` — 1260 lines. Consider splitting into domain modules (imoveis, users, analytics).
