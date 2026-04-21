@@ -1,3 +1,4 @@
+import { abrirHtmlNovaTela } from '../lib/abrirHtml.js'
 /**
  * AXIS — Export Carteira (Sprint 10)
  * Exporta carteira de imóveis em Excel (.xlsx) ou PDF (HTML autônomo).
@@ -177,9 +178,7 @@ function exportarPDF(imoveis) {
   <script>window.onload=()=>{if(confirm('Imprimir relatório?'))window.print()}</script>
 </body></html>`
 
-  const blob = new Blob([html], { type: 'text/html' })
-  const url = URL.createObjectURL(blob)
-  window.open(url, '_blank')
+  abrirHtmlNovaTela(html, 'carteira-axis')
 }
 
 // ── COMPONENTE ───────────────────────────────────────────────────────

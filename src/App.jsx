@@ -1756,6 +1756,7 @@ export default function App() {
   // ALL hooks MUST be before any conditional return (React Rules of Hooks)
   const [view,setView]=useState("dashboard")
   const [vp,setVp]=useState({})
+  const CACHE_VERSION = 'v36'  // Incrementar ao adicionar campos novos ao schema
   const [props,setProps]=useState([])
   const [loaded,setL]=useState(false)
   const [toast,setToast]=useState(null)
@@ -1824,10 +1825,11 @@ export default function App() {
         }
         const data=await getImoveis()
         console.debug('[AXIS] Loaded', data?.length, 'imóveis')
+        localStorage.setItem('axis-cache-version', CACHE_VERSION)
         const ativos = (data||[]).filter(p => !p.status_operacional || p.status_operacional === 'ativo')
         if(ativos.length>0){ setProps(ativos); stSave("axis-props",ativos) }
-        else { const raw=JSON.parse(localStorage.getItem('axis-props')||'[]'); const cache=raw.filter(p=>!p.status_operacional||p.status_operacional==='ativo'); if(cache.length>0) setProps(cache) }
-      } catch(e) { console.error('[AXIS] Load error:', e.message); const raw=JSON.parse(localStorage.getItem('axis-props')||'[]'); const cache=raw.filter(p=>!p.status_operacional||p.status_operacional==='ativo'); if(cache.length>0) setProps(cache) }
+        else { const cv=localStorage.getItem('axis-cache-version'); const raw=cv===CACHE_VERSION?JSON.parse(localStorage.getItem('axis-props')||'[]'):[]; const cache=raw.filter(p=>!p.status_operacional||p.status_operacional==='ativo'); if(cache.length>0) setProps(cache) }
+      } catch(e) { console.error('[AXIS] Load error:', e.message); const cv=localStorage.getItem('axis-cache-version'); const raw=cv===CACHE_VERSION?JSON.parse(localStorage.getItem('axis-props')||'[]'):[]; const cache=raw.filter(p=>!p.status_operacional||p.status_operacional==='ativo'); if(cache.length>0) setProps(cache) }
     } else { const raw=await stLoad("axis-props"); if(raw) setProps((Array.isArray(raw)?raw:[]).filter(p=>!p.status_operacional||p.status_operacional==='ativo')) }
   })()},[session])
   useEffect(()=>{if(loaded&&props.length>0)stSave("axis-props",props)},[props,loaded])

@@ -1,3 +1,4 @@
+import { abrirHtmlNovaTela, downloadHtml } from '../lib/abrirHtml.js'
 /**
  * AXIS — Relatório Interativo do Imóvel
  * Gera HTML autônomo com abas, seções expansíveis, e compartilhamento nativo.
@@ -658,17 +659,10 @@ export async function downloadRelatorio(p) {
   return 'downloaded'
 }
 
-// Abrir para impressão (salvar como PDF via browser)
+// Abrir para impressão (salvar como PDF via browser — compatível Safari/mobile)
 export function exportarPDFImovel(p) {
   const html = gerarHTML(p)
-  const win = window.open('', '_blank', 'width=800,height=1100')
-  if (win) {
-    win.document.write(html)
-    win.document.close()
-    win.onload = () => setTimeout(() => win.print(), 500)
-  } else {
-    downloadRelatorio(p)
-  }
+  abrirHtmlNovaTela(html, `relatorio-${p.codigo_axis || p.id}`, true)
 }
 
 // Menu de opções (chamado pelo botão PDF no detalhe)

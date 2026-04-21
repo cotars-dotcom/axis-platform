@@ -1,3 +1,4 @@
+import { abrirHtmlNovaTela } from '../lib/abrirHtml.js'
 /**
  * AXIS — Exportar Decisão de Lance (PDF 1 página)
  * Sprint 35: gera PDF A4 executivo com:
@@ -285,14 +286,10 @@ function gerarHTML(p) {
 </html>`
 }
 
-/** Abre o PDF de decisão em nova aba (print dialog) */
+/** Abre o PDF de decisão em nova aba (compatível Safari/mobile) */
 export function abrirDecisaoPDF(imovel) {
   const html = gerarHTML(imovel)
-  const win = window.open('', '_blank')
-  if (!win) { alert('Permita popups para gerar o PDF.'); return }
-  win.document.write(html)
-  win.document.close()
-  setTimeout(() => win.print(), 600)
+  abrirHtmlNovaTela(html, `decisao-lance-${imovel.codigo_axis || imovel.id}`, true)
 }
 
 /** Retorna o HTML da decisão (para embed ou download) */

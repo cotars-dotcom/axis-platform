@@ -773,7 +773,7 @@ function LanceAlertaBanner({ imovel }) {
 
 // Sprint 23: Banner quando sem valor_minimo em leilão
 function DadosInsuficientesBanner({ imovel }) {
-  const eLeilao = imovel?.tipo_transacao === 'leilao' || imovel?.tipo_transacao === 'leilao_judicial'
+  const eLeilao = !isMercadoDireto(imovel?.fonte_url, imovel?.tipo_transacao)
   if (!eLeilao || imovel?.valor_minimo) return null
   return (
     <div style={{background:'#FEF3C7',border:'1px solid #FCD34D',borderRadius:8,
