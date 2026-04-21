@@ -1824,10 +1824,11 @@ export default function App() {
         }
         const data=await getImoveis()
         console.debug('[AXIS] Loaded', data?.length, 'imóveis')
-        if(data&&data.length>0){ setProps(data); stSave("axis-props",data) }
-        else { const cache=JSON.parse(localStorage.getItem('axis-props')||'[]'); if(cache.length>0) setProps(cache) }
-      } catch(e) { console.error('[AXIS] Load error:', e.message); const cache=JSON.parse(localStorage.getItem('axis-props')||'[]'); if(cache.length>0) setProps(cache) }
-    } else { const cache=await stLoad("axis-props"); if(cache) setProps(cache) }
+        const ativos = (data||[]).filter(p => !p.status_operacional || p.status_operacional === 'ativo')
+        if(ativos.length>0){ setProps(ativos); stSave("axis-props",ativos) }
+        else { const raw=JSON.parse(localStorage.getItem('axis-props')||'[]'); const cache=raw.filter(p=>!p.status_operacional||p.status_operacional==='ativo'); if(cache.length>0) setProps(cache) }
+      } catch(e) { console.error('[AXIS] Load error:', e.message); const raw=JSON.parse(localStorage.getItem('axis-props')||'[]'); const cache=raw.filter(p=>!p.status_operacional||p.status_operacional==='ativo'); if(cache.length>0) setProps(cache) }
+    } else { const raw=await stLoad("axis-props"); if(raw) setProps((Array.isArray(raw)?raw:[]).filter(p=>!p.status_operacional||p.status_operacional==='ativo')) }
   })()},[session])
   useEffect(()=>{if(loaded&&props.length>0)stSave("axis-props",props)},[props,loaded])
   useEffect(()=>{if(loaded&&trello)stSave("axis-trello",trello)},[trello,loaded])

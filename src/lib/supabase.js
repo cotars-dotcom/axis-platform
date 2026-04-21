@@ -102,11 +102,13 @@ export async function getImoveis() {
   const { data, error } = await supabase
     .from('imoveis')
     .select('*,criador:profiles!imoveis_criado_por_fkey(nome)')
+    .or('status_operacional.eq.ativo,status_operacional.is.null')
     .order('criado_em', { ascending: false })
     .limit(100)
   if (error) {
     const { data: d2, error: e2 } = await supabase
       .from('imoveis').select('*')
+      .or('status_operacional.eq.ativo,status_operacional.is.null')
       .order('criado_em', { ascending: false }).limit(100)
     if (e2) throw e2
     return (d2 || []).map(normalizarImovel)
@@ -952,7 +954,7 @@ export async function getImoveisAtivos() {
     if (e2) throw e2
     return d2 || []
   }
-  return (data || []).map(d => ({
+  return (data || []).map(d => normalizarImovel({
     ...d,
     criador_nome: d.criador?.nome || null,
     criador: undefined
