@@ -1875,7 +1875,7 @@ for (const s of SCORES) {
             <div style={{background:'#F8FAFC',border:`1px solid ${C.borderW}`,borderRadius:8,padding:'8px 12px',gridColumn:p.processo_numero&&p.parcelamento_detalhes?'1 / -1':'auto'}}>
               <div style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>🏗️ Distribuição</div>
               <div style={{fontSize:11,color:C.navy,lineHeight:1.5}}>
-                {p.distribuicao_pavimentos.split('|').map((pav,i) => (
+                {String(p.distribuicao_pavimentos).split('|').map((pav,i) => (
                   <div key={i}>• {pav.trim()}</div>
                 ))}
               </div>
@@ -1884,7 +1884,7 @@ for (const s of SCORES) {
           {p.coproprietarios && (
             <div style={{background:'#FEF3C7',border:'1px solid #F59E0B30',borderRadius:8,padding:'8px 12px'}}>
               <div style={{fontSize:9,color:'#92400E',textTransform:'uppercase'}}>⚠️ Coproprietário</div>
-              <div style={{fontSize:11,color:'#78350F',lineHeight:1.4}}>{p.coproprietarios.substring(0,100)}</div>
+              <div style={{fontSize:11,color:'#78350F',lineHeight:1.4}}>{String(p.coproprietarios).substring(0,100)}</div>
             </div>
           )}
         </div>

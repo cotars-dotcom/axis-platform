@@ -6,7 +6,7 @@ import { SCORE_PESOS, CUSTO_POR_TOKEN } from './constants.js'
 // Campos que o banco pode devolver como string JSON ou como null em vez de array
 const ARRAY_FIELDS = [
   'positivos','negativos','alertas','riscos_presentes','fotos',
-  'comparaveis','coproprietarios','infraestrutura','distribuicao_pavimentos',
+  'comparaveis','infraestrutura',
 ]
 function toArr(v) {
   if (Array.isArray(v)) return v
