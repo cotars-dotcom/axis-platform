@@ -207,7 +207,7 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
 
   if (p.alertas?.length) {
     y = subH(doc, y, 'Alertas')
-    const alertas = p.alertas.slice(0, 5).map(a => typeof a === 'string' ? a : a.texto || '')
+    const alertas = (Array.isArray(p.alertas) ? p.alertas : []).slice(0, 5).map(a => typeof a === 'string' ? a : a.texto || '')
     doc.setFillColor(...C.amberL); const al = alertas.map(a => doc.splitTextToSize(`  ${a}`, 172))
     const ah = al.reduce((s, l) => s + l.length, 0) * 3.8 + 4
     doc.roundedRect(15, y - 2, 180, ah, 1.5, 1.5, 'F')

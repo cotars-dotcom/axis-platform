@@ -163,7 +163,7 @@ ${p.foto_principal ? `<div style="margin-bottom:12px;border-radius:10px;overflow
   <img src="${p.foto_principal}" style="width:100%;max-height:220px;object-fit:cover;display:block" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='https://wsrv.nl/?url='+encodeURIComponent('${p.foto_principal}')+'&w=600&q=75&output=jpg';this.parentElement.style.display=this.naturalWidth<10?'none':'block'" />
 </div>` : ''}
 ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px">
-  ${p.fotos.slice(1, 5).filter(f => f && !f.includes('{action}')).map(f =>
+  ${(Array.isArray(p.fotos) ? p.fotos : []).slice(1, 5).filter(f => f && !f.includes('{action}')).map(f =>
     `<img src="${f}" style="height:90px;width:120px;border-radius:6px;flex-shrink:0;object-fit:cover" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='https://wsrv.nl/?url='+encodeURIComponent('${f}')+'&w=300&q=70&output=jpg'" />`
   ).join('')}
 </div>` : ''}
@@ -304,7 +304,7 @@ ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;marg
   ${p.alertas?.length ? `
   <div class="card" style="margin-bottom:14px;background:#FEF2F2;border-color:#FECACA">
     <div class="card-t" style="color:#991B1B">🚨 Alertas</div>
-    ${p.alertas.slice(0, 5).map(a => `<div style="font-size:11px;padding:3px 0;color:#333">• ${typeof a === 'string' ? a : a.texto || ''}</div>`).join('')}
+    ${(Array.isArray(p.alertas) ? p.alertas : []).slice(0, 5).map(a => `<div style="font-size:11px;padding:3px 0;color:#333">• ${typeof a === 'string' ? a : a.texto || ''}</div>`).join('')}
   </div>` : ''}
 
   <!-- Atributos do prédio -->
@@ -495,7 +495,7 @@ ${(() => {
 ${p.comparaveis?.length ? `
 <div class="tab-content" id="tab-refs">
   <div class="section-divider">🏘️ Comparáveis (${p.comparaveis.length})</div>
-  ${p.comparaveis.slice(0, 5).map(c => `
+  ${(Array.isArray(p.comparaveis) ? p.comparaveis : []).slice(0, 5).map(c => `
   <div class="comp">
     <div>
       <div class="comp-t">${c.descricao || c.endereco || '—'}</div>
