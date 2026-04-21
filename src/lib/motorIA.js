@@ -295,9 +295,15 @@ REGRAS DE PESQUISA:
      (ex: "Matrícula nº 45.123 — penhora R$120.000") Se limpa: "Matrícula sem ônus aparentes"
    - obs_juridicas: observações específicas do caso
      (ex: "IPTU 2019-2022 R$8.400 sub-rogado no preço") Se nada: "Sem observações adicionais"
-   - riscos_presentes: mapear para IDs do sistema:
-     ocupado→"ocupacao_judicial", inquilino→"inquilino_regular", penhora→"penhora_simples",
-     embargo→"embargo_arrematacao", iptu+caixa→"iptu_previo_caixa", iptu+judicial→"iptu_previo_judicial"
+   - riscos_presentes: usar EXATAMENTE estes IDs (sem inventar outros):
+     ocupado/posse incerta→"ocupacao_fiduciaria", inquilino→"inquilino_regular",
+     penhora/ônus→"penhora_adicional", embargos/remição→"remicao_embargos_pos_arrematacao",
+     iptu+caixa→"iptu_previo_caixa", iptu+judicial→"iptu_previo_judicial",
+     condomínio+judicial→"condominio_previo_judicial", condomínio+caixa→"condominio_previo_caixa",
+     edital divergente→"edital_matricula_divergente", bem de família→"bem_de_familia",
+     sem habite-se→"irregular_construtiva", agravo→"agravo_instrumento_tjmg",
+     desocupação física→"custo_desocupacao_operacional", benfeitorias→"retencao_benfeitorias",
+     área de risco URBEL→"area_de_risco"
    - Verificar modalidade (judicial/extrajudicial/extinção condomínio)
    - Verificar matrícula se disponível
 

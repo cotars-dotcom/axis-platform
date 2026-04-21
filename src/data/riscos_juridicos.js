@@ -414,6 +414,20 @@ export const REGRAS_MODALIDADE = {
   }
 }
 
+// Aliases de IDs legados → IDs canônicos (prompt antigo gerava IDs incorretos)
+const RISCO_ALIASES = {
+  'ocupacao_judicial':          'ocupacao_fiduciaria',
+  'ocupacao_incerta':           'ocupacao_fiduciaria',
+  'posse_incerta':              'ocupacao_fiduciaria',
+  'penhora_simples':            'penhora_adicional',
+  'penhora_trabalhista':        'penhora_adicional',
+  'embargo_arrematacao':        'remicao_embargos_pos_arrematacao',
+  'embargos_pos_arrematacao':   'remicao_embargos_pos_arrematacao',
+  'liquidez_media_cobertura':   null, // não tem custo estruturado — ignorar
+  'debitos_condominio':         'condominio_previo_judicial',
+  'debitos_iptu':               'iptu_previo_judicial',
+}
+
 // Calcular custo total jurídico estimado para um imóvel
 export function calcularCustoJuridico(riscos_presentes, aluguel_atual = 0) {
   let custo_min = 0
@@ -423,7 +437,9 @@ export function calcularCustoJuridico(riscos_presentes, aluguel_atual = 0) {
   let score_reducao = 0
   let bloqueios = { uso: false, reforma: false, revenda: false, locacao: false }
 
-  for (const risco_id of riscos_presentes) {
+  for (const risco_id_raw of riscos_presentes) {
+    const risco_id = RISCO_ALIASES[risco_id_raw] ?? risco_id_raw
+    if (risco_id === null) continue // alias explicitamente sem custo
     const risco = RISCOS_JURIDICOS.find(r => r.risco_id === risco_id)
     if (!risco) continue
 

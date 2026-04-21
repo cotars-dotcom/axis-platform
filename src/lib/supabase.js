@@ -415,6 +415,11 @@ if (atual.comparaveis?.length > 2) {
     throw error
   }
   invalidarCache('imoveis')
+  // Sincronizar riscos_imovel automaticamente após salvar
+  const riscos = toArr(payload.riscos_presentes)
+  if (riscos.length > 0 && data?.id) {
+    salvarRiscosImovel(data.id, riscos).catch(() => {})
+  }
   return normalizarImovel(data)
 }
 
@@ -886,6 +891,42 @@ export async function registrarResultadoLeilao(imovelId, resultado, userId) {
   if (error) throw error
 }
 
+
+
+/**
+ * Sincroniza riscos_imovel a partir do array riscos_presentes do imóvel.
+ * Faz upsert — seguro para chamar múltiplas vezes.
+ */
+export async function salvarRiscosImovel(imovelId, riscoIds = []) {
+  if (!imovelId || !riscoIds.length) return
+  // Deletar riscos antigos e reinserir (garantir consistência)
+  await supabase.from('riscos_imovel').delete().eq('imovel_id', imovelId)
+  const ALIASES = {
+    'ocupacao_judicial': 'ocupacao_fiduciaria', 'ocupacao_incerta': 'ocupacao_fiduciaria',
+    'penhora_simples': 'penhora_adicional', 'penhora_trabalhista': 'penhora_adicional',
+    'embargo_arrematacao': 'remicao_embargos_pos_arrematacao',
+    'debitos_condominio': 'condominio_previo_judicial', 'debitos_iptu': 'iptu_previo_judicial',
+    'liquidez_media_cobertura': null,
+  }
+  const RISCOS_VALIDOS = [
+    'ocupacao_fiduciaria','inquilino_regular','iptu_previo_judicial','iptu_previo_caixa',
+    'condominio_previo_judicial','condominio_previo_caixa','edital_matricula_divergente',
+    'remicao_embargos_pos_arrematacao','retencao_benfeitorias','custo_desocupacao_operacional',
+    'agravo_instrumento_tjmg','bem_de_familia','irregular_construtiva','area_de_risco','penhora_adicional',
+  ]
+  const rows = riscoIds
+    .map(id => ALIASES[id] ?? id)
+    .filter(id => id !== null && RISCOS_VALIDOS.includes(id))
+    .map(risco_id => ({
+      imovel_id: imovelId,
+      risco_id,
+      confirmado: false,
+      criado_em: new Date().toISOString(),
+    }))
+  if (!rows.length) return
+  const { error } = await supabase.from('riscos_imovel').insert(rows)
+  if (error) console.warn('[AXIS] salvarRiscosImovel:', error.message)
+}
 
 /** Atualiza campos arbitrários de um imóvel (uso geral) */
 export async function salvarCamposImovel(imovelId, campos) {
