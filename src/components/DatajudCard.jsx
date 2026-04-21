@@ -144,7 +144,7 @@ export default function DatajudCard({ imovel, onUpdate }) {
             <span style={{ fontSize: 8, color: '#94A3B8' }}>
               Últ. atualização: {resultado.ultimaAtualizacao}
             </span>
-            <a href={`https://www.cnj.jus.br/consulta-processo-e-informacoes-processuais/`}
+            <a href={resultado.url_datajud || `https://www.cnj.jus.br/consulta-processo-e-informacoes-processuais/?processo=${numFormatado.replace(/[^\d]/g,'')}`}
               target="_blank" rel="noopener noreferrer"
               style={{ fontSize: 9, color: '#3B82F6', textDecoration: 'none', fontWeight: 600 }}>
               Abrir no CNJ ↗
