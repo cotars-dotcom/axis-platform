@@ -32,6 +32,27 @@ import { ReformaProvider, useReforma } from '../hooks/useReforma.jsx'
 import CustosReaisEditor from './CustosReaisEditor.jsx'
 import ComparaveisComFiltros from './ComparaveisComFiltros.jsx'
 
+// ErrorBoundary local para isolar falhas por seção do Detail
+class SectionErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false } }
+  static getDerivedStateFromError() { return { hasError: true } }
+  componentDidCatch(err) { console.warn('[AXIS Detail]', this.props.nome, err.message) }
+  render() {
+    if (this.state.hasError) return (
+      <div style={{padding:'10px 14px',borderRadius:8,background:'#FEF2F2',
+        border:'1px solid #FECACA',fontSize:12,color:'#991B1B',marginBottom:8}}>
+        ⚠️ Erro ao carregar {this.props.nome || 'seção'}.{' '}
+        <button onClick={()=>this.setState({hasError:false})}
+          style={{color:'#DC2626',background:'none',border:'none',cursor:'pointer',fontWeight:600,textDecoration:'underline'}}>
+          Tentar novamente
+        </button>
+      </div>
+    )
+    return this.props.children
+  }
+}
+
+
 // Guard: converte campo array que pode vir como string JSON do banco
 const toArr = v => Array.isArray(v) ? v : (!v ? [] : (() => { try { const p=JSON.parse(v); return Array.isArray(p)?p:[] } catch{return[]} })())
 
@@ -1861,7 +1882,7 @@ for (const s of SCORES) {
           {sc > 0 ? (
               showRadar
                 ? <div onClick={() => setShowRadar(false)} title="Clique para voltar ao gauge" style={{cursor:'pointer'}}>
-                    <ScoreRadar imovel={p} size={200} />
+                    <SectionErrorBoundary nome="ScoreRadar"><ScoreRadar imovel={p} size={200} /></SectionErrorBoundary>
                   </div>
                 : <div onClick={() => setShowRadar(true)} title="Clique para ver radar de dimensões" style={{cursor:'pointer'}}>
                     <ScoreRing score={sc} size={90}/>
@@ -2058,7 +2079,7 @@ for (const s of SCORES) {
         {/* Banners informativos: accordion colapsável */}
         <AlertasInfoAccordion imovel={p} />
         {parseFloat(p.valor_mercado_estimado) > 0 && (
-          <GraficoROIHorizonteWrapper imovel={p} />
+          <SectionErrorBoundary nome="GraficoROI"><GraficoROIHorizonteWrapper imovel={p} /></SectionErrorBoundary>
         )}
         {parseFloat(p.aluguel_mensal_estimado) > 0 && (
           <PainelYieldWrapper imovel={p} />
@@ -2076,15 +2097,15 @@ for (const s of SCORES) {
         {/* Sprint 22: ROI dinâmico — sincronizado com lance e reforma do ConfigEstudo */}
         <RoiLiveBanner imovel={p} />
         {/* Mostrar PainelLancamento só para leilões */}
-        {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && <PainelLancamento imovel={p}/>}
+        {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && <SectionErrorBoundary nome="PainelLancamento"><PainelLancamento imovel={p}/></SectionErrorBoundary>}
         {/* Sprint 11: Breakdown financeiro + ROI + Preditor de Concorrência */}
         <PainelInvestimento imovel={p} />
         {/* Sprint 16: Simulador de Lance Interativo */}
-        <SimuladorLance p={p} isPhone={isPhone} />
+        <SectionErrorBoundary nome="SimuladorLance"><SimuladorLance p={p} isPhone={isPhone} /></SectionErrorBoundary>
         {/* Sprint 16: Atributos do Prédio */}
         <AtributosPredio p={p} />
         {/* Sprint 12.2: Timeline da Matrícula */}
-        <TimelineMatricula imovel={p} />
+        <SectionErrorBoundary nome="TimelineMatricula"><TimelineMatricula imovel={p} /></SectionErrorBoundary>
         {/* Mercado direto: badge de oportunidade */}
         {isMercadoDireto(p.fonte_url, p.tipo_transacao) && p.preco_pedido > 0 && (
           <div style={{...card(),marginBottom:'14px',padding:'12px 14px',background:'#FFFBEB',border:'1.5px solid #F59E0B'}}>
