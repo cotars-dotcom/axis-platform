@@ -40,7 +40,7 @@ const ESTRATEGIAS = [
   { id: 'hibrido', label: '⚡ Híbrido', cor: '#0EA5E9' },
 ]
 
-export default function ResumoPreLeilao({ imovel, onUpdate }) {
+export default function ResumoPreLeilao({ imovel, onUpdate, onGerarSintese }) {
   const p = imovel
   const [editando, setEditando] = useState(false)
   const [lanceDraft, setLanceDraft] = useState('')
@@ -357,6 +357,18 @@ export default function ResumoPreLeilao({ imovel, onUpdate }) {
                 </div>
               )
             })()}
+          </div>
+        )}
+
+        {/* Atalho rápido: regenerar síntese se ausente ou leilão iminente */}
+        {onGerarSintese && (!imovel.sintese_executiva || urgente) && (
+          <div style={{ paddingTop: 8, borderTop: '1px solid #1E293B', marginTop: 8 }}>
+            <button onClick={onGerarSintese}
+              style={{ width: '100%', padding: '6px 0', borderRadius: 6, cursor: 'pointer',
+                background: '#0EA5E920', border: '1px solid #0EA5E9',
+                color: '#38BDF8', fontSize: 10, fontWeight: 700 }}>
+              ✨ {imovel.sintese_executiva ? 'Atualizar síntese executiva' : 'Gerar síntese executiva'} via IA
+            </button>
           </div>
         )}
 

@@ -1188,12 +1188,16 @@ Seja direto e quantitativo. Mencione: recomendação, desconto sobre mercado, MA
 Dados: ${JSON.stringify({
   codigo: p.codigo_axis, bairro: p.bairro, cidade: p.cidade,
   recomendacao: p.recomendacao, score_total: p.score_total,
-  valor_minimo: p.valor_minimo, valor_mercado: p.valor_mercado_estimado,
-  mao_flip: p.mao_flip, mao_locacao: p.mao_locacao,
-  aluguel: p.aluguel_mensal_estimado, yield: p.yield_bruto_pct,
+  valor_minimo: p.valor_minimo, valor_minimo_2: p.valor_minimo_2,
   data_leilao: p.data_leilao, data_leilao_2: p.data_leilao_2,
-  debitos: p.debitos_total_estimado, occupacao: p.ocupacao,
-  confidence: p.confidence_score
+  valor_mercado: p.valor_mercado_estimado,
+  mao_flip: p.mao_flip, mao_locacao: p.mao_locacao,
+  lance_definido: p.lance_maximo_definido, estrategia: p.lance_maximo_estrategia,
+  aluguel: p.aluguel_mensal_estimado, yield: p.yield_bruto_pct,
+  debitos: p.debitos_total_estimado, ocupacao: p.ocupacao,
+  confidence: p.confidence_score, praca: p.praca,
+  reforma_basica: p.custo_reforma_basica, roi_estimado: p.roi_estimado,
+  score_juridico: p.score_juridico
 })}
 
 Responda apenas com o texto da síntese, sem JSON, sem markdown.`
@@ -2018,7 +2022,7 @@ for (const s of SCORES) {
           </div>
         )}
         {/* Sprint 18: Configuração global do estudo (lance + reforma) */}
-        <ResumoPreLeilao imovel={p} onUpdate={() => onUpdateProp && onUpdateProp({...p})} />
+        <ResumoPreLeilao imovel={p} onUpdate={() => onUpdateProp && onUpdateProp({...p})} onGerarSintese={isAdmin ? handleGerarSintese : null} />
         <ConfigEstudo imovel={p} />
         {/* Sprint 22: ROI dinâmico — sincronizado com lance e reforma do ConfigEstudo */}
         <RoiLiveBanner imovel={p} />
