@@ -104,7 +104,11 @@ CALCULE obrigatoriamente (com homogeneização por atributos):
 - preco_m2_mercado: usar a MÉDIA DOS COMPARÁVEIS (preço de anúncio) × fator_homogenizacao
   ⚠️ NÃO aplique fator sobre preço de contrato — isso causa dupla penalização
   O preço de contrato já embute ~15-20% de desconto sobre o anúncio
-  fator_homogenizacao = 1.0 × (sem elevador: 0.85) × (sem piscina: 0.97) × (sem lazer: 0.95) × (sem vaga: 0.90)
+  REGRA: fatores SÃO PENALIDADES para ausência — NÃO bônus para presença
+  Para bairros IPEAD Alto/Luxo: elevador e piscina são PADRÃO → preço_anuncio já os inclui
+  Se imóvel TEM o que é padrão do bairro: fator = 1.0 (sem ajuste)
+  Se imóvel NÃO TEM o que é padrão: aplicar penalidade abaixo
+  fator_homogenizacao = 1.0 × (sem elevador em bairro c/elev padrão: 0.85) × (sem piscina em bairro c/pisc padrão: 0.97) × (sem lazer: 0.95) × (sem vaga: 0.90)
   Fatores NBR 14653-2 (IBAPE): campo de arbítrio ±15%, faixa 0.80-1.20
   Elevador: -15% (0.85) como central, -10% (0.90) para térreo/2º andar, -20% (0.80) só andar alto+prédio antigo
   Preencha o campo fator_homogenizacao com o valor calculado
@@ -115,9 +119,14 @@ CALCULE obrigatoriamente (com homogeneização por atributos):
   yields: Popular=7.5%, Médio=6.5%, Alto=5.3%, Luxo=4.5%
   ⚠️ Mercado BH subiu +13% em 2025 — usar dados atualizados, não históricos
   Não use o aluguel_3q_tipico diretamente — ajuste pela área privativa real
-- mao_flip = valor_mercado_estimado × 0.88 − (custo_reforma_estimado + valor_minimo × 0.075)
-  (88% = 1 - 6% corretagem - 6% ITBI+taxas)
-- mao_locacao = aluguel_mensal_estimado × 120 × 0.90
+- mao_flip: Lance máximo para ROI 20% — NÃO usar a aproximação VM×0.88
+  Fórmula correta: (valor_mercado × 0.94 / 1.20 - custos_fixos) / (1 + 0.155)
+  custos_fixos = reforma + debitos_arrematante + custo_juridico + holding_6m
+  pct_custos = 15.5% (comissão 5% + ITBI 3% + advogado 5% + docs 2.5%)
+  Deixar null se não tiver dados suficientes — o sistema calcula em pós-processamento
+- mao_locacao: Lance máximo para yield bruto 6% — NÃO usar aluguel × 120 × 0.90
+  Fórmula correta: (aluguel_anual / 0.06 - custos_fixos) / (1 + 0.155)
+  Deixar null se não tiver dados suficientes
 - yield_bruto_pct = (aluguel_mensal_estimado × 12 / valor_mercado_estimado) × 100
 - NUNCA retorne aluguel_mensal_estimado = 0 se tiver preco_m2_mercado e area_m2.
 

@@ -146,14 +146,16 @@ Se o imóvel for cobertura, penthouse, duplex ou diferenciado:
   → buscar comparáveis específicos dessa tipologia
   → não usar média geral do bairro como referência
 
-ATENÇÃO — HOMOGENEIZAÇÃO (CRÍTICO):
-O preço médio do bairro (R$/m²) JÁ REFLETE a média de imóveis com e sem elevador/piscina.
-NÃO aplique multiplicadores como (1.16 × 1.05) sobre a média do bairro — isso SUPERESTIMA o valor.
-Os fatores de ajuste (elevador +16%, piscina +5%) servem SOMENTE para corrigir imóveis
-que estão ABAIXO da média porque NÃO possuem esses itens (fator < 1.0 = penalidade).
-Para imóvel COM elevador e piscina em bairro onde já é o padrão: use o preço médio diretamente.
-Regra prática: valor_mercado_estimado = area_privativa_m2 × preco_m2_mercado_bairro (sem multiplicadores adicionais)
-Validação: se seu valor/m² calculado > preco_anuncio_m2 do bairro, você está ACIMA DO TETO — revise.
+ATENÇÃO — HOMOGENEIZAÇÃO (REGRA DEFINITIVA):
+Os fatores de atributos (elevador, piscina) são PENALIDADES para imóveis ABAIXO DO PADRÃO.
+Para bairros IPEAD Alto/Luxo (ex: Buritis, Savassi, Lourdes): elevador e piscina são o PADRÃO
+→ o preço_contrato do bairro JÁ inclui esses atributos → NÃO aplicar fator +16% ou +5%
+Para bairros IPEAD Médio/Popular: elevador pode não ser padrão → aplicar penalidade SOMENTE se imóvel NÃO tem elevador (-16%)
+REGRA PRÁTICA:
+  - Imóvel TEM o atributo padrão do bairro: valor = area × preco_contrato (sem ajuste)
+  - Imóvel NÃO TEM atributo que é padrão: valor = area × preco_contrato × (1 - fator_penalidade)
+  - NUNCA multiplicar por (1 + fator) sobre a média — a média JÁ inclui o atributo
+VALIDAÇÃO: se valor/m² estimado > preco_anuncio_m2 do bairro → VOCÊ ESTÁ ERRADO, revise para baixo
 
 --- PASSIVOS (IPTU, CONDOMÍNIO) ---
 Regra por modalidade (CRÍTICO):
