@@ -372,7 +372,8 @@ Retorne APENAS JSON válido (sem markdown):
       .filter(c => c.type === 'output_text')
       .map(c => c.text)
       .join('') || ''
-    const resultado = JSON.parse(txt.replace(/```json|```/g, '').trim())
+    let resultado = null
+    try { resultado = JSON.parse(txt.replace(/```json|```/g, '').trim()) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); resultado = null }
     return { resultado, data, model }
   }
 
@@ -1024,7 +1025,8 @@ Retorne SOMENTE este JSON (sem texto adicional):
           const gText = gData.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
           const gMatch = gText.match(/\{[\s\S]*\}/)
           if (gMatch) {
-            const gResult = JSON.parse(gMatch[0])
+            let gResult = null
+            try { gResult = JSON.parse(gMatch[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); gResult = null }
             const fotos = (gResult.fotos || []).filter(f => f && f.startsWith('http')).slice(0, 12)
             const fotoPrincipal = gResult.foto_principal || fotos[0] || ogFallback || null
             if (fotos.length > 0 || fotoPrincipal) {
@@ -1090,7 +1092,8 @@ Retorne SOMENTE este JSON (sem texto adicional):
       })
     } catch(e) { console.warn('[AXIS motorIA] Log uso Haiku:', e.message) }
 
-    const parsed = JSON.parse(jsonMatch[0])
+    let parsed = null
+    try { parsed = JSON.parse(jsonMatch[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); parsed = null }
     const fotos = (parsed.fotos || []).filter(f => f && f.startsWith('http')).slice(0, 12)
     let fotoPrincipal = parsed.foto_principal || fotos[0] || null
 
@@ -1656,7 +1659,8 @@ Regras: true = claramente visível. false = claramente ausente (ex: prédio baix
             const visionClean = visionTxt.replace(/```json|```/g, '').trim()
             const visionMatch = visionClean.match(/\{[\s\S]*\}/)
             if (visionMatch) {
-              const attrs = JSON.parse(visionMatch[0])
+              let attrs = null
+              try { attrs = JSON.parse(visionMatch[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); attrs = null }
               progress(`📷 Vision detectou: ${Object.entries(attrs).filter(([k,v]) => v === true).map(([k]) => k).join(', ') || 'nenhum atributo confirmado'}`)
 
               // Corrigir atributos — Vision tem prioridade sobre texto (fotos não mentem)

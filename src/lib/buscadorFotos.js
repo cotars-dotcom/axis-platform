@@ -434,7 +434,8 @@ Para QuintoAndar: fotos em quintoandar.imgix.net
       const { texto: gemTxt } = await chamarGeminiCascata(prompt, geminiKey, { maxTokens: 300, timeout: 20000 })
       const match = gemTxt.match(/\{[\s\S]*\}/)
       if (match) {
-          const result = JSON.parse(match[0])
+          let result = null
+          try { result = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); result = null }
           const fotos = (result.fotos || [])
             .filter(f => f?.startsWith('http') && !isUrlBanida(f))
             .slice(0, 15)

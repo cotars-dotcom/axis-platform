@@ -203,13 +203,13 @@ function AxisHeader({profile:prof, imoveis=[], onNav, isPhone=false, isMobile=fa
   const leiloesProximos = imoveis
     .filter(p => {
       if (!p.data_leilao || p.status_operacional === 'arquivado') return false
-      const [y,m,d] = p.data_leilao.split('-').map(Number)
+      const [y,m,d] = (p.data_leilao?.split('-') || ['2099','12','31']).map(Number)
       const dl = new Date(y, m-1, d); dl.setHours(0,0,0,0)
       return dl >= hoje && dl <= em7
     })
     .sort((a,b) => new Date(a.data_leilao+'T12:00') - new Date(b.data_leilao+'T12:00'))
   for (const p of leiloesProximos) {
-    const [y,m,d] = p.data_leilao.split('-').map(Number)
+    const [y,m,d] = (p.data_leilao?.split('-') || ['2099','12','31']).map(Number)
     const dl = new Date(y, m-1, d); dl.setHours(0,0,0,0)
     const diff = Math.round((dl - hoje) / 86400000)
     const urgente = diff <= 1

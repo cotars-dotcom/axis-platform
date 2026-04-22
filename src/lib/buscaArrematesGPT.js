@@ -66,7 +66,8 @@ export async function buscarArrematesSimilares(imovel, openaiKey, geminiKey = nu
       const txt = data.choices?.[0]?.message?.content || ''
       const match = txt.replace(/```json|```/g, '').trim().match(/\{[\s\S]*\}/)
       if (!match) throw new Error('JSON inválido')
-      const resultado = JSON.parse(match[0])
+      let resultado = null
+      try { resultado = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); resultado = null }
       resultado._modelo = 'gpt-4o-mini'
       resultado._custo_estimado_brl = 0.05
       await salvarCacheBusca(imovel, resultado)
@@ -96,7 +97,8 @@ export async function buscarArrematesSimilares(imovel, openaiKey, geminiKey = nu
       const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
       const match = txt.replace(/```json|```/g, '').trim().match(/\{[\s\S]*\}/)
       if (!match) throw new Error('JSON inválido')
-      const resultado = JSON.parse(match[0])
+      let resultado = null
+      try { resultado = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); resultado = null }
       resultado._modelo = MODELOS_GEMINI[0]
       resultado._custo_estimado_brl = 0.03
       await salvarCacheBusca(imovel, resultado)

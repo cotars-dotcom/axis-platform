@@ -68,7 +68,7 @@ export default function PainelInvestimento({ imovel }) {
           <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
             Breakdown · ROI · Preditor
             {p.data_leilao && !eMercado && (() => {
-              const [y,m,d] = p.data_leilao.split('-').map(Number)
+              const [y,m,d] = (p.data_leilao?.split('-') || ['2099','12','31']).map(Number)
               const dl = new Date(y, m-1, d); dl.setHours(0,0,0,0)
               const hoje = new Date(); hoje.setHours(0,0,0,0)
               const diff = Math.round((dl - hoje) / 86400000)

@@ -35,8 +35,11 @@ function calcularCenario(lance, vmercado, reforma, juridico = 0, debitosArr = 0)
   const lucro = precoVendaLiq - custoTotal - irpf
   const roi = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0
   const txProporcional = TX.comissao + TX.itbi + TX.doc + TX.adv
-  // MAO calculado via função canônica (constants.js) para consistência com o banco
-  const maoFlip = calcularLanceMaximoParaROI(20, { valor_mercado_estimado: vmercado, responsabilidade_debitos: debitosArr > 0 ? 'arrematante' : 'sub_rogado', debitos_total_estimado: debitosArr }, { eMercado: false, custoReforma: reforma || 0, mercadoBruto: vmercado })
+  // MAO calculado via função canônica — inclui custo_juridico_estimado e campos completos
+  const maoFlip = calcularLanceMaximoParaROI(20,
+    { valor_mercado_estimado: vmercado, responsabilidade_debitos: debitosArr > 0 ? 'arrematante' : 'sub_rogado',
+      debitos_total_estimado: debitosArr, condominio_mensal: 0, custo_juridico_estimado: juridico },
+    { eMercado: false, custoReforma: reforma || 0, mercadoBruto: vmercado })
   return {
     lance, custo_total: Math.round(custoTotal),
     irpf: Math.round(irpf), corretagem: Math.round(corretagem),
@@ -161,7 +164,11 @@ export default function PainelLancamento({ imovel }) {
   // Lance máximo viável para dado ROI alvo
   const txProporcional = TX.comissao + TX.itbi + TX.doc + TX.adv
   const lanceMaxViavel = useMemo(() => {
-    return calcularLanceMaximoParaROI(20, { valor_mercado_estimado: vmercado, responsabilidade_debitos: debitosArr > 0 ? 'arrematante' : 'sub_rogado', debitos_total_estimado: debitosArr }, { eMercado: false, custoReforma: reforma, mercadoBruto: vmercado })
+    // Usar imovel completo para incluir custo_juridico_estimado, condominio, etc.
+    return calcularLanceMaximoParaROI(20,
+      { ...imovel, responsabilidade_debitos: debitosArr > 0 ? 'arrematante' : 'sub_rogado',
+        debitos_total_estimado: debitosArr },
+      { eMercado: false, custoReforma: reforma, mercadoBruto: vmercado })
   }, [vmercado, reforma, juridico, debitosArr])
 
   const lanceMaxROIAlvo = useMemo(() => {

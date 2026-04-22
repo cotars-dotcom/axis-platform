@@ -422,7 +422,8 @@ Retorne APENAS o JSON, sem markdown, sem explicação.`
   const jsonMatch = clean.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('Gemini Grounding não retornou JSON válido')
   
-  const resultado = JSON.parse(jsonMatch[0])
+  let resultado = null
+  try { resultado = JSON.parse(jsonMatch[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); resultado = null }
   resultado._modelo_usado = `${modelo}+grounding`
   resultado._grounding = true
   return resultado
@@ -796,7 +797,8 @@ export async function analisarComDeepSeek(url, deepseekKey, parametros, onProgre
     const match = clean.match(/\{[\s\S]*\}/)
     if (!match) throw new Error('DeepSeek JSON inválido')
     
-    const analise = JSON.parse(match[0])
+    let analise = null
+    try { analise = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); analise = null }
     analise._modelo_usado = 'deepseek-v3'
     analise.fonte_url = url
     // Mercado direto: setar preco_pedido e tipo_transacao
@@ -868,7 +870,8 @@ export async function analisarComGPT(url, openaiKey, parametros, onProgress) {
   const match = clean.match(/\{[\s\S]*\}/)
   if (!match) throw new Error('GPT JSON inválido')
   
-  const analise = JSON.parse(match[0])
+  let analise = null
+  try { analise = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); analise = null }
   analise._modelo_usado = 'gpt-4o-mini'
   analise.fonte_url = url
   

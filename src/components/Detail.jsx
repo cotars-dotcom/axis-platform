@@ -1575,7 +1575,7 @@ for (const s of SCORES) {
               {/* Sprint 11: Adicionar ao Calendário */}
               {p.data_leilao && !isMercadoDireto(p.fonte_url, p.tipo_transacao) && (
                 <button onClick={() => {
-                  const [y,m,d] = p.data_leilao.split('-')
+                  const [y,m,d] = (p.data_leilao?.split('-') || ['2099','12','31'])
                   const dtStart = `${y}${m}${d}T090000`
                   const dtEnd = `${y}${m}${d}T170000`
                   const titulo = encodeURIComponent(`🔨 Leilão ${p.codigo_axis || ''} — ${p.titulo?.substring(0,40) || 'Imóvel'}`)
@@ -1593,7 +1593,7 @@ for (const s of SCORES) {
               {/* 2ª Praça ao Calendário — só se data_leilao_2 existir */}
               {p.data_leilao_2 && !isMercadoDireto(p.fonte_url, p.tipo_transacao) && (
                 <button onClick={() => {
-                  const [y,m,d] = p.data_leilao_2.split('-')
+                  const [y,m,d] = p.data_leilao_2?.split('-')
                   const dtStart = `${y}${m}${d}T090000`
                   const dtEnd   = `${y}${m}${d}T170000`
                   const titulo  = encodeURIComponent(`🔨 2ª Praça ${p.codigo_axis||''} — ${p.titulo?.substring(0,40)||'Imóvel'}`)
@@ -1682,7 +1682,7 @@ for (const s of SCORES) {
       </>}/>
     {/* Banner pós-leilão — aparece quando data passou e imóvel ainda está ativo */}
     {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && p.data_leilao && (() => {
-      const [y,m,d] = p.data_leilao.split('-').map(Number)
+      const [y,m,d] = (p.data_leilao?.split('-') || ['2099','12','31']).map(Number)
       const dl = new Date(y, m-1, d); dl.setHours(0,0,0,0)
       const hoje = new Date(); hoje.setHours(0,0,0,0)
       const diff = Math.round((dl - hoje) / 86400000)
@@ -2382,7 +2382,7 @@ for (const s of SCORES) {
     {/* Sprint 12: Botão flutuante de exportação */}
     <div style={{position:'fixed',bottom:20,right:20,zIndex:50,display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end'}}>
       {p.data_leilao && !isMercadoDireto(p.fonte_url, p.tipo_transacao) && (() => {
-        const [y,m,d] = p.data_leilao.split('-').map(Number)
+        const [y,m,d] = (p.data_leilao?.split('-') || ['2099','12','31']).map(Number)
         const dl = new Date(y, m-1, d); dl.setHours(0,0,0,0)
         const hoje = new Date(); hoje.setHours(0,0,0,0)
         const diff = Math.round((dl - hoje) / 86400000)
@@ -2397,7 +2397,7 @@ for (const s of SCORES) {
           }}>
             ⏳ {diff === 0 ? 'LEILÃO HOJE!' : diff === 1 ? 'LEILÃO AMANHÃ!' : `Leilão em ${diff} dias`}
             {p.data_leilao_2 && (() => {
-              const [y2,m2,d2] = p.data_leilao_2.split('-').map(Number)
+              const [y2,m2,d2] = (p.data_leilao_2?.split('-') || ['2099','12','31']).map(Number)
               const dl2 = new Date(y2,m2-1,d2); dl2.setHours(0,0,0,0)
               const hoje2 = new Date(); hoje2.setHours(0,0,0,0)
               const diff2 = Math.round((dl2-hoje2)/86400000)

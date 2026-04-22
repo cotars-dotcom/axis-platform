@@ -205,7 +205,8 @@ Retorne APENAS JSON válido com esta estrutura EXATA:
         const txt = data.choices?.[0]?.message?.content || ''
         const match = txt.replace(/```json|```/g, '').trim().match(/\{[\s\S]*\}/)
         if (match) {
-          const res = JSON.parse(match[0])
+          let res = null
+          try { res = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); res = null }
           res._modelo = 'deepseek-chat'
           return res
         }
@@ -232,7 +233,8 @@ Retorne APENAS JSON válido com esta estrutura EXATA:
         const txt = data.content?.[0]?.text || ''
         const match = txt.replace(/```json|```/g, '').trim().match(/\{[\s\S]*\}/)
         if (match) {
-          const res = JSON.parse(match[0])
+          let res = null
+          try { res = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); res = null }
           res._modelo = 'claude-haiku'
           return res
         }
@@ -500,7 +502,8 @@ Retorne APENAS JSON:
         const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
         const match = txt.replace(/```json|```/g,'').trim().match(/\{[\s\S]*\}/)
         if (match) {
-          analise = JSON.parse(match[0])
+          let analise = null
+          try { analise = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); analise = null }
           analise._modelo = modeloVision + '-vision'
           onProgress?.(`✅ ${nome} — Vision OK, score: ${analise.metricas_viabilidade?.score_geral || '?'}/10`)
         }
@@ -545,7 +548,8 @@ Retorne APENAS JSON:
         const txt = data.choices?.[0]?.message?.content || ''
         const match = txt.replace(/```json|```/g,'').trim().match(/\{[\s\S]*\}/)
         if (match) {
-          analise = JSON.parse(match[0])
+          let analise = null
+          try { analise = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); analise = null }
           analise._modelo = 'gpt-4o-vision'
           onProgress?.(`✅ ${nome} — GPT-4o Vision OK, score: ${analise.metricas_viabilidade?.score_geral || '?'}/10`)
         }
