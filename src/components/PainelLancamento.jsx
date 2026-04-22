@@ -172,10 +172,12 @@ export default function PainelLancamento({ imovel }) {
   }, [vmercado, reforma, juridico, debitosArr])
 
   const lanceMaxROIAlvo = useMemo(() => {
-    const roiFator = 1 + roiAlvo / 100
-    const custoMax = vmercado / roiFator
-    return (custoMax - TX.reg - reforma - juridico - debitosArr - vmercado * TX.corretagem_venda) / (1 + txProporcional)
-  }, [vmercado, roiAlvo, reforma, juridico, debitosArr])
+    // Usar função canônica com ROI alvo configurável
+    return calcularLanceMaximoParaROI(roiAlvo,
+      { ...imovel, responsabilidade_debitos: debitosArr > 0 ? 'arrematante' : 'sub_rogado',
+        debitos_total_estimado: debitosArr },
+      { eMercado: false, custoReforma: reforma, mercadoBruto: vmercado })
+  }, [vmercado, roiAlvo, reforma, juridico, debitosArr, imovel])
 
   const lanceMaxMargem = useMemo(() => {
     return lanceMaxViavel * (1 - margemSeg / 100)

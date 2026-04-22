@@ -606,6 +606,19 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
   const [duplicado,setDuplicado]=useState(null)
   const fileRef=useRef(null)
 
+  // Indicar qual motor IA será usado — feedback antes de analisar
+  const motorHint = (() => {
+    const g = localStorage.getItem('axis-gemini-key')
+    const d = localStorage.getItem('axis-deepseek-key')
+    const o = localStorage.getItem('axis-openai-key')
+    const cl = localStorage.getItem('axis-api-key')
+    if (g) return '⚡ Gemini 2.5 Flash'
+    if (d) return '🤖 DeepSeek V3'
+    if (o) return '🤖 GPT-4o-mini'
+    if (cl) return '🤖 Claude Sonnet'
+    return null
+  })()
+
   const analyze = async () => {
     if(!url.trim()){setError("Cole o link do leilão");return}
     // Validação de URL
@@ -958,7 +971,10 @@ function NovoImovel({onSave,onCancel,onNav,trello,parametrosBanco,criteriosBanco
       </div>}
 
       <div style={{display:"flex",flexDirection:isPhone?'column':'row',gap:"10px"}}>
-        <button style={{...btn(),width:isPhone?'100%':'auto',padding:isPhone?'14px':'9px 20px'}} onClick={analyze} disabled={loading}>{loading?"⏳ Analisando...":"🔍 Analisar Imóvel"}</button>
+        <div style={{display:'flex',flexDirection:'column',gap:4,width:isPhone?'100%':'auto'}}>
+          <button style={{...btn(),width:'100%',padding:isPhone?'14px':'9px 20px'}} onClick={analyze} disabled={loading}>{loading?"⏳ Analisando...":"🔍 Analisar Imóvel"}</button>
+          {motorHint&&!loading&&<div style={{fontSize:10,color:'#64748B',textAlign:'center'}}>{motorHint}</div>}
+        </div>
         <button style={{...btn("s"),width:isPhone?'100%':'auto'}} onClick={onCancel}>Cancelar</button>
       </div>
     </div>

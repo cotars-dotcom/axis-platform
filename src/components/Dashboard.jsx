@@ -411,7 +411,8 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
   const topAlerta = propComLeilao || [...props].filter(p=>p.recomendacao!=="EVITAR").sort((a,b)=>(b.score_total||0)-(a.score_total||0))[0]
   const alertaDias = topAlerta ? Math.min(...[diasP(topAlerta.data_leilao), diasP(topAlerta.data_leilao_2)].filter(x => x !== null && x >= 0).concat([999])) : null
   const alertaUrgente = alertaDias !== null && alertaDias <= 30
-  const totalValor=propsAnalised.reduce((s,p)=>s+(p.valor_minimo||0),0)
+  // Patrimônio = valor de mercado estimado (não lance mínimo)
+  const totalValor=propsAnalised.reduce((s,p)=>s+(p.valor_mercado_estimado||p.valor_minimo||0),0)
   const fmtM=v=>{if(v>=1e6)return`R$ ${(v/1e6).toFixed(1)}M`;if(v>=1e3)return`R$ ${(v/1e3).toFixed(0)}K`;return`R$ ${v}`}
   const [leads, setLeads] = useState([])
   const [buscando, setBuscando] = useState(false)

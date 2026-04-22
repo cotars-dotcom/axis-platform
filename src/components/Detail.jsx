@@ -1897,9 +1897,9 @@ for (const s of SCORES) {
       {abaDetalhe==='resumo'&&<>
       {/* Zona de decisão: aparece no topo quando há leilão próximo */}
       <ResumoPreLeilao imovel={p} onUpdate={() => { if(onUpdateProp) onUpdateProp(p.id, p) }} onGerarSintese={isAdmin ? handleGerarSintese : null} />
-      {/* Foto do imóvel */}
+      {/* Foto do imóvel — compacta para não dominar a tela */}
       {p.foto_principal&&(
-        <div style={{width:'100%',maxHeight:320,borderRadius:12,overflow:'hidden',marginBottom:12,background:'#f0f0f0',willChange:'transform'}}>
+        <div style={{width:'100%',maxHeight:200,borderRadius:12,overflow:'hidden',marginBottom:10,background:'#f0f0f0',willChange:'transform'}}>
           <img src={p.foto_principal} alt={p.titulo||'Foto'} referrerPolicy="no-referrer"
             style={{width:'100%',height:'auto',maxHeight:320,objectFit:'cover',display:'block'}}
             onError={e=>{e.target.parentElement.style.display='none'}}/>
