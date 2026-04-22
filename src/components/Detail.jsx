@@ -1084,7 +1084,7 @@ function GraficoROIHorizonteWrapper({ imovel }) {
   const { lanceEstudo, custoReformaAtual } = useReforma()
   return (
     <div style={{...card(), padding:14, marginBottom:12}}>
-      <GraficoROIHorizonte imovel={imovel} lanceEstudo={lanceEstudo} custoReformaAtual={custoReformaAtual}/>
+      <Suspense fallback={<div style={{padding:16,textAlign:'center',color:'#94A3B8',fontSize:12}}>⏳ Carregando gráfico...</div>}><GraficoROIHorizonte imovel={imovel} lanceEstudo={lanceEstudo} custoReformaAtual={custoReformaAtual}/></Suspense>
     </div>
   )
 }
@@ -1813,12 +1813,12 @@ for (const s of SCORES) {
             )}
             {p._dados_bairro_axis?.tendencia12m != null && p._dados_bairro_axis?.precoContratoM2 && (
               <div style={{marginTop:8,display:'flex',justifyContent:'center'}}>
-                <GraficoTendencia
+                <Suspense fallback={<div style={{padding:12,textAlign:'center',color:'#94A3B8',fontSize:12}}>⏳ Carregando...</div>}><GraficoTendencia
                   tendencia_12m={p._dados_bairro_axis.tendencia12m}
                   precoAtual={p._dados_bairro_axis.precoContratoM2}
                   label={p.bairro}
                   width={200} height={55}
-                />
+                /></Suspense>
               </div>
             )}
             <div style={{marginTop:6,fontSize:9,color:'#94A3B8'}}>
@@ -1876,10 +1876,12 @@ for (const s of SCORES) {
           <div style={{fontWeight:600, color:K.wh, fontSize:13, marginBottom:10}}>
             🗺️ Mapa de Mercado — Bairros BH
           </div>
-          <MapaCalorBairros onBairroClick={(b) => {
-            // Destacar bairro selecionado — future: filtrar comparáveis por bairro
-            console.debug('[AXIS] Bairro selecionado:', b.bairro)
-          }} />
+          <Suspense fallback={<div style={{padding:16,textAlign:'center',color:'#94A3B8',fontSize:12}}>⏳ Carregando mapa...</div>}>
+            <MapaCalorBairros onBairroClick={(b) => {
+              // Destacar bairro selecionado — future: filtrar comparáveis por bairro
+              console.debug('[AXIS] Bairro selecionado:', b.bairro)
+            }} />
+          </Suspense>
         </div>
       )}
       {/* Comparáveis — também na aba mercado */}
@@ -2075,7 +2077,7 @@ for (const s of SCORES) {
         <YieldAbaixoSelicBanner imovel={p} />
         <AlertasInfoAccordion imovel={p} />
         {parseFloat(p.valor_mercado_estimado) > 0 && (
-          <SectionErrorBoundary nome="GraficoROI"><GraficoROIHorizonteWrapper imovel={p} /></SectionErrorBoundary>
+          <SectionErrorBoundary nome="GraficoROI"><Suspense fallback={<div style={{padding:16,textAlign:'center',color:'#94A3B8',fontSize:12}}>⏳ Carregando gráfico...</div>}><GraficoROIHorizonteWrapper imovel={p} /></Suspense></SectionErrorBoundary>
         )}
         {parseFloat(p.aluguel_mensal_estimado) > 0 && (
           <PainelYieldWrapper imovel={p} />
@@ -2100,7 +2102,7 @@ for (const s of SCORES) {
         {/* Sprint 16: Atributos do Prédio */}
         {/* AtributosPredio removido — info integrada nos chips do ResumoCard */}
         {/* Sprint 12.2: Timeline da Matrícula */}
-        <SectionErrorBoundary nome="TimelineMatricula"><TimelineMatricula imovel={p} /></SectionErrorBoundary>
+        <SectionErrorBoundary nome="TimelineMatricula"><Suspense fallback={<div style={{padding:12,textAlign:'center',color:'#94A3B8',fontSize:12}}>⏳ Carregando...</div>}><TimelineMatricula imovel={p} /></Suspense></SectionErrorBoundary>
         {/* Mercado direto: badge de oportunidade */}
         {isMercadoDireto(p.fonte_url, p.tipo_transacao) && p.preco_pedido > 0 && (
           <div style={{...card(),marginBottom:'14px',padding:'12px 14px',background:'#FFFBEB',border:'1.5px solid #F59E0B'}}>

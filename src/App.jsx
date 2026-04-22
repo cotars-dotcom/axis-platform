@@ -2089,9 +2089,9 @@ export default function App() {
       {view==="detail"&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyDetail p={selP} onDelete={delProp} onNav={nav} trello={trello} onUpdateProp={(id,updates)=>setProps(ps=>ps.map(p=>p.id===id?{...p,...updates}:p))} isAdmin={isAdmin} onArchive={handleArquivar} isMobile={isMobile} isPhone={isPhone} onReanalyze={(id,updates)=>setProps(ps=>ps.map(p=>p.id===id?{...p,...updates}:p))}/></Suspense>}
       {view==="comparar"&&<Comparativo props={props}/>}
       {view==="leiloes"&&<Suspense fallback={<div style={{padding:40,textAlign:'center',color:C.muted}}>Carregando...</div>}><LazyProximosLeiloes imoveis={props} onNav={nav}/></Suspense>}
-    {view==="busca"&&(isAdmin?<LazyBuscaGPT onAnalisar={(link)=>{setUrlParaAnalisar(link||"");nav("novo")}}/>:<AcessoNegado mensagem="Busca com IA é restrita ao administrador."/>)}
+    {view==="busca"&&(isAdmin?<Suspense fallback={<div style={{padding:40,textAlign:'center',color:C.muted}}>Carregando...</div>}><LazyBuscaGPT onAnalisar={(link)=>{setUrlParaAnalisar(link||"");nav("novo")}}/></Suspense>:<AcessoNegado mensagem="Busca com IA é restrita ao administrador."/>)}
     {view==="graficos"&&<div><div style={{padding:isPhone?"16px":"22px 28px 16px",borderBottom:`1px solid ${C.borderW}`,background:C.white}}><div style={{fontWeight:700,fontSize:19,color:C.text}}>Gráficos</div></div><div style={{padding:isPhone?"16px":"20px 28px"}}><Suspense fallback={<div style={{padding:40,textAlign:'center',color:C.muted}}>Carregando gráficos...</div>}><Charts properties={props}/></Suspense></div></div>}
-    {view==="tarefas"&&<LazyTarefas/>}
+    {view==="tarefas"&&<Suspense fallback={<div style={{padding:40,textAlign:'center',color:C.muted}}>Carregando...</div>}><LazyTarefas/></Suspense>}
     {view==="arquivados"&&<BancoArquivados session={session} isAdmin={isAdmin} isPhone={isPhone}/>}
     {view==="portfolio"&&isAdmin&&<PainelPortfolio props={props} isMobile={isMobile} isPhone={isPhone} onNav={nav}/>}
     {view==="manual"&&<Suspense fallback={<div style={{padding:40,textAlign:"center",color:C.muted}}>Carregando...</div>}><LazyManualAxis isMobile={isMobile}/></Suspense>}
