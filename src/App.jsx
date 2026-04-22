@@ -1098,8 +1098,12 @@ function PropCard({p,onNav}) {
     <div style={{display:"flex",flexDirection:isPhone?"column":"row",gap:8,alignItems:isPhone?"stretch":"flex-start"}}>
       <div style={{flex:1,display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
         <div style={{background:K.s2,borderRadius:6,padding:"7px 9px"}}>
-          <div style={{fontSize:"8.5px",color:K.t3,marginBottom:1,textTransform:"uppercase",letterSpacing:.3}}>{eMercado ? 'Preço pedido' : 'Lance mín.'}</div>
-          <div style={{fontSize:"12px",fontWeight:"800",color:K.amb}}>{fmtM(eMercado ? (p.preco_pedido || p.valor_minimo) : p.valor_minimo)}</div>
+          <div style={{fontSize:"8.5px",color:K.t3,marginBottom:1,textTransform:"uppercase",letterSpacing:.3}}>
+            {eMercado ? 'Preço pedido' : (p.valor_minimo_2 && parseFloat(p.valor_minimo_2) < parseFloat(p.valor_minimo) ? '⭐ 2ª praça' : '1ª praça')}
+          </div>
+          <div style={{fontSize:"12px",fontWeight:"800",color:p.valor_minimo_2&&parseFloat(p.valor_minimo_2)<parseFloat(p.valor_minimo)?'#059669':K.amb}}>
+            {fmtM(eMercado ? (p.preco_pedido || p.valor_minimo) : (p.valor_minimo_2 && parseFloat(p.valor_minimo_2) < parseFloat(p.valor_minimo) ? p.valor_minimo_2 : p.valor_minimo))}
+          </div>
         </div>
         <div style={{background:K.s2,borderRadius:6,padding:"7px 9px"}}>
           <div style={{fontSize:"8.5px",color:K.t3,marginBottom:1,textTransform:"uppercase",letterSpacing:.3}}>{p.desconto_percentual > 0 && p.desconto_sobre_mercado_pct_calculado > 0 ? 'Desc. s/mercado' : 'Desconto'}</div>
