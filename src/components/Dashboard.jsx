@@ -388,7 +388,8 @@ function AxisHeader({profile:prof, imoveis=[], onNav, isPhone=false, isMobile=fa
 
 export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
   // Excluir imóveis sem dados suficientes das métricas (não distorcem médias)
-  const propsAnalised = props.filter(p => p.recomendacao !== 'DADOS_INSUFICIENTES')
+  // Métricas só para imóveis acionáveis (excluir INVIAVEL e DADOS_INSUFICIENTES)
+  const propsAnalised = props.filter(p => p.recomendacao !== 'DADOS_INSUFICIENTES' && p.recomendacao !== 'INVIAVEL')
   const total=propsAnalised.length, comprar=propsAnalised.filter(p=>p.recomendacao==="COMPRAR").length
   const forte=propsAnalised.filter(p=>(p.score_total||0)>=7.5).length
   const avg=total?(propsAnalised.reduce((s,p)=>s+(p.score_total||0),0)/total).toFixed(2):"0"
@@ -514,7 +515,12 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
                   <span style={{fontSize:10,padding:"1px 6px",borderRadius:3,background:C.emeraldL,color:C.emerald,fontWeight:600}}>{topAlerta.recomendacao}</span>
                 </div>
                 <p style={{margin:"4px 0 0",fontSize:13.5,fontWeight:700,color:C.navy}}>{fmtC(topAlerta.valor_minimo)}</p>
-                <p style={{margin:0,fontSize:11,color:C.emerald,fontWeight:600}}>{topAlerta.desconto_percentual?`-${topAlerta.desconto_percentual}% desconto`:""}</p>
+                <p style={{margin:0,fontSize:11,fontWeight:600,color:parseFloat(topAlerta.desconto_sobre_mercado_pct_calculado||0)>0?C.emerald:'#DC2626'}}>
+                  {topAlerta.desconto_sobre_mercado_pct_calculado
+                    ? `${parseFloat(topAlerta.desconto_sobre_mercado_pct_calculado)>0?'-':'+'
+                      }${Math.abs(parseFloat(topAlerta.desconto_sobre_mercado_pct_calculado)).toFixed(1)}% ${parseFloat(topAlerta.desconto_sobre_mercado_pct_calculado)>0?'abaixo':'acima'} do mercado`
+                    : topAlerta.desconto_percentual?`-${topAlerta.desconto_percentual}% s/avaliação`:''}
+                </p>
               </div>
               <svg width="52" height="52" style={{flexShrink:0}}>
                 <circle cx="26" cy="26" r="20" fill="none" stroke={C.emeraldL} strokeWidth="4"/>

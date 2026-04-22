@@ -1962,13 +1962,23 @@ export default function App() {
       const hoje = Date.now()
       const d1 = imovelUrgente.data_leilao ? Math.ceil((new Date(imovelUrgente.data_leilao+'T12:00')-hoje)/86400000) : null
       const d2 = imovelUrgente.data_leilao_2 ? Math.ceil((new Date(imovelUrgente.data_leilao_2+'T12:00')-hoje)/86400000) : null
-      const dias = (d1!==null&&d1>=0&&d1<=15) ? d1 : d2
-      const praca = (d1!==null&&d1>=0&&d1<=15) ? '1ª' : '2ª'
+      // Preferir 2ª praça quando disponível (menor valor = oportunidade real)
+      const usar2p = d2 !== null && d2 >= 0 && d2 <= 30
+      const dias = usar2p ? d2 : d1
+      const praca = usar2p ? '2ª' : '1ª'
+      const valorLance = usar2p
+        ? parseFloat(imovelUrgente.valor_minimo_2 || 0)
+        : parseFloat(imovelUrgente.valor_minimo || 0)
+      const bgCor = dias <= 3 ? '#DC2626' : dias <= 7 ? '#C2410C' : '#D97706'
       return <div onClick={()=>nav('detail',{id:imovelUrgente.id})}
-        style={{cursor:'pointer',background:dias<=7?'#DC2626':'#EA580C',color:'#fff',
-          padding:'6px 20px',textAlign:'center',fontSize:12,fontWeight:700,
-          letterSpacing:.3,flexShrink:0,zIndex:100}}>
-        🚨 {imovelUrgente.codigo_axis} — {praca} praça em {dias===0?'HOJE!':dias===1?'AMANHÃ!':dias+'d'} — clique para ver decisão de lance
+        style={{cursor:'pointer',background:bgCor,color:'#fff',
+          padding:'7px 20px',textAlign:'center',fontSize:12,fontWeight:700,
+          letterSpacing:.3,flexShrink:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',gap:12}}>
+        <span>⚡ {imovelUrgente.codigo_axis} — {praca} praça em {dias===0?'HOJE!':dias===1?'AMANHÃ!':dias+'d'}</span>
+        {valorLance > 0 && <span style={{background:'rgba(255,255,255,0.2)',padding:'1px 8px',borderRadius:4}}>
+          {valorLance >= 1e6 ? `R$${(valorLance/1e6).toFixed(1)}M` : `R$${Math.round(valorLance/1e3)}k`}
+        </span>}
+        <span style={{opacity:.8,fontSize:11}}>→ ver análise</span>
       </div>
     })()}
     <style>{`*{box-sizing:border-box;}::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:${C.offwhite};}::-webkit-scrollbar-thumb{background:${C.border};border-radius:2px;}select option{background:${C.white};}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}a:hover{opacity:.8;}`}</style>
