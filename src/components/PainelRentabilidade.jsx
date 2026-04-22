@@ -45,6 +45,7 @@ function calcFlip(lance, vmercado, reforma, juridico = 0, eMercado = false, over
   const corretagem = vmercado * 0.06
   const precoVendaLiq = vmercado - corretagem
   const ganhoCapital = Math.max(0, precoVendaLiq - custoTotal)
+  // IRPF: calculado sem redução por tempo de posse (Lei 11.196/2005) — consulte contador
   const irpf = vmercado <= 440000 ? 0 : ganhoCapital * 0.15
   const lucro = precoVendaLiq - custoTotal - irpf
   const roi   = custoTotal > 0 ? (lucro / custoTotal * 100) : 0
@@ -59,7 +60,8 @@ function calcLocacao(lance, aluguelMensal, reforma, vmercado, prazoMeses = 120, 
   const c = custoArrematacao(lance, eMercado, overrides)
   const investimento = lance + c.total + reforma
   const vacancia     = aluguelMensal * 0.06 * 12  // 6% vacância ao ano
-  const receita12m   = aluguelMensal * 12 - vacancia - (investimento * 0.005) // 0.5% manutenção
+  const irLocacao    = aluguelMensal > 2824 ? (aluguelMensal - 2824) * 0.275 * 12 : 0  // IR 27.5% PF acima de R$2.824/mês
+  const receita12m   = aluguelMensal * 12 - vacancia - (investimento * 0.005) - irLocacao // 0.5% manutenção + IR
   const yieldBruto   = investimento > 0 ? (aluguelMensal * 12 / investimento * 100) : 0
   const yieldLiq     = investimento > 0 ? (receita12m / investimento * 100) : 0
   const payback      = receita12m > 0 ? Math.ceil(investimento / receita12m * 12) : 999

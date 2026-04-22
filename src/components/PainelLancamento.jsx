@@ -7,7 +7,7 @@ import { useState, useMemo } from 'react'
 import { C, K, fmtC, card } from '../appConstants.js'
 import { useReforma } from '../hooks/useReforma.jsx'
 
-import { CUSTOS_LEILAO } from '../lib/constants.js'
+import { CUSTOS_LEILAO , calcularLanceMaximoParaROI } from '../lib/constants.js'
 
 const fmt  = v => v != null && v > 0 ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 const pct  = v => v != null ? `${parseFloat(v).toFixed(1)}%` : '—'
@@ -35,7 +35,8 @@ function calcularCenario(lance, vmercado, reforma, juridico = 0, debitosArr = 0)
   const lucro = precoVendaLiq - custoTotal - irpf
   const roi = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0
   const txProporcional = TX.comissao + TX.itbi + TX.doc + TX.adv
-  const maoFlip = (vmercado * 0.80 - TX.reg - (reforma || 0) - (juridico || 0) - debitosArr) / (1 + txProporcional)
+  // MAO calculado via função canônica (constants.js) para consistência com o banco
+  const maoFlip = calcularLanceMaximoParaROI(20, { valor_mercado_estimado: vmercado, responsabilidade_debitos: debitosArr > 0 ? 'arrematante' : 'sub_rogado', debitos_total_estimado: debitosArr }, { eMercado: false, custoReforma: reforma || 0, mercadoBruto: vmercado })
   return {
     lance, custo_total: Math.round(custoTotal),
     irpf: Math.round(irpf), corretagem: Math.round(corretagem),
@@ -160,7 +161,7 @@ export default function PainelLancamento({ imovel }) {
   // Lance máximo viável para dado ROI alvo
   const txProporcional = TX.comissao + TX.itbi + TX.doc + TX.adv
   const lanceMaxViavel = useMemo(() => {
-    return (vmercado * 0.80 - TX.reg - reforma - juridico - debitosArr) / (1 + txProporcional)
+    return calcularLanceMaximoParaROI(20, { valor_mercado_estimado: vmercado, responsabilidade_debitos: debitosArr > 0 ? 'arrematante' : 'sub_rogado', debitos_total_estimado: debitosArr }, { eMercado: false, custoReforma: reforma, mercadoBruto: vmercado })
   }, [vmercado, reforma, juridico, debitosArr])
 
   const lanceMaxROIAlvo = useMemo(() => {

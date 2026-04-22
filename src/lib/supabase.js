@@ -295,8 +295,10 @@ export async function saveImovelCompleto(imovel, userId) {
           }
         }
 
-        // Proteção de scores: não degradar scores bem calibrados com variação > 2.5 pts
+        // Proteção de scores: threshold 3.5 (era 2.5 — bloqueava correções legítimas)
+        // forceScoreUpdate: true permite reanálise explícita do usuário ultrapassar o threshold
         const SCORES_PROTEGIDOS = ['score_localizacao','score_desconto','score_juridico','score_ocupacao','score_liquidez','score_mercado','score_total']
+        const forceScore = payload._forceScoreUpdate === true
         for (const s of SCORES_PROTEGIDOS) {
           if (payload[s] != null) {
             const v = parseFloat(payload[s])
@@ -305,14 +307,15 @@ export async function saveImovelCompleto(imovel, userId) {
               payload[s] = Math.max(0, Math.min(10, isNaN(v) ? 0 : v))
             }
           }
-          if (atual[s] != null && payload[s] != null) {
+          if (!forceScore && atual[s] != null && payload[s] != null) {
             const diff = Math.abs(parseFloat(payload[s]) - parseFloat(atual[s]))
-            if (diff > 2.5) {
+            if (diff > 3.5) {
               console.warn('[AXIS] Score protegido:', s, `${atual[s]} → ${payload[s]} (diff ${diff.toFixed(1)}) — mantendo atual`)
               payload[s] = atual[s]
             }
           }
         }
+        delete payload._forceScoreUpdate
 
         // Guard: desconto_percentual no intervalo 0-100
         if (payload.desconto_percentual != null) {
@@ -344,7 +347,7 @@ export async function saveImovelCompleto(imovel, userId) {
         // Proteção extra: score_total não pode cair mais de 1.0 ponto numa reanálise
         if (payload.score_total && atual.score_total) {
           const delta = atual.score_total - payload.score_total
-          if (delta > 1.0) {
+          if (!forceScore && delta > 2.0) {
             console.warn('[AXIS Supabase] Score caiu', delta.toFixed(2), 'pts — mantendo score anterior:', atual.score_total)
             payload.score_total = atual.score_total
             payload.recomendacao = atual.recomendacao

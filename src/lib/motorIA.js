@@ -784,9 +784,20 @@ export function validarECorrigirAnalise(analise) {
   const cond = parseFloat(analise.condominio_mensal) || 0
   if (cond > 0) {
     // Condomínio > R$600: provável elevador + piscina + lazer
-    if (cond >= 600 && analise.elevador == null) analise.elevador = true
-    if (cond >= 800 && analise.piscina == null) analise.piscina = true
-    if (cond >= 500 && analise.area_lazer == null) analise.area_lazer = true
+    // Heurísticas por condomínio — marcadas como inferidas (podem ser falso-positivos)
+    // Só aplicar se a IA não preencheu explicitamente (== null)
+    if (cond >= 600 && analise.elevador == null) {
+      analise.elevador = true
+      avisos.push('INFERIDO: condo >= R$600 → elevador=true (heurística — verificar edital)')
+    }
+    if (cond >= 800 && analise.piscina == null) {
+      analise.piscina = true
+      avisos.push('INFERIDO: condo >= R$800 → piscina=true (heurística — verificar edital)')
+    }
+    if (cond >= 500 && analise.area_lazer == null) {
+      analise.area_lazer = true
+      avisos.push('INFERIDO: condo >= R$500 → area_lazer=true (heurística — verificar edital)')
+    }
     if (cond >= 400 && analise.salao_festas == null) analise.salao_festas = true
     // Condomínio < R$200: provavelmente walk-up simples
     if (cond < 200 && analise.elevador == null) analise.elevador = false
@@ -1145,7 +1156,7 @@ async function gerarReformaDetalhada(area_m2, quartos) {
   }
 }
 
-export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametros, criterios, onProgress, anexos, imovelId = null, imovelTitulo = null) {
+export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametros, criterios, onProgress, anexos, imovelId = null, imovelTitulo = null, opcoes = {}) {
   const progress = onProgress || (() => {})
 
   // Modo teste: retorna dados simulados sem chamar API
@@ -1176,7 +1187,7 @@ export async function analisarImovelCompleto(url, claudeKey, openaiKey, parametr
 
   // ─── CASCATA DE CUSTO ZERO ─────────────────────────────────────────────────
   // Tier 1: Gemini Flash (~$0.002) — 99% mais barato que Claude Sonnet
-  const forceClassic = false  // flag interna — mover aqui para evitar TDZ
+  const forceClassic = opcoes.forceClassic === true  // opcoes.forceClassic=true força Claude Sonnet diretamente
   // Tentar sync de chaves do banco se localStorage vazio
   let geminiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-gemini-key') : null
   let deepseekKey = typeof localStorage !== 'undefined' ? localStorage.getItem('axis-deepseek-key') : null
