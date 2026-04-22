@@ -35,16 +35,22 @@ function custoArrematacao(lance, eMercado = false, overrides = {}) {
 }
 
 // Calcular cenário FLIP
-function calcFlip(lance, vmercado, reforma, juridico = 0, eMercado = false, overrides = {}, debitosArr = 0) {
+function calcFlip(lance, vmercado, reforma, juridico = 0, eMercado = false, overrides = {}, debitosArr = 0, imovelRef = null) {
   const c = custoArrematacao(lance, eMercado, overrides)
-  const custoTotal = lance + c.total + reforma + juridico + debitosArr
+  // Fix Bug 5: incluir holding costs (condo + IPTU × meses padrão)
+  const condoMensal = parseFloat(imovelRef?.condominio_mensal || 0)
+  const iptuMensal  = parseFloat(imovelRef?.iptu_mensal || 0) || Math.round(condoMensal * (IPTU_SOBRE_CONDO_RATIO || 0.35))
+  const holding     = (HOLDING_MESES_PADRAO || 6) * (condoMensal + iptuMensal)
+  const custoTotal = lance + c.total + reforma + juridico + debitosArr + holding
   const corretagem = vmercado * 0.06
   const precoVendaLiq = vmercado - corretagem
   const ganhoCapital = Math.max(0, precoVendaLiq - custoTotal)
   const irpf = vmercado <= 440000 ? 0 : ganhoCapital * 0.15
   const lucro = precoVendaLiq - custoTotal - irpf
   const roi   = custoTotal > 0 ? (lucro / custoTotal * 100) : 0
-  const mao = (vmercado * 0.80 - reforma - juridico - debitosArr) / (1 + c.total / Math.max(lance, 1))
+  // Fix Bug 4: MAO correto via função centralizada (não circular)
+  const pctCustos = c.total / Math.max(lance, 1)
+  const mao = (vmercado * 0.80 - reforma - juridico - debitosArr) / (1 + pctCustos)
   return { custoTotal, corretagem, irpf, lucro, roi, mao, viavel: roi >= 20 }
 }
 
@@ -57,8 +63,10 @@ function calcLocacao(lance, aluguelMensal, reforma, vmercado, prazoMeses = 120, 
   const yieldBruto   = investimento > 0 ? (aluguelMensal * 12 / investimento * 100) : 0
   const yieldLiq     = investimento > 0 ? (receita12m / investimento * 100) : 0
   const payback      = receita12m > 0 ? Math.ceil(investimento / receita12m * 12) : 999
-  // Valorização estimada (3% a.a. BH)
-  const vf           = vmercado * Math.pow(1.03, prazoMeses / 12)
+  // Valorização baseada em tendência do bairro (campo banco) ou fallback 3% a.a. BH
+  const tendencia12m = parseFloat(imovelRef?.mercado_tendencia_pct_12m || 0)
+  const valAnual     = tendencia12m > 0 ? tendencia12m / 100 : 0.03
+  const vf           = vmercado * Math.pow(1 + valAnual, prazoMeses / 12)
   const patrimonioFinal = vf * 0.94 // -6% corretagem na venda futura
   return { investimento, receita12m, yieldBruto, yieldLiq, payback, patrimonioFinal, viavel: yieldLiq >= 5 }
 }

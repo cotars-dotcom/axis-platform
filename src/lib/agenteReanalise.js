@@ -295,10 +295,8 @@ Retorne APENAS JSON com os campos atualizados:
 
   // Garantir recomendação coerente com o score
   // Recomendação baseada no score — respeita delta da IA se coerente
-  if (analiseAtualizada.score_total >= 8.0) analiseAtualizada.recomendacao = 'COMPRAR'
-  else if (analiseAtualizada.score_total >= 7.0) analiseAtualizada.recomendacao = delta.recomendacao === 'AGUARDAR' ? 'AGUARDAR' : 'COMPRAR'
-  else if (analiseAtualizada.score_total >= 6.0) analiseAtualizada.recomendacao = delta.recomendacao === 'EVITAR' ? 'EVITAR' : 'AGUARDAR'
-  else analiseAtualizada.recomendacao = 'EVITAR'
+  // Usar thresholds canônicos de constants.js (antes: 8.0/7.0/6.0 — divergia do motorIA)
+  analiseAtualizada.recomendacao = recomendacaoDeScore(analiseAtualizada.score_total)
 
   return analiseAtualizada
 }

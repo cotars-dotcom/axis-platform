@@ -51,7 +51,7 @@ function gerarHTML(p) {
     { label: '65% · competitivo',   pct: '65%', lance: Math.round(avaliacao * 0.65) },
   ].map(c => ({ ...c, roi: calcROI(c.lance, p) }))
 
-  const scoreCor = p.score_total >= 70 ? '#059669' : p.score_total >= 50 ? '#D97706' : '#DC2626'
+  const scoreCor = p.score_total >= 7 ? '#059669' : p.score_total >= 5 ? '#D97706' : '#DC2626'
   const corROI   = v => v >= 20 ? '#059669' : v >= 10 ? '#D97706' : '#DC2626'
 
   return `<!DOCTYPE html>
@@ -153,7 +153,7 @@ function gerarHTML(p) {
     <div class="g2">
       <div class="card" style="text-align:center">
         <div class="lbl">Score AXIS</div>
-        <div class="val" style="color:${scoreCor}">${p.score_total || '—'}/100</div>
+        <div class="val" style="color:${scoreCor}">${Math.round((p.score_total || 0) * 10)}/100</div>
         <div style="font-size:7pt;color:#64748B">${p.recomendacao || ''}</div>
       </div>
       <div class="card" style="text-align:center">

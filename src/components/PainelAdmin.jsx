@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react"
 import { C } from "../appConstants.js"
 import { supabase, getConvites, getUsuarios, getUsoChamadas, criarConvite, revogarConvite, atualizarRoleUsuario, toggleAtivoUsuario } from "../lib/supabase.js"
-import AbaDiagnostico from "./AbaDiagnostico.jsx" 
+import AbaDiagnostico from "./AbaDiagnostico.jsx"
 import AbaGastosAPI from "./AbaGastosAPI.jsx"
+import AbaSaudeAXIS from "./AbaSaudeAXIS.jsx"
+// AbaDiagnosticoCompetitivo foi removida — redirecionar para AbaDiagnostico
+const AbaDiagnosticoCompetitivo = AbaDiagnostico
 
-export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isPhone }) {
+export default function PainelConvitesAdmin({ session, imoveis: propImoveis, isPhone, onNav }) {
   const [aba, setAba] = useState('convites')
   const [convites, setConvites] = useState([])
   const [usuarios, setUsuarios] = useState([])

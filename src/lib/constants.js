@@ -1,3 +1,15 @@
+// ─── Thresholds canônicos de recomendação (usar em TODOS os módulos) ───────
+export const SCORE_COMPRAR  = 7.5
+export const SCORE_AGUARDAR = 6.0
+
+/** Converte score 0-10 em recomendação — fonte única de verdade */
+export function recomendacaoDeScore(score) {
+  const s = parseFloat(score) || 0
+  if (s >= SCORE_COMPRAR)  return 'COMPRAR'
+  if (s >= SCORE_AGUARDAR) return 'AGUARDAR'
+  return 'EVITAR'
+}
+
 /**
  * AXIS — Constantes centralizadas
  * 

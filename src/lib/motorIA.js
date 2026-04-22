@@ -1,3 +1,4 @@
+import { calcularConfidence } from './agenteConfidenceBadge.js'
 // ═══════════════════════════════════════════════════════════════
 // AXIS — Motor Duplo de IA
 // Fase 1: ChatGPT pesquisa dados de mercado na internet
@@ -483,7 +484,7 @@ INSTRUÇÕES:
 4. Calcule mao_flip = (valor_mercado_estimado × 0.80) - (custo_reforma_estimado + valor_minimo × 0.10)
    Calcule mao_locacao = aluguel_mensal_estimado × 120 × 0.90
    Se valor_minimo > mao_flip → adicione [CRITICO] Lance acima do MAO nos alertas
-4. Aplique penalizações: juridico<4 → ×0.75; ocupado → ×0.85
+4. score_total já reflete o juridico e ocupacao via pesos — não aplique penalizações adicionais
 5. Seja conservador nas estimativas de retorno
 6. Indique estrutura de aquisição ideal (CPF, Condomínio, PJ, Procuração)
 
@@ -896,9 +897,7 @@ export function validarECorrigirAnalise(analise) {
     // if ((analise.score_juridico || 0) < 4) fator *= 0.75
     // if (ocupLower === 'ocupado') fator *= 0.85
     analise.score_total = Math.min(10, Math.round(scoreBase * 10) / 10)
-    if (analise.score_total >= 7.5) analise.recomendacao = 'COMPRAR'
-    else if (analise.score_total >= 6.0) analise.recomendacao = 'AGUARDAR'
-    else analise.recomendacao = 'EVITAR'
+    analise.recomendacao = recomendacaoDeScore(analise.score_total)
   }
 
   analise._erros_validacao = erros
@@ -1430,7 +1429,7 @@ DADOS DE BAIRRO (parcial):
     if (dadosGPT.pontos_positivos)
       analise.positivos = [...(analise.positivos||[]), ...dadosGPT.pontos_positivos]
     if (dadosGPT.noticias)
-      analise.alertas = [...(analise.alertas||[]), ...dadosGPT.noticias.map(n => `📰 ${n}`)]
+      analise.alertas = [...(analise.alertas||[]), ...dadosGPT.noticias.map(n => `[INFO] Noticia: ${n}`)]
   }
 
   // Extrair fotos — usar buscadorFotos (custo zero) com fallback para extrairFotosImovel
@@ -1833,6 +1832,13 @@ Regras: true = claramente visível. false = claramente ausente (ex: prédio baix
       modalidade_leilao: 'mercado_direto',
     } : {}),
     analise_dupla_ia: !!dadosGPT,
+    motor_ia_usado: analiseValidada._modelo_usado || analiseGemini?._modelo_usado || 'desconhecido',
+    confidence_score: (() => {
+      try {
+        const cc = calcularConfidence({ ...analiseValidada, score_total: scoreFinal })
+        return cc?.score ?? analiseValidada.confidence_score ?? null
+      } catch { return analiseValidada.confidence_score ?? null }
+    })(),
     fotos: fotosResult.fotos || [],
     foto_principal: fotosResult.foto_principal || null
   }
