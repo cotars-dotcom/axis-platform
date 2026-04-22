@@ -101,6 +101,9 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
   const classe = detectarClasse(parseFloat(p.preco_m2_mercado) || 7000)
   const viab = avaliarViabilidadeReforma(mercado, lance, area, parseFloat(p.preco_m2_mercado) || 7000)
   const homo = calcularFatorHomogeneizacao(p, mercado)
+  // MAO do banco (calculado com todos os custos incluindo jurídico)
+  const maoFlip = parseFloat(p.mao_flip || 0)
+  const maoLoc  = parseFloat(p.mao_locacao || 0)
   const reformas = ['refresh_giro', 'leve_reforcada_1_molhado', 'pesada'].map((esc, i) => {
     const custoM2 = CUSTO_M2_SINAPI[esc]?.[classe] || 0
     const custo = parseFloat(p[['custo_reforma_basica', 'custo_reforma_media', 'custo_reforma_completa'][i]]) || Math.round(area * custoM2)
@@ -268,7 +271,10 @@ export async function gerarPDFProfissional(p, onProgress = () => {}) {
 
   const eY = y - 5
   doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.navy); doc.text('Cenarios de Saida', 135, eY)
-  tbl({ startY: eY + 3, head: [['Cenario', 'Valor', 'ROI']], body: [
+  tbl({ startY: eY + 3, head: [['Cenário', 'Limite recomendado', 'Lance atual', 'Status']], body: [
+    ...(maoFlip > 0 ? [['MAO Flip (ROI 20%)', fmt(maoFlip), fmt(lance), lance <= maoFlip ? '✅ Dentro' : '⚠️ Acima por ' + fmt(lance - maoFlip)]] : []),
+    ...(maoLoc > 0 ? [['MAO Locação (yield 6%)', fmt(maoLoc), fmt(lance), lance <= maoLoc ? '✅ Dentro' : '⚠️ Acima']] : []),
+    ['Investimento total', fmt(bd.investimentoTotal), fmt(bd2p.investimentoTotal), ''],
     ['Otimista (+15%)', fmt(roi.cenarios?.otimista?.valor), `${roi.cenarios?.otimista?.roi > 0 ? '+' : ''}${roi.cenarios?.otimista?.roi}%`],
     ['Realista', fmt(roi.cenarios?.realista?.valor), `${roi.cenarios?.realista?.roi > 0 ? '+' : ''}${roi.cenarios?.realista?.roi}%`],
     ['Venda rapida', fmt(roi.cenarios?.vendaRapida?.valor), `${roi.cenarios?.vendaRapida?.roi > 0 ? '+' : ''}${roi.cenarios?.vendaRapida?.roi}%`],

@@ -99,7 +99,9 @@ export default function SharedViewer({ token }) {
     const fv = FATOR_VALORIZACAO[esc] || 1
     return { label: ['Básica','Média','Completa'][i], custo, custoM2, valorizacao: Math.round((fv-1)*100) }
   })
-  const homo = homoSV  // computed above with mercado ajustado
+  const homo = homoSV  // computed above com mercado ajustado
+  const maoFlip = parseFloat(p.mao_flip || 0)
+  const maoLoc  = parseFloat(p.mao_locacao || 0)
 
   const fotos = [...new Set([p.foto_principal,...(p.fotos||[])].filter(f => f && !f.includes('{action}')))]
   const respDebitos = p.responsabilidade_debitos === 'sub_rogado' ? '✅ Sub-rogados no preço' : p.responsabilidade_debitos === 'exonerado' ? '✅ Exonerado' : p.responsabilidade_debitos === 'arrematante' ? '⚠️ Arrematante arca' : p.responsabilidade_debitos
@@ -211,6 +213,18 @@ export default function SharedViewer({ token }) {
               {holdingTotal>0 && <Row label={`Holding (${HOLDING_MESES_PADRAO}m)`} value={fmt(holdingTotal)} cor={C.orange} />}
               <div style={{ borderTop:`2px solid ${C.navy}`,marginTop:4,paddingTop:6 }}><Row label="INVESTIMENTO TOTAL" value={fmt(bd.investimentoTotal+holdingTotal)} cor={C.navy} bold /></div>
             </div>
+            {/* MAO — limites de lance recomendados */}
+            {(maoFlip > 0 || maoLoc > 0) && <div style={{ marginBottom:8,padding:'8px 10px',borderRadius:8,background:'#F8FAFC',border:'1px solid #E2E8F0' }}>
+              <div style={{ fontSize:10,fontWeight:700,color:C.navy,textTransform:'uppercase',marginBottom:4 }}>Limites de Lance (MAO)</div>
+              {maoFlip>0 && <div style={{ display:'flex',justifyContent:'space-between',fontSize:11,padding:'3px 0' }}>
+                <span style={{ color:C.muted }}>🔄 MAO Flip (ROI 20%)</span>
+                <span style={{ fontWeight:700,color: lance<=maoFlip?'#059669':'#DC2626' }}>{fmt(maoFlip)}{lance>0?' '+(lance<=maoFlip?'✅':'⚠️'):''}</span>
+              </div>}
+              {maoLoc>0 && <div style={{ display:'flex',justifyContent:'space-between',fontSize:11,padding:'3px 0' }}>
+                <span style={{ color:C.muted }}>🏠 MAO Locação (6% a.a.)</span>
+                <span style={{ fontWeight:700,color: lance<=maoLoc?'#7C3AED':'#DC2626' }}>{fmt(maoLoc)}{lance>0?' '+(lance<=maoLoc?'✅':'⚠️'):''}</span>
+              </div>}
+            </div>}
             <div>
               <div style={{ fontSize:11,fontWeight:700,color:C.navy,marginBottom:6,textTransform:'uppercase',letterSpacing:'.3px' }}>Cenários de Saída</div>
               {roi.cenarios && ['otimista','realista','vendaRapida'].map(key => {
