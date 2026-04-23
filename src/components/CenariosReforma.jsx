@@ -73,10 +73,17 @@ export default function CenariosReforma({ imovel, isAdmin }) {
   const debitosArrematante = p.responsabilidade_debitos === 'arrematante'
     ? parseFloat(p.debitos_total_estimado || 0) : 0
 
+  // Holding (condomínio + IPTU × meses) — sprint 41d: estava faltando
+  const condoMensal = parseFloat(p.condominio_mensal || 0)
+  const iptuMensal = parseFloat(p.iptu_mensal || 0) || (condoMensal > 0 ? Math.round(condoMensal * 0.35) : 0)
+  const holdingTotal = 6 * (condoMensal + iptuMensal)  // HOLDING_MESES_PADRAO = 6
+  const custoJuridico = parseFloat(p.custo_juridico_estimado || 0)
+
   const cenarios = useMemo(() => {
     return ESCOPOS.map(esc => {
       const custoReforma = (CUSTO_M2_SINAPI[esc.id]?.[classe] || 0) * area
-      const custoTotal = precoAquisicao + comissao + itbi + doc + adv + reg + custoReforma + debitosArrematante
+      // Sprint 41d: incluir holding e jurídico (estavam faltando na versão anterior).
+      const custoTotal = precoAquisicao + comissao + itbi + doc + adv + reg + custoReforma + debitosArrematante + holdingTotal + custoJuridico
       const prazo = prazoLib + (PRAZO_OBRA_MESES[esc.id] || 0)
 
       // Valor pós-reforma = mercado × fator_valorizacao
@@ -84,11 +91,12 @@ export default function CenariosReforma({ imovel, isAdmin }) {
       // Teto realista: evitar sobrecap (limite 30% acima do mercado)
       const valorVendaReal = Math.min(valorPosReforma, vmercado * 1.30)
 
-      // ROI Flip
-      const ganhoCapital = Math.max(0, valorVendaReal - custoTotal)
-      const irpf = valorVendaReal <= 440000 ? 0 : Math.max(0, ganhoCapital * 0.15)
+      // ROI Flip — IR sobre ganho capital acima de R$440k (Lei 11.196/2005)
       const corretagem = valorVendaReal * 0.06
-      const lucro = valorVendaReal - custoTotal - irpf - corretagem
+      const vendaLiq = valorVendaReal - corretagem
+      const ganhoBruto = Math.max(0, vendaLiq - custoTotal)
+      const irpf = valorVendaReal <= 440000 ? 0 : ganhoBruto * 0.15
+      const lucro = vendaLiq - custoTotal - irpf
       const roi = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0
 
       // Impacto na liquidez
@@ -96,19 +104,21 @@ export default function CenariosReforma({ imovel, isAdmin }) {
       const prazoVendaBase = parseFloat(p.mercado_tempo_venda_meses) || 6
       const prazoVendaPos = Math.max(1, Math.round(prazoVendaBase * (1 - liquidezBonus)))
 
-      // ROI Locação
+      // ROI Locação — yield sobre INVESTIMENTO (não sobre valor de venda)
+      // Sprint 41d: antes dividia por valorVendaReal, inflando yield artificialmente.
       const aluguelPos = Math.round(aluguelBase * esc.fator_valorizacao)
-      const yieldBruto = (aluguelPos * 12 / valorVendaReal) * 100
+      const yieldBruto = custoTotal > 0 ? (aluguelPos * 12 / custoTotal) * 100 : 0
 
       // Sobrecap
       const teto = avaliacao * (classe === 'A_prime' ? 0.07 : classe === 'B_medio_alto' ? 0.06 : 0.05)
       const sobrecap = custoReforma > teto
         ? 'vermelho' : custoReforma > teto * 0.85 ? 'amarelo' : 'verde'
 
-      // MAO — lance máximo para ROI mínimo 20% neste cenário
-      // custoTotalMAO = valorVendaLiq / 1.20  → MAO = custoTotalMAO - custos_não_lance
-      const custoAlvo20 = valorVendaReal > 0 ? (valorVendaReal - corretagem) / 1.20 : 0
-      const custosNaoLance = custoReforma + debitosArrematante + reg
+      // Lance máximo para ROI ≥ 20% neste cenário.
+      // Fórmula: custoAlvo = vendaLiq / 1.20 → lance = custoAlvo - custosNaoLance / (1 + tx%)
+      // Sprint 41d: incluir holding + jurídico em custosNaoLance (estavam faltando).
+      const custoAlvo20 = valorVendaReal > 0 ? vendaLiq / 1.20 : 0
+      const custosNaoLance = custoReforma + debitosArrematante + reg + holdingTotal + custoJuridico
       const txProp = ((p.comissao_leiloeiro_pct ?? _tab.comissao_leiloeiro_pct) + (p.itbi_pct ?? _tab.itbi_pct) + _tab.documentacao_pct + _tab.advogado_pct) / 100
       const mao20 = Math.max(0, Math.round((custoAlvo20 - custosNaoLance) / (1 + txProp)))
       const deltaLanceVsMAO = precoAquisicao - mao20
@@ -133,7 +143,7 @@ export default function CenariosReforma({ imovel, isAdmin }) {
         deltaLanceVsMAO,
       }
     })
-  }, [precoAquisicao, vmercado, area, classe, prazoLib, aluguelBase, avaliacao, comissao, itbi, doc, adv])
+  }, [precoAquisicao, vmercado, area, classe, prazoLib, aluguelBase, avaliacao, comissao, itbi, doc, adv, holdingTotal, custoJuridico, debitosArrematante])
 
   // ─── Or\u00e7amento detalhado: 3 cen\u00e1rios simplificados (acumulativos) ─────────────
   const cenarios3 = useMemo(() => {
