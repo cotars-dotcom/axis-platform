@@ -20,7 +20,7 @@ import { getBairroDadosOnline } from './agenteValorMercado.js'
 import { calcularCustoReforma, verificarSobrecapitalizacao } from '../data/custos_reforma.js'
 import { calcularCustoJuridico } from '../data/riscos_juridicos.js'
 
-import { SCORE_PESOS, CLAUDE_MODEL, ANTHROPIC_VERSION, calcularScoreTotal, calcularCustosAquisicao, areaUsada } from './constants.js'
+import { SCORE_PESOS, CLAUDE_MODEL, ANTHROPIC_VERSION, calcularScoreTotal, calcularCustosAquisicao, areaUsada, calcularLanceMaximoParaROI } from './constants.js'
 
 const GPT_MODEL_MARKET  = 'gpt-4o-mini'   // comparáveis e pesquisa de mercado (~16x mais barato)
 const GPT_MODEL_COMPLEX = 'gpt-4o'        // fallback se mini falhar ou retornar sem dados
@@ -760,10 +760,15 @@ export function validarECorrigirAnalise(analise) {
   const erros = []
   const avisos = []
 
-  // Fallback MAO: garantir sempre preenchido mesmo se IA não calculou
+  // Fallback MAO: garantir sempre preenchido mesmo se IA não calculou.
+  // Sprint 41c: usar função canônica de constants.js que INCLUI débitos do arrematante,
+  // holding, jurídico e custos variáveis. A fórmula antiga (VM × 0.80) - custos era
+  // aproximação incorreta — mesma que o prompt da IA orienta a NÃO usar (linha 502).
   if (!analise.mao_flip && analise.valor_mercado_estimado) {
-    const custos = (analise.custo_reforma_estimado || 0) + (analise.valor_minimo || 0) * 0.10
-    analise.mao_flip = Math.round((analise.valor_mercado_estimado * 0.80) - custos)
+    analise.mao_flip = calcularLanceMaximoParaROI(20, analise, {
+      mercadoBruto: parseFloat(analise.valor_mercado_estimado),
+      custoReforma: parseFloat(analise.custo_reforma_estimado || analise.custo_reforma_calculado || 0),
+    })
   }
   if (!analise.mao_locacao && analise.aluguel_mensal_estimado) {
     analise.mao_locacao = Math.round(analise.aluguel_mensal_estimado * 120 * 0.90)
