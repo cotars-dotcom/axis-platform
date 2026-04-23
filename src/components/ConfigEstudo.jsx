@@ -75,12 +75,16 @@ export default function ConfigEstudo({ imovel }) {
   const iptuMensal = parseFloat(p.iptu_mensal || 0) || (condoMensal > 0 ? Math.round(condoMensal * IPTU_SOBRE_CONDO_RATIO) : 0)
   const holding = HOLDING_MESES_PADRAO * (condoMensal + iptuMensal)
   const debitosArr = p.responsabilidade_debitos === 'arrematante' ? parseFloat(p.debitos_total_estimado || 0) : 0
-  const corretagem = mercado * 0.06
-  // Custo alvo = mercado / (1 + roi/100) para atingir ROI desejado
-  const custoAlvo = mercado > 0 ? mercado / (1 + roiAlvo / 100) : 0
-  // MAO = (custoAlvo - reforma - holding - débitos - corretagem) / (1 + txProporcional)
-  const mao = custoAlvo > 0
-    ? Math.max(0, Math.round((custoAlvo - custoReformaAtual - holding - debitosArr - corretagem) / (1 + txProporcional)))
+
+  // Sprint 41d: usar função canônica (inclui custo_juridico_estimado + corretagem 6%).
+  // Antes calculava local: (custoAlvo - reforma - holding - débitos - corretagem) / (1 + txProp)
+  // — omitia jurídico, resultando em limite superestimado para imóveis com custo_juridico > 0.
+  const mao = mercado > 0
+    ? calcularLanceMaximoParaROI(roiAlvo, p, {
+        eMercado,
+        custoReforma: custoReformaAtual,
+        mercadoBruto: mercado,
+      })
     : 0
 
   // Sugestão do sistema
@@ -90,11 +94,14 @@ export default function ConfigEstudo({ imovel }) {
     ? { texto: '⏳ Aguardar 2ª praça', lance: lance2p, destaque: true }
     : { texto: '1ª Praça', lance: lance1p }
 
-  // MAO Locação: lance máximo para yield de 6% (típico BH)
-  const yieldAlvoLocacao = 6  // % anual — ajustável
+  // Lance máx. para Locação: yield de 6% (típico BH).
+  // Fórmula: aluguel_anual / yield - custos_fixos (reforma + holding + débitos + jurídico)
+  // Sprint 41d: incluir custo_juridico_estimado no cálculo (estava faltando).
+  const yieldAlvoLocacao = 6  // % anual
   const aluguelMensal = parseFloat(p.aluguel_mensal_estimado || 0)
+  const custoJuridico = parseFloat(p.custo_juridico_estimado || 0)
   const maoLocacao = aluguelMensal > 0 && mercado > 0
-    ? Math.max(0, Math.round((aluguelMensal * 12 / (yieldAlvoLocacao / 100)) - custoReformaAtual - holding - debitosArr))
+    ? Math.max(0, Math.round((aluguelMensal * 12 / (yieldAlvoLocacao / 100)) - custoReformaAtual - holding - debitosArr - custoJuridico))
     : parseFloat(p.mao_locacao || 0)
   const acimaMAOLocacao = lanceEstudo > 0 && maoLocacao > 0 && lanceEstudo > maoLocacao
 

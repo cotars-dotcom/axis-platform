@@ -5,7 +5,15 @@
  * - Flip (venda imediata após reforma)
  * - Locação (renda passiva + valorização)
  * - Selic (benchmark renda fixa)
+ *
+ * Sprint 41d: investimento base delegado para calcularDadosFinanceiros
+ * (inclui jurídico). IRPF sobre ganho capital aplicado ao flip.
+ * Locação continua com cálculo local (precisa acumular ao longo do tempo
+ * com valorização + vacância + aluguel mensal — não cabe na função canônica).
  */
+
+import { calcularDadosFinanceiros, IRPF_ISENCAO_TETO } from '../lib/constants.js'
+import { isMercadoDireto } from '../lib/detectarFonte.js'
 
 const ANOS = [1, 2, 3, 5]
 const SELIC_ANUAL = 14.75  // % — taxa Selic abr/2026 (Copom 18/03/2026)
@@ -14,38 +22,46 @@ function projetarROI(p, lanceEstudo, custoReformaAtual, holdingMeses = 6) {
   const lance = lanceEstudo || parseFloat(p.valor_minimo || p.preco_pedido) || 0
   const mercado = parseFloat(p.valor_mercado_estimado) || 0
   const aluguel = parseFloat(p.aluguel_mensal_estimado) || 0
-  const condo = parseFloat(p.condominio_mensal || 0)
-  const iptu = parseFloat(p.iptu_mensal || 0) || Math.round(condo * 0.35)
-  const debitos = p.responsabilidade_debitos === 'arrematante'
-    ? parseFloat(p.debitos_total_estimado || 0) : 0
 
   if (!lance || !mercado) return null
 
-  // Custos de aquisição para leilão
-  const pctCustos = (5 + 3 + 5 + 2.5) / 100  // comissão + ITBI + adv + doc
-  const custosAq = lance * pctCustos
-  const holdingTotal = holdingMeses * (condo + iptu)
-  const investBase = lance + custosAq + custoReformaAtual + holdingTotal + debitos
+  const eMercado = isMercadoDireto(p.fonte_url, p.tipo_transacao)
+  // Investimento canônico — inclui custo_juridico_estimado
+  const df = calcularDadosFinanceiros(lance, p, eMercado, { reforma: custoReformaAtual })
+  const investBase = df.investimentoTotal
 
   // Valorização anual do bairro (de metricas_bairros via tendencia_12m)
   const tendencia = parseFloat(p._metricasBairro?.tendencia_12m || p.tendencia_12m || 4.5) / 100
   const vacancia = parseFloat(p._metricasBairro?.vacancia_pct || 8) / 100
   const corretagem = 0.06
+  const potencialIsencaoIRPF = mercado <= IRPF_ISENCAO_TETO
+  const aplicaIR = valor => !potencialIsencaoIRPF && valor > 0
 
   return ANOS.map(anos => {
-    // Flip: vende no mercado no ano t com valorização
+    // Flip: vende no mercado no ano t com valorização.
+    // IRPF 15% sobre ganho capital (alinhado com calcularDadosFinanceiros).
     const mercadoFlip = mercado * Math.pow(1 + tendencia, anos)
-    const lucroFlip = mercadoFlip * (1 - corretagem) - investBase
+    const vendaLiquida = mercadoFlip * (1 - corretagem)
+    const ganhoFlipBruto = vendaLiquida - investBase
+    const irpfFlip = aplicaIR(ganhoFlipBruto) ? ganhoFlipBruto * 0.15 : 0
+    const lucroFlip = ganhoFlipBruto - irpfFlip
     const roiFlip = (lucroFlip / investBase) * 100
 
-    // Locação: renda acumulada + valorização + venda no final
-    const aluguelAnual = aluguel * 12 * (1 - vacancia)
-    const rendaAcum = aluguelAnual * anos
+    // Locação: renda acumulada + valorização + venda no final.
+    // IR 27.5% sobre aluguel mensal > R$2.824 (alinhado com calcularDadosFinanceiros).
+    const IR_ALUGUEL_TETO_MENSAL = 2824
+    const irAluguelAnual = aluguel > IR_ALUGUEL_TETO_MENSAL
+      ? (aluguel - IR_ALUGUEL_TETO_MENSAL) * 0.275 * 12 : 0
+    const aluguelAnualLiq = aluguel * 12 * (1 - vacancia) - irAluguelAnual
+    const rendaAcum = aluguelAnualLiq * anos
     const valorFinalLoc = mercado * Math.pow(1 + tendencia, anos)
-    const lucroLoc = rendaAcum + valorFinalLoc * (1 - corretagem) - investBase
+    const vendaLocLiquida = valorFinalLoc * (1 - corretagem)
+    const ganhoLocBruto = rendaAcum + vendaLocLiquida - investBase
+    const irpfLoc = aplicaIR(vendaLocLiquida - investBase) ? Math.max(0, vendaLocLiquida - investBase) * 0.15 : 0
+    const lucroLoc = ganhoLocBruto - irpfLoc
     const roiLoc = (lucroLoc / investBase) * 100
 
-    // Selic: capital aplicado a 10.5% a.a.
+    // Selic: capital aplicado
     const roiSelic = (Math.pow(1 + SELIC_ANUAL / 100, anos) - 1) * 100
 
     return {
