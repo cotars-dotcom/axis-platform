@@ -13,24 +13,13 @@ const fmt = v => v ? `R$ ${Math.round(v).toLocaleString('pt-BR')}` : '—'
 
 function calcularROISimples(lance, p) {
   if (!lance || !p.valor_mercado_estimado) return null
-  const mercado = parseFloat(p.valor_mercado_estimado)
-  const pctCustos = (CUSTOS_LEILAO.comissao_leiloeiro_pct + CUSTOS_LEILAO.itbi_pct +
-                     CUSTOS_LEILAO.advogado_pct + CUSTOS_LEILAO.documentacao_pct) / 100
-  const condo = parseFloat(p.condominio_mensal || 0)
-  const iptu = parseFloat(p.iptu_mensal || 0) || Math.round(condo * IPTU_SOBRE_CONDO_RATIO)
-  const holding = HOLDING_MESES_PADRAO * (condo + iptu)
-  const debitos = p.responsabilidade_debitos === 'arrematante' ? parseFloat(p.debitos_total_estimado || 0) : 0
-  const reforma = parseFloat(p.custo_reforma_basica || 0)
-  const invest = lance * (1 + pctCustos) + reforma + holding + debitos
-  const lucroFlip = mercado * 0.94 - invest
-  const roiFlip = invest > 0 ? (lucroFlip / invest) * 100 : 0
-  const aluguel = parseFloat(p.aluguel_mensal_estimado || 0)
-  const yieldLoc = aluguel > 0 && invest > 0 ? (aluguel * 12 / invest) * 100 : 0
+  // Sprint 41d: delega para função canônica que inclui jurídico e aplica IRPF
+  const df = calcularDadosFinanceiros(lance, p, false)
   return {
-    invest: Math.round(invest),
-    lucroFlip: Math.round(lucroFlip),
-    roiFlip: Math.round(roiFlip * 10) / 10,
-    yieldLoc: Math.round(yieldLoc * 10) / 10,
+    invest: df.investimentoTotal,
+    lucroFlip: df.lucroFlip,
+    roiFlip: df.roiFlip,
+    yieldLoc: df.yieldBruto,  // yield bruto aqui — rótulo do widget é "yield"
   }
 }
 

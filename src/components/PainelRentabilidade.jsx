@@ -189,32 +189,28 @@ export default function PainelRentabilidade({ imovel }) {
   const FATOR_VAL_REFORMA = { basica: 1.04, media: 1.12, completa: 1.28 }
   const vmercado = Math.round(vmBase * (FATOR_VAL_REFORMA[cenarioReforma] || 1.0))
 
-  // Fator de homogeneização para ALUGUEL (impacto diferente da venda)
+  // Fator de homogeneização para ALUGUEL — SPRINT 41d:
+  // Atributos estruturais do prédio (elevador, piscina, lazer, salão) JÁ foram
+  // considerados pelo agenteAluguel ao calcular aluguel_mensal_estimado (via
+  // classe IPEAD + penalidade por ausência). Aplicar aqui de novo duplicaria
+  // a penalidade. Só mantemos ajustes que agenteAluguel NÃO trata: vaga extra
+  // e mobília.
   const FATORES_ALUGUEL = {
-    sem_elevador: 0.85,   // -15% no aluguel (maior impacto que na venda)
-    sem_piscina:  0.98,   // -2%
-    sem_lazer:    0.96,   // -4%
-    sem_salao:    0.98,   // -2%
-    vaga_0:       0.88,   // sem vaga = -12% no aluguel
-    vaga_2:       1.04,   // 2ª vaga = +4%
-    mobiliado:    1.15,   // mobiliado = +15%
-    semi_mobiliado: 1.08, // semi-mobiliado = +8%
+    vaga_0:         0.88,   // sem vaga = -12% no aluguel (agenteAluguel não trata)
+    vaga_2:         1.04,   // 2ª vaga = +4%
+    mobiliado:      1.15,   // mobiliado = +15%
+    semi_mobiliado: 1.08,   // semi-mobiliado = +8%
   }
 
-  // Calcular fator de impacto no aluguel por atributos
+  // Calcular fator de impacto no aluguel por atributos NÃO cobertos pelo agenteAluguel
   const fatorAluguel = useMemo(() => {
     let f = 1.0
-    if (elevador === false) f *= FATORES_ALUGUEL.sem_elevador
-    if (piscina === false)  f *= FATORES_ALUGUEL.sem_piscina
-    if (area_lazer === false) f *= FATORES_ALUGUEL.sem_lazer
-    if (salao_festas === false) f *= FATORES_ALUGUEL.sem_salao
     if ((vagas || 0) === 0) f *= FATORES_ALUGUEL.vaga_0
     if ((vagas || 0) >= 2) f *= FATORES_ALUGUEL.vaga_2
-    // Mobiliado: verificar campo do imóvel
     if (imovel.mobiliado === true || imovel.mobiliado === 'sim') f *= FATORES_ALUGUEL.mobiliado
     else if (imovel.mobiliado === 'semi' || imovel.semi_mobiliado === true) f *= FATORES_ALUGUEL.semi_mobiliado
     return f
-  }, [elevador, piscina, area_lazer, salao_festas, vagas, imovel.mobiliado, imovel.semi_mobiliado])
+  }, [vagas, imovel.mobiliado, imovel.semi_mobiliado])
 
   // Aluguel base com homogeneização aplicada
   const aluguelBase = parseFloat(aluguel_mensal_estimado) || 3200
@@ -366,22 +362,25 @@ export default function PainelRentabilidade({ imovel }) {
         </div>
       </div>
 
-      {/* Impacto dos atributos no aluguel */}
-      {fatorAluguel < 0.99 && (
+      {/* Impacto dos atributos no aluguel — apenas ajustes locais (vaga/mobília).
+          Atributos estruturais (elevador/piscina/lazer) já estão no aluguel_mensal_estimado
+          do banco desde sprint 41c (agenteAluguel). */}
+      {fatorAluguel < 0.99 || fatorAluguel > 1.01 ? (
         <div style={{ marginTop:8, padding:'8px 12px', borderRadius:7,
-          background:'#FFF8E1', border:'1px solid #FFE082' }}>
-          <div style={{ fontSize:10, fontWeight:700, color:'#92400E', marginBottom:4 }}>
-            📉 Impacto no aluguel: {((1 - fatorAluguel) * 100).toFixed(0)}% abaixo do padrão
+          background: fatorAluguel < 1 ? '#FFF8E1' : '#ECFDF5',
+          border:`1px solid ${fatorAluguel < 1 ? '#FFE082' : '#A7F3D0'}` }}>
+          <div style={{ fontSize:10, fontWeight:700, color: fatorAluguel < 1 ? '#92400E' : GREEN, marginBottom:4 }}>
+            {fatorAluguel < 1 ? '📉' : '📈'} Ajuste no aluguel: {((fatorAluguel - 1) * 100).toFixed(0)}% {fatorAluguel < 1 ? 'abaixo' : 'acima'} da base
           </div>
-          <div style={{ fontSize:10, color:'#78350F', lineHeight:1.5 }}>
-            {elevador === false && <span>Sem elevador (-15%) · </span>}
-            {piscina === false && <span>Sem piscina (-2%) · </span>}
-            {area_lazer === false && <span>Sem lazer (-4%) · </span>}
+          <div style={{ fontSize:10, color: fatorAluguel < 1 ? '#78350F' : '#065F46', lineHeight:1.5 }}>
             {(vagas || 0) === 0 && <span>Sem vaga (-12%) · </span>}
-            Aluguel ajustado: <strong>{fmt(aluguelHomogeneizado)}/mês</strong> (base: {fmt(aluguelBase)})
+            {(vagas || 0) >= 2 && <span>{vagas} vagas (+4%) · </span>}
+            {imovel.mobiliado === true && <span>Mobiliado (+15%) · </span>}
+            {(imovel.mobiliado === 'semi' || imovel.semi_mobiliado === true) && <span>Semi-mobiliado (+8%) · </span>}
+            Aluguel ajustado: <strong>{fmt(aluguelHomogeneizado)}/mês</strong> (base do banco: {fmt(aluguelBase)})
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Comparação com Leilão — só para mercado direto */}
       {eMercado && (

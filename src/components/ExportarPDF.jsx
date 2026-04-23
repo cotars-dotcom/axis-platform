@@ -367,7 +367,10 @@ ${(p.fotos?.length > 1) ? `<div style="display:flex;gap:6px;overflow-x:auto;marg
       ]
       return cenarios.map(c => {
         const alug = Math.round(alugBase * c.fator)
-        const yieldB = precoCompra > 0 ? ((alug * 12) / precoCompra * 100).toFixed(1) : '—'
+        // Yield sobre INVESTIMENTO TOTAL (lance + custos + reforma + holding + débitos + jurídico),
+        // não apenas sobre o preço de compra — senão superestima. Sprint 41d.
+        const investCenario = bd.investimentoTotal  // já inclui tudo
+        const yieldB = investCenario > 0 ? ((alug * 12) / investCenario * 100).toFixed(1) : '—'
         return `<div class="row">
           <span class="row-l"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.cor};margin-right:5px"></span>${c.label}</span>
           <span class="row-v">${fmt(alug)}/mês · <span style="color:${parseFloat(yieldB)>=6?'#065F46':'#92400E'}">${yieldB}% yield</span></span>

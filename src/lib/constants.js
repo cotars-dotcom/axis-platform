@@ -433,32 +433,52 @@ export function calcularDadosFinanceiros(lance, imovel = {}, eMercado = false, o
   }
 }
 
-/** Calcula ROI e cenários de saída */
+/** Calcula ROI e cenários de saída.
+ *  Sprint 41d: aplica IRPF 15% sobre ganho capital acima do teto de isenção,
+ *  alinhando com calcFlip do PainelRentabilidade e calcularDadosFinanceiros
+ *  dos exportadores. Retorna ROI LÍQUIDO (após IR).
+ */
 export function calcularROI(investimentoTotal, valorMercado, aluguelMensal = 0) {
   if (!investimentoTotal || investimentoTotal <= 0 || !valorMercado || valorMercado <= 0) {
     return { lucro: 0, roi: 0, invalido: true, cenarios: { realista: { valor: 0, roi: 0 }, otimista: { valor: 0, roi: 0 }, vendaRapida: { valor: 0, roi: 0 } }, locacao: null }
   }
-  // Verificar potencial isenção de IRPF (Lei 9.250/1995 + Lei 11.196/2005)
+  // Potencial isenção de IRPF (Lei 9.250/1995 + Lei 11.196/2005)
   const potencialIsencaoIRPF = valorMercado <= IRPF_ISENCAO_TETO
-  // Sprint 23: deduzir corretagem (6% padrão de venda) para convergir com CalculadoraROI/RoiLiveBanner
   const CORRETAGEM_VENDA = 0.06
-  const vendaLiquida = valorMercado * (1 - CORRETAGEM_VENDA)
-  const lucro = vendaLiquida - investimentoTotal
-  const roi = (lucro / investimentoTotal) * 100
+  const aplicaIR = valor => !potencialIsencaoIRPF && valor > 0
   const safeRoi = v => Math.max(-100, Math.min(999, Math.round(v * 10) / 10))
 
-  const roiCenario = (valor) =>
-    safeRoi(((valor * (1 - CORRETAGEM_VENDA) - investimentoTotal) / investimentoTotal) * 100)
+  // ROI de um cenário específico de preço de venda, com IR deduzido sobre ganho
+  const calcular = (valorVenda) => {
+    const vendaLiquida = valorVenda * (1 - CORRETAGEM_VENDA)
+    const ganhoBruto = vendaLiquida - investimentoTotal
+    const irpf = aplicaIR(ganhoBruto) ? ganhoBruto * 0.15 : 0
+    const lucro = ganhoBruto - irpf
+    return {
+      valor: Math.round(valorVenda),
+      roi: safeRoi((lucro / investimentoTotal) * 100),
+    }
+  }
+  const realista = calcular(valorMercado)
+  const otimista = calcular(valorMercado * 1.15)
+  const rapida = calcular(valorMercado * 0.90)
+
+  // lucro/roi principais (cenário realista, após IR)
+  const vendaLiqBase = valorMercado * (1 - CORRETAGEM_VENDA)
+  const ganhoBase = vendaLiqBase - investimentoTotal
+  const irpfBase = aplicaIR(ganhoBase) ? ganhoBase * 0.15 : 0
+  const lucroFinal = ganhoBase - irpfBase
 
   return {
-    lucro: Math.round(lucro),
-    roi: safeRoi(roi),
+    lucro: Math.round(lucroFinal),
+    roi: safeRoi((lucroFinal / investimentoTotal) * 100),
+    irpf: Math.round(irpfBase),
     cenarios: {
-      realista:    { valor: Math.round(valorMercado),         roi: roiCenario(valorMercado) },
-      otimista:    { valor: Math.round(valorMercado * 1.15),  roi: roiCenario(valorMercado * 1.15) },
-      vendaRapida: { valor: Math.round(valorMercado * 0.90),  roi: roiCenario(valorMercado * 0.90) },
+      realista,
+      otimista,
+      vendaRapida: rapida,
     },
-    potencialIsencaoIRPF: potencialIsencaoIRPF,
+    potencialIsencaoIRPF,
     locacao: aluguelMensal > 0 ? {
       aluguelMensal: Math.round(aluguelMensal),
       yieldAnual: Math.round((aluguelMensal * 12 / investimentoTotal) * 1000) / 10,
