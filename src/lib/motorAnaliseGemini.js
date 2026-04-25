@@ -320,14 +320,24 @@ async function chamarGeminiModelo(prompt, geminiKey, modelo) {
   })
 }
 
-// Cascata de modelos Gemini com retry limitado + backoff exponencial
+// Cascata de modelos Gemini com budget total respeitado + circuit breaker integrado.
+// Sprint 41d-Bx: antes podia tentar 3 modelos × 4 retries = 12 chamadas × 15s = 180s,
+// estourando o budget Vercel Serverless de 60s. Agora limita ao budget de 25s para
+// a cascata Gemini interna, deixando ~30s para fallback DeepSeek/GPT/Claude.
 async function chamarGemini(prompt, geminiKey) {
   const MODELOS = [...MODELOS_GEMINI]
-  const MAX_RETRIES_429 = 3
+  const MAX_RETRIES_429 = 1   // antes 3 — agora 1 só (poupa tempo para fallback)
+  const BUDGET_GEMINI_MS = 25000   // soma de todas as tentativas Gemini limitada a 25s
+  const inicio = Date.now()
   let ultimoErro = null
   let retries429 = 0
-  
+
   for (let i = 0; i < MODELOS.length; i++) {
+    const elapsed = Date.now() - inicio
+    if (elapsed >= BUDGET_GEMINI_MS) {
+      console.warn(`[AXIS Gemini] Budget Gemini estourado em ${elapsed}ms — desistindo da cascata interna para liberar fallback`)
+      break
+    }
     const modelo = MODELOS[i]
     try {
       const resultado = await chamarGeminiComProxy(prompt, geminiKey, modelo)
@@ -336,15 +346,20 @@ async function chamarGemini(prompt, geminiKey) {
       console.warn('[AXIS Gemini] Falhou com', modelo, ':', e.message.substring(0, 100))
       ultimoErro = e
       const msg = e.message || ''
-      // Chave inválida → abortar
+      // Chave inválida → abortar imediatamente
       if (msg.includes('API_KEY_INVALID') || msg.includes('401') || msg.includes('403')) {
         ultimoErro = new Error('Chave Gemini inválida — verifique em Admin > API Keys')
         break
       }
-      // 429 rate limit → backoff exponencial com limite
+      // Circuit breaker aberto → desistir, deixar fallback assumir
+      if (e.code === 'CIRCUIT_OPEN') {
+        console.warn('[AXIS Gemini] Circuit aberto — pulando para fallback')
+        break
+      }
+      // 429 rate limit → 1 retry curto (antes era 3 retries com backoff longo)
       if (msg.includes('429') && retries429 < MAX_RETRIES_429) {
         retries429++
-        const delay = Math.min(2000 * Math.pow(2, retries429 - 1), 16000) // 2s, 4s, 8s (max 16s)
+        const delay = 2000  // 2s fixo (antes 2s/4s/8s/16s)
         console.warn(`[AXIS Gemini] 429 rate limit, retry ${retries429}/${MAX_RETRIES_429} em ${delay}ms`)
         await new Promise(r => setTimeout(r, delay))
         i-- // Re-tentar o mesmo modelo

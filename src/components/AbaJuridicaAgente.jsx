@@ -90,6 +90,18 @@ function CardDoc({ doc, onAnalisarDoc }) {
             {rc && <Tag text={rc.label} cor={rc.cor}/>}
             {doc.url_storage && <Tag text="💾 Salvo" cor={P.emerald}/>}
             {criticos.length > 0 && <Tag text={`⚠️ ${criticos.length} risco(s)`} cor={P.red}/>}
+            {/* Sprint 41d-Bx: sinalização visual de OCR parcial */}
+            {(doc.status === 'analisado_parcial' || (Array.isArray(doc.ocr_ausentes) && doc.ocr_ausentes.length > 0)) && (
+              <span title={`OCR retornou JSON incompleto. Campos faltando: ${(doc.ocr_ausentes || []).join(', ')}. Considere reprocessar o documento ou anexar versão de melhor qualidade.`}
+                style={{
+                  display:'inline-flex', alignItems:'center', gap:3,
+                  padding:'2px 7px', borderRadius:4, fontSize:9.5, fontWeight:700,
+                  background:'#FFF7ED', color:'#9A3412', border:'1px solid #FDBA74',
+                  cursor:'help',
+                }}>
+                ⚠ OCR parcial
+              </span>
+            )}
           </div>
           <div style={{ fontSize:12.5, fontWeight:600, color:P.navy, marginBottom:2 }}>
             {analise.titulo_documento || doc.nome}
