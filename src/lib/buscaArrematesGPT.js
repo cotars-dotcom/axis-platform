@@ -68,6 +68,8 @@ export async function buscarArrematesSimilares(imovel, openaiKey, geminiKey = nu
       if (!match) throw new Error('JSON inválido')
       let resultado = null
       try { resultado = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); resultado = null }
+      // Sprint 41d hotfix: resultado pode ser null se JSON.parse falhar — não setar prop em null
+      if (!resultado) throw new Error('JSON.parse retornou null — modelo inválido')
       resultado._modelo = 'gpt-4o-mini'
       resultado._custo_estimado_brl = 0.05
       await salvarCacheBusca(imovel, resultado)
@@ -99,6 +101,8 @@ export async function buscarArrematesSimilares(imovel, openaiKey, geminiKey = nu
       if (!match) throw new Error('JSON inválido')
       let resultado = null
       try { resultado = JSON.parse(match[0]) } catch(e) { console.warn('[AXIS] JSON.parse falhou:', e.message); resultado = null }
+      // Sprint 41d hotfix: idem
+      if (!resultado) throw new Error('JSON.parse retornou null — modelo inválido')
       resultado._modelo = MODELOS_GEMINI[0]
       resultado._custo_estimado_brl = 0.03
       await salvarCacheBusca(imovel, resultado)

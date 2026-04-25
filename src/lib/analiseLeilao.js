@@ -33,11 +33,24 @@ function calcularCenario(lance, vmercado, reforma, juridico, params, extras = {}
   const corretagem = vmercado * corr_pct
   const lucro     = vmercado - custoTotal - irpf - corretagem
   const roi       = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0
-  const mao       = vmercado * params.thresholds.margem_seguranca_mao - (c.comissao + c.itbi + c.doc + c.adv + c.reg + reforma + (juridico||0) + debitos + holding)
+  // Sprint 41d: cálculo correto do lance máximo (alinhado com calcularLanceMaximoParaROI).
+  // Antes: vmercado × 0.80 − custos_fixos. Errado: não dividia por (1+%custos), gerando
+  // lance máximo superestimado em ~13%. Agora: targetInvest = vendaLiq / (1 + ROI%).
+  // ROI alvo: (1 / margem_seguranca_mao) - 1 → para margem 0.80, ROI = 25%.
+  const margem = params.thresholds.margem_seguranca_mao
+  const roiAlvoImplicito = (1 / margem) - 1  // para margem 0.80 → 25% ROI alvo
+  const pctCustos = params.custos_percentuais.comissao_leiloeiro
+                  + params.custos_percentuais.itbi_bh
+                  + params.custos_percentuais.documentacao
+                  + params.custos_percentuais.advogado
+  const vendaLiq = vmercado * (1 - corr_pct)
+  const targetInvest = vendaLiq / (1 + roiAlvoImplicito)
+  const custosNaoLance = c.reg + reforma + (juridico||0) + debitos + holding
+  const mao = (targetInvest - custosNaoLance) / (1 + pctCustos)
   return {
     custo_total: Math.round(custoTotal), irpf: Math.round(irpf), irpf_isento: elegivel_isencao,
     corretagem: Math.round(corretagem), lucro: Math.round(lucro),
-    roi: parseFloat(roi.toFixed(1)), mao: Math.round(mao),
+    roi: parseFloat(roi.toFixed(1)), mao: Math.round(Math.max(0, mao)),
     debitos: Math.round(debitos), holding: Math.round(holding),
     viavel: lance <= mao
   }

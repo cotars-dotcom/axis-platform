@@ -11,7 +11,6 @@ const AbaJuridicaAgente = lazy(() => import('./AbaJuridicaAgente.jsx'))
 import { buscarArrematesSimilares, carregarCacheArremates } from '../lib/buscaArrematesGPT.js'
 import PainelLancamento from './PainelLancamento.jsx'
 import PainelInvestimento from './PainelInvestimento.jsx'
-import ScoreRadar from './ScoreRadar.jsx'
 const TimelineMatricula = lazy(() => import('./TimelineMatricula.jsx'))
 const GraficoROIHorizonte = lazy(() => import('./GraficoROIHorizonte.jsx'))
 import PainelYieldModalidades from './PainelYieldModalidades.jsx'
@@ -25,7 +24,7 @@ import ConfigEstudo from './ConfigEstudo.jsx'
 import ResumoCard from './ResumoCard.jsx'
 const PainelRentabilidade = lazy(() => import('./PainelRentabilidade.jsx'))
 import { isMercadoDireto } from '../lib/detectarFonte.js'
-import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO, CUSTOS_LEILAO, CUSTOS_MERCADO, IPTU_SOBRE_CONDO_RATIO, HOLDING_MESES_PADRAO, calcularLanceMaximoParaROI, calcularSobrecapitalizacao, IRPF_ISENCAO_TETO, calcularDadosFinanceiros, SELIC_ANUAL_PCT } from '../lib/constants.js'
+import { calcularCustosAquisicao, MULT_CUSTO_RAPIDO, calcularLanceMaximoParaROI, calcularSobrecapitalizacao, IRPF_ISENCAO_TETO, calcularDadosFinanceiros, SELIC_ANUAL_PCT } from '../lib/constants.js'
 import { calcularConfidence } from '../lib/agenteConfidenceBadge.js'
 import CenariosReforma from './CenariosReforma.jsx'
 import { ReformaProvider, useReforma } from '../hooks/useReforma.jsx'
