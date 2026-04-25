@@ -1792,7 +1792,7 @@ for (const s of SCORES) {
     })()}
     {/* Tabs */}
     <div style={{display:"flex",gap:isPhone?4:0,borderBottom:`1px solid ${K.bd}`,padding:isPhone?"0 16px":"0 28px",background:K.s1,overflowX:isPhone?'auto':'visible',scrollbarWidth:'none',WebkitOverflowScrolling:'touch',msOverflowStyle:'none'}}>
-      {[{id:'resumo',label:'📊 Resumo',labelMobile:'📊'},{id:'juridico',label:'⚖️ Jurídico',labelMobile:'⚖️'},{id:'fotos',label:'📸 Fotos',labelMobile:'📸'},{id:'mercado',label:'🏙️ Mercado',labelMobile:'🏙️'},...(isAdmin&&!isMercadoDireto(p.fonte_url,p.tipo_transacao)?[{id:'arremates',label:'🔨 Arremates',labelMobile:'🔨 Arr.'}]:[])].map(tab=>(
+      {[{id:'resumo',label:'📊 Resumo',labelMobile:'📊'},{id:'financeiro',label:'💰 Financeiro',labelMobile:'💰'},{id:'juridico',label:'⚖️ Jurídico',labelMobile:'⚖️'},{id:'fotos',label:'📸 Fotos',labelMobile:'📸'},{id:'mercado',label:'🏙️ Mercado',labelMobile:'🏙️'},...(isAdmin&&!isMercadoDireto(p.fonte_url,p.tipo_transacao)?[{id:'arremates',label:'🔨 Arremates',labelMobile:'🔨 Arr.'}]:[])].map(tab=>(
         <button key={tab.id} onClick={()=>setAbaDetalhe(tab.id)} style={{
           background:"none",border:"none",padding:isPhone?"10px 12px":"10px 18px",fontSize:"12.5px",fontWeight:abaDetalhe===tab.id?700:500,whiteSpace:'nowrap',flexShrink:0,
           color:abaDetalhe===tab.id?K.teal:K.t3,cursor:"pointer",
@@ -1955,6 +1955,55 @@ for (const s of SCORES) {
         </div>
       )}
       </div>}
+
+      {abaDetalhe==='financeiro'&&<>
+      <ReformaProvider imovel={p}>
+        {/* Banners críticos: sempre visíveis */}
+        <KillSwitchJuridicoBanner imovel={p} />
+        <DadosInsuficientesBanner imovel={p} />
+        <LanceAcimaMercadoBanner imovel={p} />
+        <LanceAlertaBanner imovel={p} />
+        <YieldAbaixoSelicBanner imovel={p} />
+
+        {/* ConfigEstudo: slider de lance e reforma — sincroniza toda a aba */}
+        <ConfigEstudo imovel={p} />
+
+        {/* Painel Investimento: breakdown financeiro completo */}
+        <PainelInvestimento imovel={p} />
+
+        {/* Simulador de Lance Interativo */}
+        <SectionErrorBoundary nome="SimuladorLance"><SimuladorLance p={p} isPhone={isPhone} /></SectionErrorBoundary>
+
+        {/* PainelLancamento: cenários completos de 1ª/2ª praça (só leilões) */}
+        {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && (
+          <SectionErrorBoundary nome="PainelLancamento"><PainelLancamento imovel={p}/></SectionErrorBoundary>
+        )}
+
+        {/* Custos reais editáveis (admin) */}
+        {isAdmin && <CustosReaisEditor imovel={p} onUpdateProp={onUpdateProp} isAdmin={isAdmin} />}
+
+        {/* Rentabilidade: tabela de cenários de lance × estratégia */}
+        <Suspense fallback={<div style={{padding:20,textAlign:'center',color:'#999',fontSize:12}}>Carregando rentabilidade...</div>}><PainelRentabilidade imovel={p}/></Suspense>
+
+        {/* Cenários de Reforma: tabela 4 escopos × ROI/yield/lucro */}
+        <CenariosReforma imovel={p} isAdmin={isAdmin} />
+
+        {/* Yield por modalidade: residencial vs Airbnb vs flip */}
+        {parseFloat(p.aluguel_mensal_estimado) > 0 && (
+          <PainelYieldWrapper imovel={p} />
+        )}
+
+        {/* Gráfico ROI 1-5 anos */}
+        {parseFloat(p.valor_mercado_estimado) > 0 && (
+          <SectionErrorBoundary nome="GraficoROI"><Suspense fallback={<div style={{padding:16,textAlign:'center',color:'#94A3B8',fontSize:12}}>⏳ Carregando gráfico...</div>}><GraficoROIHorizonteWrapper imovel={p} /></Suspense></SectionErrorBoundary>
+        )}
+
+        {/* Calculadora ROI manual */}
+        <div style={{...card(),marginBottom:"14px"}}>
+          <CalculadoraROI imovel={p} />
+        </div>
+      </ReformaProvider>
+      </>}
 
       {abaDetalhe==='resumo'&&<>
       {/* Zona de decisão: aparece no topo quando há leilão próximo */}
@@ -2136,12 +2185,6 @@ for (const s of SCORES) {
         {/* Banners informativos: accordion colapsável */}
         <YieldAbaixoSelicBanner imovel={p} />
         <AlertasInfoAccordion imovel={p} />
-        {parseFloat(p.valor_mercado_estimado) > 0 && (
-          <SectionErrorBoundary nome="GraficoROI"><Suspense fallback={<div style={{padding:16,textAlign:'center',color:'#94A3B8',fontSize:12}}>⏳ Carregando gráfico...</div>}><GraficoROIHorizonteWrapper imovel={p} /></Suspense></SectionErrorBoundary>
-        )}
-        {parseFloat(p.aluguel_mensal_estimado) > 0 && (
-          <PainelYieldWrapper imovel={p} />
-        )}
         {/* Sprint 22: Alerta jurídico alto antes do estudo financeiro */}
         {(p.score_juridico != null && p.score_juridico < 4) && (
           <div style={{padding:'10px 14px',borderRadius:8,marginBottom:12,
@@ -2150,18 +2193,23 @@ for (const s of SCORES) {
             ⚠️ Risco jurídico alto (score {Number(p.score_juridico).toFixed(1)}) — revise a aba Jurídico antes de calcular o lance
           </div>
         )}
-        {/* ConfigEstudo: slider de lance e reforma — sincroniza toda a aba financeira */}
-        <ConfigEstudo imovel={p} />
-        {/* RoiLiveBanner removido — ROI disponível no SimuladorLance abaixo */}
-        {/* Mostrar PainelLancamento só para leilões */}
-        {!isMercadoDireto(p.fonte_url, p.tipo_transacao) && <SectionErrorBoundary nome="PainelLancamento"><PainelLancamento imovel={p}/></SectionErrorBoundary>}
-        {/* Sprint 11: Breakdown financeiro + ROI + Preditor de Concorrência */}
-        <PainelInvestimento imovel={p} />
-        {/* Sprint 16: Simulador de Lance Interativo */}
-        <SectionErrorBoundary nome="SimuladorLance"><SimuladorLance p={p} isPhone={isPhone} /></SectionErrorBoundary>
-        {/* Sprint 16: Atributos do Prédio */}
-        {/* AtributosPredio removido — info integrada nos chips do ResumoCard */}
-        {/* Sprint 12.2: Timeline da Matrícula */}
+
+        {/* Atalho para aba Financeiro: estudo de lance, ROI, yield, cenários */}
+        <div onClick={() => setAbaDetalhe('financeiro')}
+          style={{cursor:'pointer',padding:'12px 16px',borderRadius:10,marginBottom:14,
+            background:'linear-gradient(90deg,#ECFDF5 0%,#F0FDFA 100%)',
+            border:'1.5px solid #10B98140',display:'flex',alignItems:'center',gap:12}}>
+          <span style={{fontSize:24}}>💰</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:700,color:'#065F46'}}>Estudo financeiro completo</div>
+            <div style={{fontSize:11,color:'#047857',marginTop:2}}>
+              Lance ideal · ROI · yield · 4 cenários de reforma · simulador interativo
+            </div>
+          </div>
+          <span style={{fontSize:16,color:'#059669',fontWeight:700}}>→</span>
+        </div>
+
+        {/* Sprint 12.2: Timeline da Matrícula — info do imóvel, pertence ao Resumo */}
         <SectionErrorBoundary nome="TimelineMatricula"><Suspense fallback={<div style={{padding:12,textAlign:'center',color:'#94A3B8',fontSize:12}}>⏳ Carregando...</div>}><TimelineMatricula imovel={p} /></Suspense></SectionErrorBoundary>
         {/* Mercado direto: badge de oportunidade */}
         {isMercadoDireto(p.fonte_url, p.tipo_transacao) && p.preco_pedido > 0 && (
@@ -2252,14 +2300,7 @@ for (const s of SCORES) {
             </div>
           </div>
         )}
-        <CustosReaisEditor imovel={p} onUpdateProp={onUpdateProp} isAdmin={isAdmin} />
-        <Suspense fallback={<div style={{padding:20,textAlign:'center',color:'#999',fontSize:12}}>Carregando rentabilidade...</div>}><PainelRentabilidade imovel={p}/></Suspense>
-      {/* Cenários de Reforma */}
-      <CenariosReforma imovel={p} isAdmin={isAdmin} />
-      {/* Calculadora ROI — dentro do Provider para sincronizar com ConfigEstudo */}
-      <div style={{...card(),marginBottom:"14px"}}>
-        <CalculadoraROI imovel={p} />
-      </div>
+        {/* Componentes financeiros removidos da aba Resumo — agora na aba 💰 Financeiro */}
       <div style={{display:"grid",gridTemplateColumns:isPhone?"1fr":"1fr 1fr",gap:"14px",marginBottom:"14px"}}>
         <div style={card()}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:"12px"}}>
