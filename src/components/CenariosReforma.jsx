@@ -469,6 +469,7 @@ export default function CenariosReforma({ imovel, isAdmin }) {
                     {c.itens.length === 0 ? (
                       <div style={{fontSize:11, color:C.hint, padding:'8px 0'}}>Nenhum item cadastrado para este cen\u00e1rio.</div>
                     ) : (
+                      <div style={{overflowX:'auto'}}>
                       <table style={{width:'100%', borderCollapse:'collapse', fontSize:11, marginTop:10}}>
                         <thead>
                           <tr style={{background:C.surface}}>
@@ -514,6 +515,7 @@ export default function CenariosReforma({ imovel, isAdmin }) {
                           </tr>
                         </tfoot>
                       </table>
+                      </div>
                     )}
                   </div>
                 )}
