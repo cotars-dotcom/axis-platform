@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import { useIsMobile } from "../hooks/useIsMobile.js"
 import { C, K, btn, fmtC, fmtD, card, recColor, scoreColor, scoreLabel, scoreDisplay } from "../appConstants.js"
 import { calcularConfidence } from "../lib/agenteConfidenceBadge.js"
 import { ArrowUpRight, Bell, TrendingUp, AlertTriangle, Package, Clock } from "lucide-react"
@@ -387,6 +388,7 @@ function AxisHeader({profile:prof, imoveis=[], onNav, isPhone=false, isMobile=fa
 }
 
 export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
+  const isSmallPhone = useIsMobile(640)
   // Excluir imóveis sem dados suficientes das métricas (não distorcem médias)
   // Métricas só para imóveis acionáveis (excluir INVIAVEL e DADOS_INSUFICIENTES)
   const propsAnalised = props.filter(p => p.recomendacao !== 'DADOS_INSUFICIENTES' && p.recomendacao !== 'INVIAVEL')
@@ -447,7 +449,7 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
     )}
     <div style={{padding:isPhone?"16px 14px":"28px 32px",display:"flex",flexDirection:"column",gap:isPhone?14:20}}>
       {/* Linha 1: 3 colunas — Patrimônio | Valorização | Alertas */}
-      <div style={{display:"grid",gridTemplateColumns:isPhone?"1fr":isMobile?"repeat(2,1fr)":"1fr 1fr 1fr",gap:isPhone?12:18}}>
+      <div style={{display:"grid",gridTemplateColumns:isSmallPhone?"1fr":isMobile?"repeat(2,1fr)":"1fr 1fr 1fr",gap:isSmallPhone?12:18}}>
         {/* Card 1 — Patrimônio Monitorado (verde escuro) */}
         <div style={{
           background:"#064E3B",borderRadius:14,padding:isPhone?"16px 18px":"22px 24px",
@@ -607,7 +609,7 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
         </div>
         :<div>
           <div style={{fontWeight:"600",color:C.text,marginBottom:"14px",fontSize:"14px"}}>Análises Recentes</div>
-          <div style={{display:"grid",gridTemplateColumns:isPhone?"1fr":"repeat(auto-fill,minmax(300px,1fr))",gap:"16px"}}>
+          <div style={{display:"grid",gridTemplateColumns:isSmallPhone?"1fr":"repeat(auto-fill,minmax(300px,1fr))",gap:"16px"}}>
             {recentes.map(p=><PropCard key={p.id} p={p} onNav={onNav} isPhone={isPhone}/>)}
           </div>
         </div>}

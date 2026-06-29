@@ -37,7 +37,7 @@ function DarkTooltip({ active, payload, label }) {
   </div>;
 }
 
-export default function Charts({ properties = [] }) {
+export default function Charts({ properties = [], isPhone = false }) {
   const safe = Array.isArray(properties) ? properties : [];
   const [selId, setSelId] = useState(() => safe[0]?.id ?? "");
   const selected = useMemo(() => safe.find(p => String(p.id) === String(selId)) || safe[0] || null, [safe, selId]);
@@ -87,7 +87,7 @@ export default function Charts({ properties = [] }) {
         </div>}
     </Card>
 
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+    <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 14 }}>
       <Card title="Distribuição por recomendação">
         <div style={{ width: "100%", height: 240 }}>
           <ResponsiveContainer>
