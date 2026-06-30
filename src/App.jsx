@@ -63,7 +63,7 @@ function AxisLogo({ collapsed = false, light = false, size }) {
         <span style={{ fontFamily: "'Inter',sans-serif", fontWeight: 900, fontSize: 26, color: textColor, letterSpacing: "-1px", lineHeight: 1 }}>IS.</span>
       </div>
       {!light && (
-        <span style={{ fontSize: 8.5, color: C.muted, letterSpacing: "1.5px", textTransform: "uppercase", paddingLeft: 1 }}>
+        <span style={{ fontSize: 10, color: C.muted, letterSpacing: "1.5px", textTransform: "uppercase", paddingLeft: 1 }}>
           Inteligência Patrimonial
         </span>
       )}
@@ -1426,25 +1426,25 @@ function Lista({props,onNav,onDelete,trello,onUpdateProp}) {
         </select>
         <button
           onClick={()=>setFilterUrgente(f=>!f)}
-          style={{...btn("s"),fontSize:11,padding:'5px 10px',
+          style={{...btn("s"),fontSize:11,padding:'8px 12px',
             background:filterUrgente?'#DC262615':'transparent',
             color:filterUrgente?'#DC2626':'#64748B',
             border:`1px solid ${filterUrgente?'#DC262640':'#E2E8F0'}`}}>
           ⏳ {filterUrgente?'Urgentes ✓':'Urgentes'}
         </button>
         {/* Sprint 10: Toggle seleção e ações em lote */}
-        <button style={{...btn("s"),fontSize:11,padding:'5px 10px',background:selIds.size?'#002B8015':'transparent',color:'#002B80',border:'1px solid #002B8030'}}
+        <button style={{...btn("s"),fontSize:11,padding:'8px 12px',background:selIds.size?'#002B8015':'transparent',color:'#002B80',border:'1px solid #002B8030'}}
           onClick={toggleAll}>
           {selIds.size === list.length ? '☑ Deselecionar' : '☐ Selecionar'}
         </button>
         {selIds.size > 0 && (
-          <button style={{...btn("s"),fontSize:11,padding:'5px 12px',background:'#002B80',color:'#fff',border:'none',fontWeight:700}}
+          <button style={{...btn("s"),fontSize:11,padding:'8px 14px',background:'#002B80',color:'#fff',border:'none',fontWeight:700}}
             onClick={analisarLote} disabled={loteProcessando}>
             {loteProcessando ? '⏳ Processando...' : `🤖 Analisar Docs (${selIds.size})`}
           </button>
         )}
         {selIds.size === 2 && (
-          <button style={{...btn("s"),fontSize:11,padding:'5px 12px',
+          <button style={{...btn("s"),fontSize:11,padding:'8px 14px',
             background:'linear-gradient(135deg,#0EA5E9,#7C3AED)',
             color:'#fff',border:'none',fontWeight:700}}
             onClick={() => setShowComparador(true)}>

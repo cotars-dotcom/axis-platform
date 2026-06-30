@@ -95,8 +95,8 @@ function PropCard({p,onNav,isPhone=false}) {
       <div style={{marginBottom:10,borderRadius:8,overflow:"hidden",height:isPhone?95:115,background:C.offwhite,position:"relative"}}>
         <img src={p.foto_principal} alt="" referrerPolicy="no-referrer" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.parentElement.style.display="none"}} />
         {sc>=7.5&&<div style={{position:'absolute',top:6,left:6,background:'#10B981',color:'#fff',fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:4}}>⭐ OPORTUNIDADE</div>}
-        {numLeilao&&!eMercado&&<div style={{position:'absolute',top:6,right:6,background:p.num_leilao>=2?'#D97706':'#065F46',color:'#fff',fontSize:8,fontWeight:700,padding:'2px 6px',borderRadius:4}}>{numLeilao}</div>}
-        {eMercado&&<div style={{position:'absolute',top:6,right:6,background:'#1D4ED8',color:'#fff',fontSize:8,fontWeight:700,padding:'2px 6px',borderRadius:4}}>🏠 MERCADO</div>}
+        {numLeilao&&!eMercado&&<div style={{position:'absolute',top:6,right:6,background:p.num_leilao>=2?'#D97706':'#065F46',color:'#fff',fontSize:9,fontWeight:700,padding:'2px 6px',borderRadius:4}}>{numLeilao}</div>}
+        {eMercado&&<div style={{position:'absolute',top:6,right:6,background:'#1D4ED8',color:'#fff',fontSize:9,fontWeight:700,padding:'2px 6px',borderRadius:4}}>🏠 MERCADO</div>}
       </div>
     )}
 
@@ -152,7 +152,7 @@ function PropCard({p,onNav,isPhone=false}) {
       <div style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:isPhone?"flex-end":"center",marginTop:isPhone?4:0}}>
         <div style={{textAlign:'center'}}>
           <ScoreRing score={sc} size={isPhone?56:62}/>
-          <div style={{fontSize:8,color:K.t3,marginTop:2,fontWeight:600}}>
+          <div style={{fontSize:10,color:K.t3,marginTop:2,fontWeight:600}}>
             {Math.round(sc*10)}/100
           </div>
         </div>
@@ -440,7 +440,7 @@ export default function Dashboard({props,onNav,profile:prof,isMobile,isPhone}) {
         <span style={{fontSize:12,fontWeight:700,color:'#92400E'}}>⚠️ {semDados.length} imóvel{semDados.length>1?'is':''} com dados insuficientes:</span>
         {semDados.map(p => (
           <button key={p.id} onClick={()=>onNav('detail',{id:p.id})}
-            style={{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:4,cursor:'pointer',
+            style={{fontSize:11,fontWeight:600,padding:'6px 12px',borderRadius:4,cursor:'pointer',
               background:'#FEF3C7',border:'1px solid #F59E0B',color:'#78350F'}}>
             {p.codigo_axis} — completar dados
           </button>

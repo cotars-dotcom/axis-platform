@@ -80,7 +80,7 @@ export const fmtD = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
 export const btn = (size='m') => {
   if (size === 'trello') return { padding: '6px 12px', borderRadius: 8, border: '1px solid #0052CC30', background: '#0052CC12', color: '#0052CC', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }
   if (size === 'd') return { padding: '6px 12px', borderRadius: 8, border: '1px solid #E5484D30', background: '#E5484D12', color: '#A32D2D', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }
-  return { padding: size==='s' ? '6px 12px' : '8px 18px', borderRadius: 8, border: '1px solid #E8E4DC', background: '#FFFFFF', color: '#0A1628', fontSize: size==='s' ? 12 : 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }
+  return { padding: size==='s' ? '10px 14px' : '8px 18px', borderRadius: 8, border: '1px solid #E8E4DC', background: '#FFFFFF', color: '#0A1628', fontSize: size==='s' ? 12 : 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }
 }
 export const inp = () => ({ padding: '8px 12px', borderRadius: 8, border: '1px solid #E8E4DC', background: '#FFFFFF', color: '#0A1628', fontSize: 13, outline: 'none', width: '100%' })
 export const card = () => ({ background: '#FFFFFF', borderRadius: 12, padding: '16px', border: '1px solid #E8E4DC' })
